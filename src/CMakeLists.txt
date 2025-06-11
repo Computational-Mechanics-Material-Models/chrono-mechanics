@@ -726,7 +726,6 @@ add_subdirectory(chrono_synchrono)
 add_subdirectory(chrono_ros)
 add_subdirectory(chrono_swig/chrono_python)
 add_subdirectory(chrono_swig/chrono_csharp)
-add_subdirectory(chrono_ldpm)
 add_subdirectory(chrono_dfc)
 
 # Add directories for demo programs, unit test programs, and benchmark test programs.
@@ -958,11 +957,6 @@ else()
   set(CHRONO_COLLISION "#undef CHRONO_COLLISION")
 endif()
 
-if(ENABLE_MODULE_LDPM)
-  set(CHRONO_LDPM "#define CHRONO_LDPM")
-else()
-  set(CHRONO_LDPM "#undef CHRONO_LDPM")
-endif()
 
 if(ENABLE_MODULE_DFC)
   set(CHRONO_DFC "#define CHRONO_DFC")
