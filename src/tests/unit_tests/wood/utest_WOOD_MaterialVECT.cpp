@@ -20,14 +20,251 @@
 
 #include "chrono_wood/ChWoodMaterialVECT.h"
 
+#include <numeric>
 #include <vector>
 #include <fstream>
 
 using namespace chrono;
 using namespace wood;
 
-// TODO: Write a Fixture to avoid repeating the code for setting up the test
 
+std::vector<double> linear_interp(std::vector<int> x, std::vector<int> xp, std::vector<double> yp) {
+    // Assumes x and xp increasing
+    // Assumes x[0] = xp[0]
+    // Assumes x[x.size()-1] = xp[xp.size()-1]
+    std::vector<double> y(x.size());
+    for (int i = 0; i < x.size() ; i++) {
+        for (int j = 1 ; j < xp.size() ; j++) { // Inefficient double loop, but this is not performance critical
+            int xp_hi = xp[j];
+            int xi = x[i];
+            if (xi > xp_hi) continue;
+
+            int xp_lo = xp[j-1];
+            double yp_lo = yp[j-1];
+            double yp_hi = yp[j];
+
+            y[i] = yp_lo + (xi - xp_lo) * (yp_hi - yp_lo) / (xp_hi - xp_lo);  // xi should always be in interval [xp_lo ; xp_hi] with our assumptions
+            break;
+        }
+    }
+    return y;
+}
+
+namespace {
+class WoodMaterialVECTTestNoEigenstrain : public testing::Test {
+    protected:
+
+    void SetUp() override {
+        // Default values of material parameters for the test
+        // TODO: select other values if necessary
+        rho = 5e-8;
+        E0 = 8000;
+        alpha = 0.2373;
+        sigmat = 30.0;
+        sigmas = 78.0;
+        nt = 0.2;
+        lt = 5.0;
+        Ed = 3000.0;
+        sigmac = 120.0;
+        beta = 0.0;
+        Hc0 = 9900.0;
+        Hc1 = 3000.0;
+        kc0 = 3.0;
+        kc1 = 0.5;
+        kc2 = 5.0;
+        kc3 = 0.1;
+        mu0 = 0.2;
+        muinf = 0.2;
+        sigmaN0 = 600;
+        kt = 1.0; // Not sure what this value of kt should be, not set in Wisdom's demo
+        couple_multiplier = 0.761;
+        material_is_elastic = false;
+        rs = 0.0; // After talk with Wisdom: this is currently assumed to be 0.0
+
+        // Default CBL connector parameters for the test
+        // TODO: select other values if necessary
+        length = 3.0;
+        facet_width = 3.165;
+        facet_height = 12.4864;
+        epsv = 0; // LEFTOVER FROM LDPM, WILL BE DELETED WITH REBASE
+        random_field = 1.0; // NO RANDOM FIELD
+        facet_area = facet_height * facet_width;
+
+        // Derived parameters: must be manually reset is primary parameters are modified !!!
+        Ht =  2 * E0 / (lt / length - 1.0);
+        Hs =  rs * E0 ;
+
+        // Loading path
+        nsteps = 1000;
+        epsN_path.assign(nsteps, 0.0);
+        epsM_path.assign(nsteps, 0.0);
+        epsL_path.assign(nsteps, 0.0);
+        eps_path.assign(nsteps, 0.0);
+        epsNeqMax_path.assign(nsteps, 0.0);
+        epsTeqMax_path.assign(nsteps, 0.0);
+        chiN_path.assign(nsteps, 0.0);
+        chiM_path.assign(nsteps, 0.0);
+        chiL_path.assign(nsteps, 0.0);
+        sigN_analytical.assign(nsteps, 0.0);
+        sigM_analytical.assign(nsteps, 0.0);
+        sigL_analytical.assign(nsteps, 0.0);
+        sig_analytical.assign(nsteps, 0.0);
+        muN_analytical.assign(nsteps, 0.0);
+        muM_analytical.assign(nsteps, 0.0);
+        muL_analytical.assign(nsteps, 0.0);
+        Wint_analytical.assign(nsteps, 0.0);
+        crack_analytical.assign(nsteps, 0.0);
+    }
+
+    void LoadingPathTester() {
+        auto my_mat = chrono_types::make_shared<ChWoodMaterialVECT>();
+        my_mat->Set_density(rho);
+        my_mat->Set_E0(E0);
+        my_mat->Set_alpha(alpha);
+        my_mat->Set_sigmat(sigmat);
+        my_mat->Set_sigmas(sigmas);
+        my_mat->Set_nt(nt);
+        my_mat->Set_lt(lt);
+        my_mat->Set_Ed(Ed);
+        my_mat->Set_sigmac0(sigmac); // After talk with Wisdom, sigmac0 in the code is sigmac in overleaf
+        my_mat->Set_beta(beta);
+        my_mat->Set_Hc0(Hc0);
+        my_mat->Set_Hc1(Hc1);
+        my_mat->Set_kc0(kc0);
+        my_mat->Set_kc1(kc1);
+        my_mat->Set_kc2(kc2);
+        my_mat->Set_kc3(kc3);
+        my_mat->Set_mu0(mu0);
+        my_mat->Set_muinf(muinf);
+        my_mat->SetCoupleMultiplier(couple_multiplier);
+        my_mat->SetElasticAnalysisFlag(material_is_elastic);
+
+        ChVectorN<double, 18> statev;
+        statev.setZero();
+
+        // -------- Test Chrono implementation against analytical -------- //
+        ChVector3d stress(0.0), couple(0.0);
+        for (int t = 1 ; t < nsteps ; t++) {
+            ChVector3d strain_increment(epsN_path[t]-epsN_path[t-1], epsM_path[t]-epsM_path[t-1], epsL_path[t]-epsL_path[t-1]);
+            ChVector3d curvature_increment(chiN_path[t]-chiN_path[t-1], chiM_path[t]-chiM_path[t-1], chiL_path[t]-chiL_path[t-1]);
+            my_mat->ComputeStress(strain_increment,curvature_increment, length, epsv, statev, facet_area, facet_width, facet_height, random_field, stress, couple);
+
+            double tol = 1e-6;
+            // The state variables are updatead inside my_mat->ComputeStress()
+            // so they contain the current values.
+            // Maybe we should test for the old values before calling my_mat->ComputeStress() ?
+            ASSERT_NEAR(epsN_path[t], statev(0), tol);
+            ASSERT_NEAR(epsM_path[t], statev(1), tol);
+            ASSERT_NEAR(epsL_path[t], statev(2), tol);
+            ASSERT_NEAR(sigN_analytical[t], statev(3), tol);
+            ASSERT_NEAR(sigM_analytical[t], statev(4), tol);
+            ASSERT_NEAR(sigL_analytical[t], statev(5), tol);
+            ASSERT_NEAR(epsNeqMax_path[t], statev(6), tol);
+            ASSERT_NEAR(epsTeqMax_path[t], statev(7), tol);
+            ASSERT_NEAR(eps_path[t], statev(8), tol);
+            ASSERT_NEAR(sig_analytical[t], statev(9), tol);
+            ASSERT_NEAR(Wint_analytical[t], statev(10), tol);
+            ASSERT_NEAR(crack_analytical[t], statev(11), tol);
+            ASSERT_NEAR(chiN_path[t], statev(12), tol);
+            ASSERT_NEAR(chiM_path[t], statev(13), tol);
+            ASSERT_NEAR(chiL_path[t], statev(14), tol);
+            ASSERT_NEAR(muN_analytical[t], statev(15), tol);
+            ASSERT_NEAR(muM_analytical[t], statev(16), tol);
+            ASSERT_NEAR(muL_analytical[t], statev(17), tol);
+
+            ASSERT_NEAR(sigN_analytical[t], stress[0], tol);
+            ASSERT_NEAR(sigM_analytical[t], stress[1], tol);
+            ASSERT_NEAR(sigL_analytical[t], stress[2], tol);
+            ASSERT_NEAR(muN_analytical[t], couple[0], tol);
+            ASSERT_NEAR(muM_analytical[t], couple[1], tol);
+            ASSERT_NEAR(muL_analytical[t], couple[2], tol);
+        }
+    }
+
+
+    // Material parameters
+    double rho;
+    double E0;
+    double alpha;
+    double sigmat;
+    double sigmas;
+    double nt;
+    double lt;
+    double Ed;
+	double sigmac;
+	double beta;
+    double Hc0;
+    double Hc1;
+    double kc0;
+    double kc1;
+    double kc2;
+    double kc3;
+    double mu0;
+    double muinf;
+    double sigmaN0;
+	double kt; // Not sure what this value of kt should be, not set in Wisdom's demo
+    double couple_multiplier;
+    double material_is_elastic;
+    double rs; // After talk with Wisdom: this is currently assumed to be 0.0
+    // Derived parameters
+    double Ht;
+    double Hs;
+
+    // CBL connector parameters
+    double length;
+    double facet_width;
+    double facet_height;
+    double epsv; // LEFTOVER FROM LDPM, WILL BE DELETED WITH REBASE
+    double random_field;
+    double facet_area;
+
+    // Loading path
+    int nsteps;
+    std::vector<double> epsN_path, epsM_path, epsL_path, eps_path, epsNeqMax_path, epsTeqMax_path; // Strain
+    std::vector<double> chiN_path, chiM_path, chiL_path; // Curvature
+    // Analytical response
+    std::vector<double> sigN_analytical, sigM_analytical, sigL_analytical, sig_analytical;
+    std::vector<double> muN_analytical, muM_analytical, muL_analytical;
+    std::vector<double> Wint_analytical, crack_analytical;
+};
+
+
+
+
+TEST_F(WoodMaterialVECTTestNoEigenstrain, monotonic_tension) {
+    // Loading path
+    std::vector<int> t(nsteps);
+    std::iota(t.begin(), t.end(), 0);
+    std::vector<int> tp = {0, nsteps-1};
+    std::vector<double> ep = {0.0, 2 * sigmat / E0};
+    epsN_path = linear_interp(t, tp, ep);
+    epsNeqMax_path = epsN_path;
+    eps_path = epsN_path;
+
+    // Analytical solution
+    // w = pi/2 --> sigma0 = sigmat, H0 = Ht
+    for (int step = 0 ; step < nsteps ; step++) {
+        double epsN = epsN_path[step];
+        // Normal stress
+        if (epsN < sigmat / E0) { // Linear elastic up to epsilon0
+            sigN_analytical[step] = E0 * epsN;
+            Wint_analytical[step] = length * facet_area * (0.5 * E0 * epsN * epsN);
+            // No crack
+        } else { // Tensile stress limit beyond epsilon0
+            sigN_analytical[step] = sigmat * std::exp(-Ht * (epsN - sigmat / E0) / sigmat);
+            Wint_analytical[step] = length * facet_area * (0.5 * sigmat * sigmat / E0 + (1.0 - std::exp(-Ht * (epsN - sigmat / E0) / sigmat) / Ht));
+            crack_analytical[step] = epsN - sigN_analytical[step] / E0;
+        }
+    }
+    sig_analytical = sigN_analytical;
+
+
+    LoadingPathTester();
+}
+
+} // namespace
+
+// TODO: EVERYTHING BELOW MUST BE TRANSFERED TO THE FIXTURE, REFACTORED, OR DELETED
 TEST(WoodMaterialVECTTest, stress_no_eigenstrain){
     bool debug_mode = true; // true prints results to file. false runs the tests
     std::ofstream res;
