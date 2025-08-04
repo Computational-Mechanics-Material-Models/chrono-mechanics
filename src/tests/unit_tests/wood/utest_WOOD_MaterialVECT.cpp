@@ -252,8 +252,8 @@ TEST_F(WoodMaterialVECTTestNoEigenstrain, monotonic_tension) {
             // No crack
         } else { // Tensile stress limit beyond epsilon0
             sigN_analytical[step] = sigmat * std::exp(-Ht * (epsN - sigmat / E0) / sigmat);
-            Wint_analytical[step] = length * facet_area * (0.5 * sigmat * sigmat / E0 + (1.0 - std::exp(-Ht * (epsN - sigmat / E0) / sigmat) / Ht));
             crack_analytical[step] = epsN - sigN_analytical[step] / E0;
+            Wint_analytical[step] = length * facet_area * (0.5 * sigmat * sigmat / E0 + (1.0 - std::exp(-Ht * (epsN - sigmat / E0) / sigmat)) * sigmat * sigmat / Ht);
         }
     }
     sig_analytical = sigN_analytical;
