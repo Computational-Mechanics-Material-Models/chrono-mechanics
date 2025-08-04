@@ -233,31 +233,30 @@ class WoodMaterialVECTTestNoEigenstrain : public testing::Test {
 
 TEST_F(WoodMaterialVECTTestNoEigenstrain, monotonic_tension) {
     // Loading path
-    std::vector<int> t(nsteps);
-    std::iota(t.begin(), t.end(), 0);
-    std::vector<int> tp = {0, nsteps-1};
-    std::vector<double> ep = {0.0, 2 * sigmat / E0};
-    epsN_path = linear_interp(t, tp, ep);
+    std::vector<int> steps(nsteps);
+    std::iota(steps.begin(), steps.end(), 0);
+    std::vector<int> steps_interp = {0, nsteps-1};
+    std::vector<double> eps_interp = {0.0, 2 * sigmat / E0};
+    epsN_path = linear_interp(steps, steps_interp, eps_interp);
     epsNeqMax_path = epsN_path;
     eps_path = epsN_path;
 
     // Analytical solution
     // w = pi/2 --> sigma0 = sigmat, H0 = Ht
-    for (int step = 0 ; step < nsteps ; step++) {
+    for (int step : steps) {
         double epsN = epsN_path[step];
         // Normal stress
-        if (epsN < sigmat / E0) { // Linear elastic up to epsilon0
+        if (epsN < sigmat / E0) {
             sigN_analytical[step] = E0 * epsN;
             Wint_analytical[step] = length * facet_area * (0.5 * E0 * epsN * epsN);
             // No crack
-        } else { // Tensile stress limit beyond epsilon0
+        } else {
             sigN_analytical[step] = sigmat * std::exp(-Ht * (epsN - sigmat / E0) / sigmat);
-            crack_analytical[step] = epsN - sigN_analytical[step] / E0;
             Wint_analytical[step] = length * facet_area * (0.5 * sigmat * sigmat / E0 + (1.0 - std::exp(-Ht * (epsN - sigmat / E0) / sigmat)) * sigmat * sigmat / Ht);
+            crack_analytical[step] = epsN - sigmat * std::exp(-Ht * (epsN - sigmat / E0) / sigmat) / E0;
         }
     }
     sig_analytical = sigN_analytical;
-
 
     LoadingPathTester();
 }
