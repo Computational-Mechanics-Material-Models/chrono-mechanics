@@ -261,6 +261,39 @@ TEST_F(WoodMaterialVECTTestNoEigenstrain, monotonic_tension) {
     LoadingPathTester();
 }
 
+TEST_F(WoodMaterialVECTTestNoEigenstrain, monotonic_compression) {
+    // Loading path
+    std::vector<int> steps(nsteps);
+    std::iota(steps.begin(), steps.end(), 0);
+    std::vector<int> steps_interp = {0, nsteps-1};
+    std::vector<double> eps_interp = {0.0, -2 * sigmac / E0};
+    epsN_path = linear_interp(steps, steps_interp, eps_interp);
+    for (int step : steps) {
+        epsNeqMax_path[step] = -epsN_path[step];
+        eps_path[step] = -epsN_path[step];
+    }
+
+    // Analytical solution
+    //  w = -pi/2 --> sigma0 = sigmac, H0 = 0
+    for (int step : steps) {
+        double epsN = epsN_path[step];
+        // Normal stress
+        if (-epsN < sigmac / E0) {
+            sigN_analytical[step] = E0 * epsN;
+            sig_analytical[step] = -E0 * epsN;
+            Wint_analytical[step] = length * facet_area * (0.5 * E0 * epsN * epsN);
+            // No crack
+        } else {
+            sigN_analytical[step] = -sigmac;
+            sig_analytical[step] = sigmac;
+            Wint_analytical[step] = length * facet_area * (0.5 * sigmac * sigmac / E0 - sigmac * (epsN + sigmac / E0));
+            // No crack // TO DISCUSS: I don't think this should be a crack in compression, but the current code does so. Make sure this analytical value is correct
+        }
+    }
+
+    LoadingPathTester();
+}
+
 } // namespace
 
 // TODO: EVERYTHING BELOW MUST BE TRANSFERED TO THE FIXTURE, REFACTORED, OR DELETED
