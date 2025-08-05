@@ -294,6 +294,53 @@ TEST_F(WoodMaterialVECTTestNoEigenstrain, monotonic_compression) {
     LoadingPathTester();
 }
 
+TEST_F(WoodMaterialVECTTestNoEigenstrain, monotonic_tension_shear) {
+    // Loading path
+    std::vector<int> steps(nsteps);
+    std::iota(steps.begin(), steps.end(), 0);
+    std::vector<int> steps_interp = {0, nsteps-1};
+    std::vector<double> epsN_interp = {0.0, 2 * sigmat / E0};
+    std::vector<double> epsM_interp = {0.0, epsN_interp[1] / std::sqrt(2 * alpha)};
+    std::vector<double> epsL_interp = {0.0, -epsN_interp[1] / std::sqrt(2 * alpha)};
+    epsN_path = linear_interp(steps, steps_interp, epsN_interp);
+    epsM_path = linear_interp(steps, steps_interp, epsM_interp);
+    epsL_path = linear_interp(steps, steps_interp, epsL_interp);
+    for (int step : steps) {
+        epsNeqMax_path[step] = epsN_path[step];
+        epsTeqMax_path[step] = std::sqrt(epsM_path[step] * epsM_path[step] + epsL_path[step] * epsL_path[step]);
+        eps_path[step] = std::sqrt(2) * epsN_path[step];
+    }
+
+    // Analytical solution
+    // w = pi/4
+    double sigma0 = (2 * sigmat) / (0.5 * std::sqrt(2) + std::sqrt(0.5 + 2*alpha / (sigmas * sigmas / (sigmat * sigmat))));
+    double H0 = Hs / alpha + (Ht - Hs / alpha) / std::pow(2, nt);
+    for (int step : steps) {
+        double eps = eps_path[step];
+        double epsN = epsN_path[step];
+        double epsM = epsM_path[step];
+        double epsL = epsL_path[step];
+        // Normal stress
+        if (eps < sigma0 / E0) {
+            sig_analytical[step] = E0 * eps;
+            sigN_analytical[step] = E0 * epsN;
+            sigM_analytical[step] = alpha * E0 * epsM;
+            sigL_analytical[step] = alpha * E0 * epsL;
+            Wint_analytical[step] = length * facet_area * (0.5 * E0 * eps * eps);
+            // No crack
+        } else {
+            sig_analytical[step] = sigma0 * std::exp(-H0 * (eps - sigma0 / E0) / sigma0);
+            sigN_analytical[step] = (sig_analytical[step] / eps) * epsN;
+            sigM_analytical[step] = alpha * (sig_analytical[step] / eps) * epsM;
+            sigL_analytical[step] = alpha * (sig_analytical[step] / eps) * epsL;
+            Wint_analytical[step] = length * facet_area * (0.5 * sigma0 * sigma0 / E0 + (1.0 - std::exp(-H0 * (eps - sigma0 / E0) / sigma0)) * sigma0 * sigma0 / H0); // TODO
+            crack_analytical[step] = epsN - sigN_analytical[step] / E0; // TO DISCUSS: what should this be theoretically?
+        }
+    }
+
+    LoadingPathTester();
+}
+
 } // namespace
 
 // TODO: EVERYTHING BELOW MUST BE TRANSFERED TO THE FIXTURE, REFACTORED, OR DELETED
