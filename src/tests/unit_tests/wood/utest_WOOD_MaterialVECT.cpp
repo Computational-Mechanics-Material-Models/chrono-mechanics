@@ -388,6 +388,87 @@ TEST_F(WoodMaterialVECTTestNoEigenstrain, monotonic_compression_shear) {
     LoadingPathTester();
 }
 
+TEST_F(WoodMaterialVECTTestNoEigenstrain, cyclic_tension) {
+    // Loading path
+    std::vector<int> steps(nsteps);
+    std::iota(steps.begin(), steps.end(), 0);
+    int step0 = 0, step1 = int(0.25*nsteps), step2 = int(0.5*nsteps), step3 = int(0.75*nsteps), step4 = nsteps-1;
+    std::vector<int> steps_interp = {step0, step1, step2, step3, step4};
+    double eps0 = 0.0, eps1 = 2 * sigmat / E0, eps2 = sigmat / E0, eps3 = 3 * sigmat / E0, eps4 = 0.0;
+    std::vector<double> eps_interp = {eps0, eps1, eps2, eps3, eps4};
+    epsN_path = linear_interp(steps, steps_interp, eps_interp);
+    eps_path = epsN_path;
+    for (int step : steps) {
+        if (step <= step1)
+            epsNeqMax_path[step] = epsN_path[step];
+        else if (step <= step2)
+            epsNeqMax_path[step] = eps1;
+        else if (step <= step3)
+            epsNeqMax_path[step] = std::max(epsN_path[step], eps1);
+        else
+            epsNeqMax_path[step] = eps3;
+    }
+
+    // Analytical solution
+    // w = pi/2 --> sigma0 = sigmat, H0 = Ht
+    double sigma_t1 = sigmat * std::exp(-Ht * (epsN_path[step1] - sigmat / E0) / sigmat);
+    double sigma_t3 = sigmat * std::exp(-Ht * (epsN_path[step3] - sigmat / E0) / sigmat);
+    double W_t1 = length * facet_area * (0.5 * sigmat * sigmat / E0 + (1.0 - std::exp(-Ht * (eps1 - sigmat / E0) / sigmat)) * sigmat * sigmat / Ht);
+    double W_t3 = length * facet_area * (0.5 * sigmat * sigmat / E0 + (1.0 - std::exp(-Ht * (eps3 - sigmat / E0) / sigmat)) * sigmat * sigmat / Ht + sigmat * (eps1 - (eps2 + sigma_t1 / E0)));
+    for (int step : steps) {
+        double epsN = epsN_path[step];
+        // Normal stress
+        if (step <= step1) {
+            if (epsN < sigmat / E0) {
+                sigN_analytical[step] = E0 * epsN;
+                Wint_analytical[step] = length * facet_area * (0.5 * E0 * epsN * epsN);
+                // No crack
+            } else {
+                sigN_analytical[step] = sigmat * std::exp(-Ht * (epsN - sigmat / E0) / sigmat);
+                Wint_analytical[step] = length * facet_area * (0.5 * sigmat * sigmat / E0 + (1.0 - std::exp(-Ht * (epsN - sigmat / E0) / sigmat)) * sigmat * sigmat / Ht);
+                crack_analytical[step] = epsN - sigmat * std::exp(-Ht * (epsN - sigmat / E0) / sigmat) / E0;
+            }
+        } else if (step <= step2) {
+            if (epsN > eps1 - sigma_t1 / E0) {
+                sigN_analytical[step] = sigma_t1 + E0 * (epsN - eps1);
+                Wint_analytical[step] = W_t1 + length * facet_area * (sigma_t1 * (epsN - eps1) + 0.5 * E0 * (epsN - eps1) * (epsN - eps1));
+                crack_analytical[step] = eps1 - sigma_t1 / E0; // Constant crack length during elastic unloading
+            } else {
+                sigN_analytical[step] = 0.0;
+                Wint_analytical[step] = W_t1 - length * facet_area * (0.5 * sigma_t1 * sigma_t1 / E0);
+                crack_analytical[step] = epsN; // Crack closure during unloading at zero stress
+            }
+        } else if (step <= step3) {
+            if (epsN < eps2 + sigma_t1 / E0) {
+                sigN_analytical[step] = E0 * (epsN - eps2);
+                Wint_analytical[step] = W_t1 - length * facet_area * (0.5 * sigma_t1 * sigma_t1 / E0 + 0.5 * E0 * (epsN - eps2) * (epsN - eps2));
+                crack_analytical[step] = eps2; // Constant crack length during elastic reloading
+            } else if (epsN < eps1) {
+                sigN_analytical[step] = sigma_t1;
+                Wint_analytical[step] = W_t1 + length * facet_area * (sigma_t1 * (epsN - (eps2 + sigma_t1 / E0)));
+                crack_analytical[step] = epsN - sigma_t1 / E0; // Crack opening during plastic reloading
+            } else {
+                sigN_analytical[step] = sigmat * std::exp(-Ht * (epsN - sigmat / E0) / sigmat);
+                Wint_analytical[step] = length * facet_area * (0.5 * sigmat * sigmat / E0 + (1.0 - std::exp(-Ht * (epsN - sigmat / E0) / sigmat)) * sigmat * sigmat / Ht + sigma_t1 * (eps1 - (eps2 + sigma_t1 / E0)));
+                crack_analytical[step] = epsN - sigmat * std::exp(-Ht * (epsN - sigmat / E0) / sigmat) / E0;
+            }
+        } else {
+            if (epsN > eps3 - sigma_t3 / E0) {
+                sigN_analytical[step] = sigma_t3 + E0 * (epsN - eps3);
+                Wint_analytical[step] = W_t3 + length * facet_area * (sigma_t3 * (epsN - eps3) + 0.5 * E0 * (epsN - eps3) * (epsN - eps3));
+                crack_analytical[step] = eps3 - sigma_t3 / E0; // Constant crack length during elastic unloading
+            } else {
+                sigN_analytical[step] = 0.0;
+                Wint_analytical[step] = W_t3 - length * facet_area * (0.5 * sigma_t3 * sigma_t3 / E0);
+                crack_analytical[step] = epsN; // Crack closure during unloading at zero stress
+            }
+        }
+    }
+    sig_analytical = sigN_analytical;
+
+    LoadingPathTester();
+}
+
 } // namespace
 
 // TODO: EVERYTHING BELOW MUST BE TRANSFERED TO THE FIXTURE, REFACTORED, OR DELETED
