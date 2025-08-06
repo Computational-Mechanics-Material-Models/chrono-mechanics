@@ -55,6 +55,7 @@ class WoodMaterialVECTTestNoEigenstrain : public testing::Test {
     protected:
 
     void SetUp() override {
+        debug_mode = false;
         // Default values of material parameters for the test
         // TODO: select other values if necessary
         rho = 5e-8;
@@ -143,42 +144,60 @@ class WoodMaterialVECTTestNoEigenstrain : public testing::Test {
         statev.setZero();
 
         // -------- Test Chrono implementation against analytical -------- //
+        if (debug_mode) {
+            std::string testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+            res.open ("results_WOODMaterialVECTTestNoEigenstrain."+testname+".csv");
+            res << "# Analytical and Chrono solutions for unit test WOODMaterialVECTTestNoEigenstrain."+testname+"\n";
+            res << "epsN, epsM, epsL, epsNeqMax, epsTeqMax, eps, chiN, chiM, chiL, "; // inputs
+            res << "sigN_analytical, sigM_analytical, sigL_analytical, sig_analytical, muN_analytical, muM_analytical, muL_analytical, Wint_analytical, crack_analytical, ";
+            res << "sigN_chrono, sigM_chrono, sigL_chrono, sig_chrono, muN_chrono, muM_chrono, muL_chrono, Wint_chrono, crack_chrono\n";
+            res << "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ";
+            res << "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ";
+            res << "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0\n";
+        }
         ChVector3d stress(0.0), couple(0.0);
         for (int t = 1 ; t < nsteps ; t++) {
             ChVector3d strain_increment(epsN_path[t]-epsN_path[t-1], epsM_path[t]-epsM_path[t-1], epsL_path[t]-epsL_path[t-1]);
             ChVector3d curvature_increment(chiN_path[t]-chiN_path[t-1], chiM_path[t]-chiM_path[t-1], chiL_path[t]-chiL_path[t-1]);
             my_mat->ComputeStress(strain_increment,curvature_increment, length, epsv, statev, facet_area, facet_width, facet_height, random_field, stress, couple);
 
-            double tol = 1e-6;
-            // The state variables are updatead inside my_mat->ComputeStress()
-            // so they contain the current values.
-            // Maybe we should test for the old values before calling my_mat->ComputeStress() ?
-            ASSERT_NEAR(epsN_path[t], statev(0), tol);
-            ASSERT_NEAR(epsM_path[t], statev(1), tol);
-            ASSERT_NEAR(epsL_path[t], statev(2), tol);
-            ASSERT_NEAR(sigN_analytical[t], statev(3), tol);
-            ASSERT_NEAR(sigM_analytical[t], statev(4), tol);
-            ASSERT_NEAR(sigL_analytical[t], statev(5), tol);
-            ASSERT_NEAR(epsNeqMax_path[t], statev(6), tol);
-            ASSERT_NEAR(epsTeqMax_path[t], statev(7), tol);
-            ASSERT_NEAR(eps_path[t], statev(8), tol);
-            ASSERT_NEAR(sig_analytical[t], statev(9), tol);
-            ASSERT_NEAR(Wint_analytical[t], statev(10), tol);
-            ASSERT_NEAR(crack_analytical[t], statev(11), tol);
-            ASSERT_NEAR(chiN_path[t], statev(12), tol);
-            ASSERT_NEAR(chiM_path[t], statev(13), tol);
-            ASSERT_NEAR(chiL_path[t], statev(14), tol);
-            ASSERT_NEAR(muN_analytical[t], statev(15), tol);
-            ASSERT_NEAR(muM_analytical[t], statev(16), tol);
-            ASSERT_NEAR(muL_analytical[t], statev(17), tol);
+            if (debug_mode) {
+                res << epsN_path[t]<<", "<<epsM_path[t]<<", "<<epsL_path[t]<<", "<<epsNeqMax_path[t]<<", "<<epsTeqMax_path[t]<<", "<<eps_path[t]<<", "<<chiN_path[t]<<", "<<chiM_path[t]<<", "<<chiL_path[t]<<", ";
+                res << sigN_analytical[t]<<", "<<sigM_analytical[t]<<", "<<sigL_analytical[t]<<", "<<sig_analytical[t]<<", "<<muN_analytical[t]<<", "<<muM_analytical[t]<<", "<<muL_analytical[t]<<", "<<Wint_analytical[t]<<", "<<crack_analytical[t]<<", ";
+                res << stress[0]<<", "<<stress[1]<<", "<<stress[2]<<", "<<statev(9)<<", "<<couple[0]<<", "<<couple[1]<<", "<<couple[2]<<", "<<statev(10)<<", "<<statev(11)<<"\n";
+            } else {
+                double tol = 1e-6;//std::cout<<t<<", "<<epsN_path[t]<<std::endl;
+                // The state variables are updatead inside my_mat->ComputeStress()
+                // so they contain the current values.
+                // Maybe we should test for the old values before calling my_mat->ComputeStress() ?
+                ASSERT_NEAR(epsN_path[t], statev(0), tol);
+                ASSERT_NEAR(epsM_path[t], statev(1), tol);
+                ASSERT_NEAR(epsL_path[t], statev(2), tol);
+                ASSERT_NEAR(sigN_analytical[t], statev(3), tol);
+                ASSERT_NEAR(sigM_analytical[t], statev(4), tol);
+                ASSERT_NEAR(sigL_analytical[t], statev(5), tol);
+                ASSERT_NEAR(epsNeqMax_path[t], statev(6), tol);
+                ASSERT_NEAR(epsTeqMax_path[t], statev(7), tol);
+                ASSERT_NEAR(eps_path[t], statev(8), tol);
+                ASSERT_NEAR(sig_analytical[t], statev(9), tol);
+                ASSERT_NEAR(Wint_analytical[t], statev(10), tol);
+                ASSERT_NEAR(crack_analytical[t], statev(11), tol);
+                ASSERT_NEAR(chiN_path[t], statev(12), tol);
+                ASSERT_NEAR(chiM_path[t], statev(13), tol);
+                ASSERT_NEAR(chiL_path[t], statev(14), tol);
+                ASSERT_NEAR(muN_analytical[t], statev(15), tol);
+                ASSERT_NEAR(muM_analytical[t], statev(16), tol);
+                ASSERT_NEAR(muL_analytical[t], statev(17), tol);
 
-            ASSERT_NEAR(sigN_analytical[t], stress[0], tol);
-            ASSERT_NEAR(sigM_analytical[t], stress[1], tol);
-            ASSERT_NEAR(sigL_analytical[t], stress[2], tol);
-            ASSERT_NEAR(muN_analytical[t], couple[0], tol);
-            ASSERT_NEAR(muM_analytical[t], couple[1], tol);
-            ASSERT_NEAR(muL_analytical[t], couple[2], tol);
+                ASSERT_NEAR(sigN_analytical[t], stress[0], tol);
+                ASSERT_NEAR(sigM_analytical[t], stress[1], tol);
+                ASSERT_NEAR(sigL_analytical[t], stress[2], tol);
+                ASSERT_NEAR(muN_analytical[t], couple[0], tol);
+                ASSERT_NEAR(muM_analytical[t], couple[1], tol);
+                ASSERT_NEAR(muL_analytical[t], couple[2], tol);
+            }
         }
+        if (debug_mode) res.close();
     }
 
 
@@ -226,6 +245,10 @@ class WoodMaterialVECTTestNoEigenstrain : public testing::Test {
     std::vector<double> sigN_analytical, sigM_analytical, sigL_analytical, sig_analytical;
     std::vector<double> muN_analytical, muM_analytical, muL_analytical;
     std::vector<double> Wint_analytical, crack_analytical;
+
+    // DEBUG
+    bool debug_mode;
+    std::ofstream res;
 };
 
 
