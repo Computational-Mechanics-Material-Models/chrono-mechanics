@@ -66,7 +66,6 @@ class WoodMaterialVECTTestNoEigenstrain : public testing::Test {
         lt = 5.0;
         Ed = 3000.0;
         sigmac = 120.0;
-        beta = 0.0;
         Hc0 = 9900.0;
         Hc1 = 3000.0;
         kc0 = 3.0;
@@ -93,6 +92,7 @@ class WoodMaterialVECTTestNoEigenstrain : public testing::Test {
         // Derived parameters: must be manually reset is primary parameters are modified !!!
         Ht =  2 * E0 / (lt / length - 1.0);
         Hs =  rs * E0 ;
+        beta = sigmas * sigmas / sigmac * sigmac;
 
         // Loading path
         nsteps = 1000;
@@ -335,6 +335,53 @@ TEST_F(WoodMaterialVECTTestNoEigenstrain, monotonic_tension_shear) {
             sigL_analytical[step] = alpha * (sig_analytical[step] / eps) * epsL;
             Wint_analytical[step] = length * facet_area * (0.5 * sigma0 * sigma0 / E0 + (1.0 - std::exp(-H0 * (eps - sigma0 / E0) / sigma0)) * sigma0 * sigma0 / H0); // TODO
             crack_analytical[step] = epsN - sigN_analytical[step] / E0; // TO DISCUSS: what should this be theoretically?
+        }
+    }
+
+    LoadingPathTester();
+}
+
+TEST_F(WoodMaterialVECTTestNoEigenstrain, monotonic_compression_shear) {
+    // Loading path
+    std::vector<int> steps(nsteps);
+    std::iota(steps.begin(), steps.end(), 0);
+    std::vector<int> steps_interp = {0, nsteps-1};
+    std::vector<double> epsN_interp = {0.0, -2 * sigmac / E0};
+    std::vector<double> epsM_interp = {0.0, epsN_interp[1] / std::sqrt(2 * alpha)};
+    std::vector<double> epsL_interp = {0.0, -epsN_interp[1] / std::sqrt(2 * alpha)};
+    epsN_path = linear_interp(steps, steps_interp, epsN_interp);
+    epsM_path = linear_interp(steps, steps_interp, epsM_interp);
+    epsL_path = linear_interp(steps, steps_interp, epsL_interp);
+    for (int step : steps) {
+        epsNeqMax_path[step] = -epsN_path[step];
+        epsTeqMax_path[step] = std::sqrt(epsM_path[step] * epsM_path[step] + epsL_path[step] * epsL_path[step]);
+        eps_path[step] = -std::sqrt(2) * epsN_path[step];
+    }
+
+    // Analytical solution
+    // w = pi/4, H_0 = 0
+    double beta = sigmas * sigmas / (sigmac * sigmac);
+    double sigma0 = sigmac * std::sqrt(2*beta / (beta + alpha));
+    for (int step : steps) {
+        double eps = eps_path[step];
+        double epsN = epsN_path[step];
+        double epsM = epsM_path[step];
+        double epsL = epsL_path[step];
+        // Normal stress
+        if (eps < sigma0 / E0) {
+            sig_analytical[step] = E0 * eps;
+            sigN_analytical[step] = E0 * epsN;
+            sigM_analytical[step] = alpha * E0 * epsM;
+            sigL_analytical[step] = alpha * E0 * epsL;
+            Wint_analytical[step] = length * facet_area * (0.5 * E0 * eps * eps);
+            // No crack
+        } else {
+            sig_analytical[step] = sigma0;
+            sigN_analytical[step] = (sigma0 / eps) * epsN;
+            sigM_analytical[step] = alpha * (sigma0 / eps) * epsM;
+            sigL_analytical[step] = alpha * (sigma0 / eps) * epsL;
+            Wint_analytical[step] = length * facet_area * (0.5 * sigma0 * sigma0 / E0 + sigma0 * (eps - sigma0 / E0));
+            // No crack // TO DISCUSS: I don't think this should be a crack in compression, but the current code does so. Make sure this analytical value is correct
         }
     }
 
