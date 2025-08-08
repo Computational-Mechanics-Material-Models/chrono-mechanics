@@ -475,8 +475,8 @@ TEST_F(WoodMaterialVECTTestNoEigenstrain, monotonic_bending_compression) {
     std::vector<int> steps_interp = {0, nsteps-1};
     double eps_tiny = 1e-16;
     std::vector<double> epsN_interp = {0.0, -eps_tiny}; // Negligle compression to enforce omega --> -pi / 2
-    double rM = facet_width*facet_width / 12;
-    double rL = facet_height*facet_height / 12;
+    double rM = std::sqrt(facet_width*facet_width / 12);
+    double rL = std::sqrt(facet_height*facet_height / 12);
     double chi = (sigmac / E0);
     std::vector<double> chiM_interp = {0.0, chi / rM};
     std::vector<double> chiL_interp = {0.0, -chi / rL};
