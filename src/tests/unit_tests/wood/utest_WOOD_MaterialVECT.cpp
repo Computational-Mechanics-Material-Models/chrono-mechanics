@@ -145,35 +145,39 @@ class WoodMaterialVECTTestNoEigenstrain : public testing::Test {
                 res << sigN_analytical[t]<<", "<<sigM_analytical[t]<<", "<<sigL_analytical[t]<<", "<<sig_analytical[t]<<", "<<muN_analytical[t]<<", "<<muM_analytical[t]<<", "<<muL_analytical[t]<<", "<<Wint_analytical[t]<<", "<<crack_analytical[t]<<", ";
                 res << stress[0]<<", "<<stress[1]<<", "<<stress[2]<<", "<<statev(9)<<", "<<couple[0]<<", "<<couple[1]<<", "<<couple[2]<<", "<<statev(10)<<", "<<statev(11)<<"\n";
             } else {
-                double tol = 1e-6;//std::cout<<t<<", "<<epsN_path[t]<<std::endl;
+                double tol = 1e-10;
+                double tol_sig = 0.5 * (sigmac + sigmat) * tol;
+                double tol_mu = 0.5 * (facet_height + facet_width) * tol_sig;
+                double num_int_factor = 1e4; // Larger tolerance on numerically integrated energy W
+                double tol_W = length * facet_area * 0.25 * (sigmac + sigmat) * (sigmac + sigmat) / E0 * tol * num_int_factor;
                 // The state variables are updatead inside my_mat->ComputeStress()
                 // so they contain the current values.
                 // Maybe we should test for the old values before calling my_mat->ComputeStress() ?
                 ASSERT_NEAR(epsN_path[t], statev(0), tol);
                 ASSERT_NEAR(epsM_path[t], statev(1), tol);
                 ASSERT_NEAR(epsL_path[t], statev(2), tol);
-                ASSERT_NEAR(sigN_analytical[t], statev(3), tol);
-                ASSERT_NEAR(sigM_analytical[t], statev(4), tol);
-                ASSERT_NEAR(sigL_analytical[t], statev(5), tol);
+                ASSERT_NEAR(sigN_analytical[t], statev(3), tol_sig);
+                ASSERT_NEAR(sigM_analytical[t], statev(4), tol_sig);
+                ASSERT_NEAR(sigL_analytical[t], statev(5), tol_sig);
                 ASSERT_NEAR(epsNeqMax_path[t], statev(6), tol);
                 ASSERT_NEAR(epsTeqMax_path[t], statev(7), tol);
                 ASSERT_NEAR(eps_path[t], statev(8), tol);
-                ASSERT_NEAR(sig_analytical[t], statev(9), tol);
-                ASSERT_NEAR(Wint_analytical[t], statev(10), tol);
+                ASSERT_NEAR(sig_analytical[t], statev(9), tol_sig);
+                ASSERT_NEAR(Wint_analytical[t], statev(10), tol_W);
                 ASSERT_NEAR(crack_analytical[t], statev(11), tol);
                 ASSERT_NEAR(chiN_path[t], statev(12), tol);
                 ASSERT_NEAR(chiM_path[t], statev(13), tol);
                 ASSERT_NEAR(chiL_path[t], statev(14), tol);
-                ASSERT_NEAR(muN_analytical[t], statev(15), tol);
-                ASSERT_NEAR(muM_analytical[t], statev(16), tol);
-                ASSERT_NEAR(muL_analytical[t], statev(17), tol);
+                ASSERT_NEAR(muN_analytical[t], statev(15), tol_mu);
+                ASSERT_NEAR(muM_analytical[t], statev(16), tol_mu);
+                ASSERT_NEAR(muL_analytical[t], statev(17), tol_mu);
 
-                ASSERT_NEAR(sigN_analytical[t], stress[0], tol);
-                ASSERT_NEAR(sigM_analytical[t], stress[1], tol);
-                ASSERT_NEAR(sigL_analytical[t], stress[2], tol);
-                ASSERT_NEAR(muN_analytical[t], couple[0], tol);
-                ASSERT_NEAR(muM_analytical[t], couple[1], tol);
-                ASSERT_NEAR(muL_analytical[t], couple[2], tol);
+                ASSERT_NEAR(sigN_analytical[t], stress[0], tol_sig);
+                ASSERT_NEAR(sigM_analytical[t], stress[1], tol_sig);
+                ASSERT_NEAR(sigL_analytical[t], stress[2], tol_sig);
+                ASSERT_NEAR(muN_analytical[t], couple[0], tol_mu);
+                ASSERT_NEAR(muM_analytical[t], couple[1], tol_mu);
+                ASSERT_NEAR(muL_analytical[t], couple[2], tol_mu);
             }
         }
         if (debug_mode) res.close();
