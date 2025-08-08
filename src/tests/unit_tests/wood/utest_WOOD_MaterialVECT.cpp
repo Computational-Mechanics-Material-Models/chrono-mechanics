@@ -62,21 +62,10 @@ class WoodMaterialVECTTestNoEigenstrain : public testing::Test {
         E0 = 8000;
         alpha = 0.2373;
         sigmat = 30.0;
+        sigmac = 120.0;
         sigmas = 78.0;
         nt = 0.2;
         lt = 5.0;
-        Ed = 3000.0;
-        sigmac = 120.0;
-        Hc0 = 9900.0;
-        Hc1 = 3000.0;
-        kc0 = 3.0;
-        kc1 = 0.5;
-        kc2 = 5.0;
-        kc3 = 0.1;
-        mu0 = 0.2;
-        muinf = 0.2;
-        sigmaN0 = 600;
-        kt = 1.0; // Not sure what this value of kt should be, not set in Wisdom's demo
         couple_multiplier = 0.761;
         material_is_elastic = false;
         rs = 0.0; // After talk with Wisdom: this is currently assumed to be 0.0
@@ -126,17 +115,7 @@ class WoodMaterialVECTTestNoEigenstrain : public testing::Test {
         my_mat->Set_sigmas(sigmas);
         my_mat->Set_nt(nt);
         my_mat->Set_lt(lt);
-        my_mat->Set_Ed(Ed);
-        my_mat->Set_sigmac0(sigmac); // After talk with Wisdom, sigmac0 in the code is sigmac in overleaf
-        my_mat->Set_beta(beta);
-        my_mat->Set_Hc0(Hc0);
-        my_mat->Set_Hc1(Hc1);
-        my_mat->Set_kc0(kc0);
-        my_mat->Set_kc1(kc1);
-        my_mat->Set_kc2(kc2);
-        my_mat->Set_kc3(kc3);
-        my_mat->Set_mu0(mu0);
-        my_mat->Set_muinf(muinf);
+        my_mat->Set_sigmac(sigmac);
         my_mat->SetCoupleMultiplier(couple_multiplier);
         my_mat->SetElasticAnalysisFlag(material_is_elastic);
 
@@ -159,7 +138,7 @@ class WoodMaterialVECTTestNoEigenstrain : public testing::Test {
         for (int t = 1 ; t < nsteps ; t++) {
             ChVector3d strain_increment(epsN_path[t]-epsN_path[t-1], epsM_path[t]-epsM_path[t-1], epsL_path[t]-epsL_path[t-1]);
             ChVector3d curvature_increment(chiN_path[t]-chiN_path[t-1], chiM_path[t]-chiM_path[t-1], chiL_path[t]-chiL_path[t-1]);
-            my_mat->ComputeStress(strain_increment,curvature_increment, length, epsv, statev, facet_area, facet_width, facet_height, random_field, stress, couple);
+            my_mat->ComputeStress(strain_increment,curvature_increment, length, statev, facet_area, facet_width, facet_height, random_field, stress, couple);
 
             if (debug_mode) {
                 res << epsN_path[t]<<", "<<epsM_path[t]<<", "<<epsL_path[t]<<", "<<epsNeqMax_path[t]<<", "<<epsTeqMax_path[t]<<", "<<eps_path[t]<<", "<<chiN_path[t]<<", "<<chiM_path[t]<<", "<<chiL_path[t]<<", ";
@@ -206,28 +185,17 @@ class WoodMaterialVECTTestNoEigenstrain : public testing::Test {
     double E0;
     double alpha;
     double sigmat;
+    double sigmac;
     double sigmas;
     double nt;
     double lt;
-    double Ed;
-	double sigmac;
-	double beta;
-    double Hc0;
-    double Hc1;
-    double kc0;
-    double kc1;
-    double kc2;
-    double kc3;
-    double mu0;
-    double muinf;
-    double sigmaN0;
-	double kt; // Not sure what this value of kt should be, not set in Wisdom's demo
     double couple_multiplier;
     double material_is_elastic;
     double rs; // After talk with Wisdom: this is currently assumed to be 0.0
     // Derived parameters
     double Ht;
     double Hs;
+    double beta;
 
     // CBL connector parameters
     double length;
