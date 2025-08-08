@@ -468,6 +468,56 @@ TEST_F(WoodMaterialVECTTestNoEigenstrain, cyclic_tension) {
     LoadingPathTester();
 }
 
+
+TEST_F(WoodMaterialVECTTestNoEigenstrain, monotonic_bending_tension) {
+    // Loading path
+    std::vector<int> steps(nsteps);
+    std::iota(steps.begin(), steps.end(), 0);
+    std::vector<int> steps_interp = {0, nsteps-1};
+    double eps_tiny = 1e-16;
+    std::vector<double> epsN_interp = {0.0, eps_tiny}; // Negligle compression to enforce omega --> pi / 2
+    double rM = std::sqrt(facet_width*facet_width / 12);
+    double rL = std::sqrt(facet_height*facet_height / 12);
+    double chi = (sigmac / E0);
+    std::vector<double> chiM_interp = {0.0, chi / rM};
+    std::vector<double> chiL_interp = {0.0, -chi / rL};
+    epsN_path = linear_interp(steps, steps_interp, epsN_interp);
+    chiM_path = linear_interp(steps, steps_interp, chiM_interp);
+    chiL_path = linear_interp(steps, steps_interp, chiL_interp);
+    for (int step : steps) {
+        epsNeqMax_path[step] = std::sqrt(epsN_path[step] * epsN_path[step] + couple_multiplier * rM * rM * chiM_path[step] * chiM_path[step] + couple_multiplier * rL * rL * chiL_path[step] * chiL_path[step]);
+        eps_path[step] = epsNeqMax_path[step];
+    }
+
+    // Analytical solution
+    //  w = pi/2 --> sigma0 = sigmat, H0 = Ht
+    for (int step : steps) {
+        double eps = eps_path[step];
+        double epsN = epsN_path[step];
+        double chiM = chiM_path[step];
+        double chiL = chiL_path[step];
+        // Normal stress
+        if (eps < sigmat / E0) {
+            sig_analytical[step] = E0 * eps;
+            sigN_analytical[step] = E0 * epsN;
+            muM_analytical[step] = E0 * couple_multiplier * rM * rM * chiM;
+            muL_analytical[step] = E0 * couple_multiplier * rL * rL * chiL;
+            Wint_analytical[step] = 0.5 * E0 * eps * eps;
+            // No crack
+        } else {
+            sig_analytical[step] = sigmat * std::exp(-Ht * (eps - sigmat / E0) / sigmat);
+            sigN_analytical[step] = sigmat * std::exp(-Ht * (eps - sigmat / E0) / sigmat) * epsN / eps; // approx. 0
+            muM_analytical[step] = sigmat * std::exp(-Ht * (eps - sigmat / E0) / sigmat) * couple_multiplier * rM * rM * chiM / eps; // approx. (sigmat * std::exp(-Ht * (std::sqrt(2)*couple_multiplier*rM*chiM - sigmat / E0) / sigmat);) * rM / sqrt(2)
+            muL_analytical[step] = sigmat * std::exp(-Ht * (eps - sigmat / E0) / sigmat) * couple_multiplier * rL * rL * chiL / eps; // approx. -(sigmat * std::exp(-Ht * (std::sqrt(2)*couple_multiplier*rL*chiL - sigmat / E0) / sigmat)) * rL / sqrt(2)
+            Wint_analytical[step] = 0.5 * sigmat * sigmat / E0 + (1.0 - std::exp(-Ht * (eps - sigmat / E0) / sigmat)) * sigmat * sigmat / Ht;
+            // What is the definition of a crack in bending ?
+        }
+        Wint_analytical[step] *= length * facet_area;
+    }
+
+    LoadingPathTester();
+}
+
 TEST_F(WoodMaterialVECTTestNoEigenstrain, monotonic_bending_compression) {
     // Loading path
     std::vector<int> steps(nsteps);
