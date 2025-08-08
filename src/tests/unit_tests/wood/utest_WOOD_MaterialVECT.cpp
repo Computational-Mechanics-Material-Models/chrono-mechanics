@@ -411,7 +411,7 @@ TEST_F(WoodMaterialVECTTestNoEigenstrain, cyclic_tension) {
     double sigma_t1 = sigmat * std::exp(-Ht * (epsN_path[step1] - sigmat / E0) / sigmat);
     double sigma_t3 = sigmat * std::exp(-Ht * (epsN_path[step3] - sigmat / E0) / sigmat);
     double W_t1 = 0.5 * sigmat * sigmat / E0 + (1.0 - std::exp(-Ht * (eps1 - sigmat / E0) / sigmat)) * sigmat * sigmat / Ht;
-    double W_t3 = 0.5 * sigmat * sigmat / E0 + (1.0 - std::exp(-Ht * (eps3 - sigmat / E0) / sigmat)) * sigmat * sigmat / Ht + sigmat * (eps1 - (eps2 + sigma_t1 / E0));
+    double W_t3 = 0.5 * sigmat * sigmat / E0 + (1.0 - std::exp(-Ht * (eps3 - sigmat / E0) / sigmat)) * sigmat * sigmat / Ht + sigma_t1 * (eps1 - (eps2 + sigma_t1 / E0));
     for (int step : steps) {
         double epsN = epsN_path[step];
         // Normal stress
