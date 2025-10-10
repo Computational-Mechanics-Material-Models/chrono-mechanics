@@ -22,6 +22,7 @@
 // =============================================================================
 
 #include "chrono_ldpm/ChElementLDPM.h"
+#include "chrono/core/ChVector3.h"
 
 
 namespace chrono {
@@ -342,22 +343,8 @@ void ChElementLDPM::ComputeStress(std::shared_ptr<ChSectionLDPM> section, unsign
 }
 
 
-
-
-
-
 double ChElementLDPM::ComputeVolume() {
-    ChVector3d B1, C1, D1;
-    B1.Sub(nodes[1]->Frame().GetPos(), nodes[0]->Frame().GetPos()); // TODO JBC: there is operator overload on - on ChVector3d, use them!
-    C1.Sub(nodes[2]->Frame().GetPos(), nodes[0]->Frame().GetPos());
-    D1.Sub(nodes[3]->Frame().GetPos(), nodes[0]->Frame().GetPos());
-    ChMatrixDynamic<> M(3, 3);
-    M.col(0) = B1.eigen();
-    M.col(1) = C1.eigen();
-    M.col(2) = D1.eigen();
-    M.transposeInPlace();
-    double Volume = std::abs(M.determinant() / 6);
-    return Volume;
+    return ComputeTetVol(nodes[0]->GetPos(), nodes[1]->GetPos(), nodes[2]->GetPos(), nodes[3]->GetPos());
 }
 
 void ChElementLDPM::ComputeStiffnessMatrix() {
@@ -748,11 +735,11 @@ void ChElementLDPM::ComputeNF(const double U,
 
 double ChElementLDPM::ComputeTetVol(ChVector3d p1, ChVector3d p2, ChVector3d p3, ChVector3d p4){
     double tetvol=0;
-    tetvol = p2[0]*(p3[1]*p4[2]-p4[1]*p3[2])-p3[0]*(p2[1]*p4[2]-p4[1]*p2[2])+p4[0]*(p2[1]*p3[2]-p3[1]*p2[2]);
-    tetvol = tetvol-(p3[0]*(p4[1]*p1[2]-p1[1]*p4[2])-p4[0]*(p3[1]*p1[2]-p1[1]*p3[2])+p1[0]*(p3[1]*p4[2]-p4[1]*p3[2]));
-    tetvol = tetvol+p4[0]*(p1[1]*p2[2]-p2[1]*p1[2])-p1[0]*(p4[1]*p2[2]-p2[1]*p4[2])+p2[0]*(p4[1]*p1[2]-p1[1]*p4[2]);
-    tetvol = tetvol-(p1[0]*(p2[1]*p3[2]-p3[1]*p2[2])-p2[0]*(p1[1]*p3[2]-p3[1]*p1[2])+p3[0]*(p1[1]*p2[2]-p2[1]*p1[2]));
-    tetvol = abs(tetvol)/6.0;
+    tetvol =  p2[0] * (p3[1] * p4[2] - p4[1] * p3[2]) - p3[0] * (p2[1] * p4[2] - p4[1] * p2[2]) + p4[0] * (p2[1] * p3[2] - p3[1] * p2[2]);
+    tetvol -= p3[0] * (p4[1] * p1[2] - p1[1] * p4[2]) - p4[0] * (p3[1] * p1[2] - p1[1] * p3[2]) + p1[0] * (p3[1] * p4[2] - p4[1] * p3[2]);
+    tetvol += p4[0] * (p1[1] * p2[2] - p2[1] * p1[2]) - p1[0] * (p4[1] * p2[2] - p2[1] * p4[2]) + p2[0] * (p4[1] * p1[2] - p1[1] * p4[2]);
+    tetvol -= p1[0] * (p2[1] * p3[2] - p3[1] * p2[2]) - p2[0] * (p1[1] * p3[2] - p3[1] * p1[2]) + p3[0] * (p1[1] * p2[2] - p2[1] * p1[2]);
+    tetvol = abs(tetvol) / 6.0;
 	return tetvol;
 }
 

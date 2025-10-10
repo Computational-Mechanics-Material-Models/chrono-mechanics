@@ -125,7 +125,7 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     
     double GetCurrentTimeIncrement(ChSystem* sys) const { return sys->GetStep();};
 
-    double ComputeVolume(); // TODO JBC: why do we have 2 compute volume functions ?!?!
+    double ComputeVolume(); // Volume of the LDPM tetrahedron
     
     ///
     ///
@@ -262,8 +262,6 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     void SetLargeDeflection(bool mtrue) { LargeDeflection=mtrue; }
     bool GetLargeDeflection() { return LargeDeflection; }
     
-    double ComputeTetVol( ChVector3d p1, ChVector3d p2, ChVector3d p3, ChVector3d p4); // TODO JBC: why do we have 2 compute volume functions ?!?!
-    
     ChMatrixNM<double,6,6> ComputeTetMassN(std::shared_ptr<ChSectionLDPM> facet, ChVector3d pN, ChVector3d pC, ChVector3d pA, ChVector3d pB);
 	
 	//std::vector<ChMatrixNM<double,3,9>> ComputeProjectionMatrix();
@@ -274,6 +272,7 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
 	
 	/// Initial setup: set up the element's parameters and matrices
     virtual void SetupInitial(ChSystem* system) override;
+    static double ComputeTetVol( ChVector3d p1, ChVector3d p2, ChVector3d p3, ChVector3d p4); // Compute volume of *any* tetrahedron (e.g., used for sub-tetrahedra in mass matrix calculation)
 	
     std::vector<std::shared_ptr<fea::ChNodeFEAxyzrot> > nodes;
     std::vector<std::shared_ptr<ChSectionLDPM>> my_section;
