@@ -9,7 +9,7 @@
 // http://projectchrono.org/license-chrono.txt.
 //
 // =============================================================================
-// Authors: Erol Lale
+// Authors: Erol Lale, Jibril B. Coulibaly
 // =============================================================================
 // Class for LDPM elements:  
 //
@@ -30,7 +30,7 @@ namespace ldpm {
 
 
 
-ChElementLDPM::ChElementLDPM() : Volume(0) {
+ChElementLDPM::ChElementLDPM() : V0(0) {
     nodes.resize(4);
     this->MatrB.setZero(6, 24);
     this->StiffnessMatrix.setZero(24, 24);    
@@ -463,8 +463,7 @@ void ChElementLDPM::SetupInitial(ChSystem* system) {
 	
     this->UpdateRotation();
     //
-    double vol=ComputeVolume();
-    this->SetVolume(vol);
+    this->SetInitialVolume(ComputeVolume());
     //
     ComputeStiffnessMatrix();
 }
@@ -652,10 +651,10 @@ ChStressTensor<> ChElementLDPM::GetStress() {
 }
 
 void ChElementLDPM::ComputeNodalMass() {
-    nodes[0]->m_TotalMass += this->GetVolume() * this->Material->Get_density() / 4.0;
-    nodes[1]->m_TotalMass += this->GetVolume() * this->Material->Get_density() / 4.0;
-    nodes[2]->m_TotalMass += this->GetVolume() * this->Material->Get_density() / 4.0;
-    nodes[3]->m_TotalMass += this->GetVolume() * this->Material->Get_density() / 4.0;
+    nodes[0]->m_TotalMass += V0 * this->Material->Get_density() / 4.0;
+    nodes[1]->m_TotalMass += V0 * this->Material->Get_density() / 4.0;
+    nodes[2]->m_TotalMass += V0 * this->Material->Get_density() / 4.0;
+    nodes[3]->m_TotalMass += V0 * this->Material->Get_density() / 4.0;
 }
 
 void ChElementLDPM::LoadableGetStateBlockPosLevel(int block_offset, ChState& mD) {
@@ -716,7 +715,7 @@ void ChElementLDPM::ComputeNF(const double U,
     ShapeVector N;
     this->ShapeFunctions(N, U, V, W);
 
-    detJ = 6 * this->GetVolume();
+    detJ = 6 * V0;
 
     Qi(0) = N(0) * F(0);
     Qi(1) = N(0) * F(1);

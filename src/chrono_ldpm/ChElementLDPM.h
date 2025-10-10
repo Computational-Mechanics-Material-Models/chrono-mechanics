@@ -9,7 +9,7 @@
 // http://projectchrono.org/license-chrono.txt.
 //
 // =============================================================================
-// Authors: Erol Lale
+// Authors: Erol Lale, Jibril B. Coulibaly
 // =============================================================================
 // Class for LDPM elements:  
 //
@@ -67,8 +67,8 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     virtual unsigned int GetNumCoordsPosLevel() override { return 4 * 6; }
     virtual unsigned int GetNodeNumCoordsPosLevel(unsigned int n) override { return 6; }
 
-    double GetVolume() { return Volume; }
-    void SetVolume(double Vol) {Volume=Vol;}
+    double GetInitialVolume() { return V0; }
+    void SetInitialVolume(double vol) {V0 = vol;}
 
     virtual std::shared_ptr<fea::ChNodeFEAbase> GetNode(unsigned int n) override { return nodes[n]; }
 
@@ -280,7 +280,7 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     ChMatrixDynamic<> MatrB;            // matrix of shape function's partial derivatives
     ChMatrixDynamic<> StiffnessMatrix;  // undeformed local stiffness matrix
     ChMatrixNM<double, 4, 4> mM;        // for speeding up corotational approach	
-    double Volume;
+    double V0;
     bool LargeDeflection=false; 
     
     //ChSystem* mysystem;
