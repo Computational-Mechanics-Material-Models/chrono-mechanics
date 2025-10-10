@@ -357,7 +357,7 @@ double ChMaterialVECT::CompressBC(ChVectorDynamic<>& mstrain, double& epsV, ChVe
 	double kc2 = this->Get_kc2();
 	double kc3 = this->Get_kc3();
 
-	double epsD = mstrain(0) - epsV;
+	double epsD = mstrain(0) - epsV; // TODO JBC: epsV here is (V-V0)/(3*V0) which differs from the paper!
 	double epsDV = epsV + beta * epsD;
 	double epsc0 = sigmac0 / E0;
 	double epsc1 = epsc0 * kc0;

@@ -125,7 +125,7 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     
     double GetCurrentTimeIncrement(ChSystem* sys) const { return sys->GetStep();};
 
-    double ComputeVolume();
+    double ComputeVolume(); // TODO JBC: why do we have 2 compute volume functions ?!?!
     
     ///
     ///
@@ -262,7 +262,7 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     void SetLargeDeflection(bool mtrue) { LargeDeflection=mtrue; }
     bool GetLargeDeflection() { return LargeDeflection; }
     
-    double ComputeTetVol( ChVector3d p1, ChVector3d p2, ChVector3d p3, ChVector3d p4);
+    double ComputeTetVol( ChVector3d p1, ChVector3d p2, ChVector3d p3, ChVector3d p4); // TODO JBC: why do we have 2 compute volume functions ?!?!
     
     ChMatrixNM<double,6,6> ComputeTetMassN(std::shared_ptr<ChSectionLDPM> facet, ChVector3d pN, ChVector3d pC, ChVector3d pA, ChVector3d pB);
 	

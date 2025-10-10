@@ -348,7 +348,7 @@ void ChElementLDPM::ComputeStress(std::shared_ptr<ChSectionLDPM> section, unsign
 
 double ChElementLDPM::ComputeVolume() {
     ChVector3d B1, C1, D1;
-    B1.Sub(nodes[1]->Frame().GetPos(), nodes[0]->Frame().GetPos());
+    B1.Sub(nodes[1]->Frame().GetPos(), nodes[0]->Frame().GetPos()); // TODO JBC: there is operator overload on - on ChVector3d, use them!
     C1.Sub(nodes[2]->Frame().GetPos(), nodes[0]->Frame().GetPos());
     D1.Sub(nodes[3]->Frame().GetPos(), nodes[0]->Frame().GetPos());
     ChMatrixDynamic<> M(3, 3);
@@ -454,7 +454,7 @@ void ChElementLDPM::SetupInitial(ChSystem* system) {
 	    ///
 	    ///
 	    auto statev= facet->Get_StateVar();
-	    statev.resize(16);
+	    statev.resize(16); // TODO JBC: this is sized to 16 but the highest it is ever accessed in (15) inside ChMaterialVECT
 	    statev.setZero();
 	    facet->Set_StateVar(statev); 
 		///
@@ -565,7 +565,7 @@ void ChElementLDPM::ComputeInternalForces(ChVectorDynamic<>& Fi) {
     // compute volumetric strain
     double V0=this->GetVolume();
     double V=this->ComputeVolume();	
-    double epsV=(V-V0)/(3.0*V0);   
+    double epsV=(V-V0)/(3.0*V0); // TODO JBC: why divided by 3 ?!?!?! That is not the definition in Cusatis 2011
     //
     //
     unsigned int iface=0;
