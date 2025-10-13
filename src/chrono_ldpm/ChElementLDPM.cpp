@@ -549,9 +549,8 @@ void ChElementLDPM::ComputeInternalForces(ChVectorDynamic<>& Fi) {
     Fi.setZero();
     //
     // compute volumetric strain
-    double V0=this->GetVolume();
-    double V=this->ComputeVolume();	
-    double epsV=(V-V0)/(3.0*V0); // TODO JBC: why divided by 3 ?!?!?! That is not the definition in Cusatis 2011
+    double V = this->ComputeVolume();	
+    double epsV = (V - V0) / V0 * CH_1_3; // This 1/3 factor is correct! Original paper (https://doi.org/10.1016/j.cemconcomp.2011.02.011) without the 1/3 is a typo
     //
     //
     unsigned int iface=0;
