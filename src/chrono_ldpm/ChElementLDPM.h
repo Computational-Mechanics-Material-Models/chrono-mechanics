@@ -134,11 +134,6 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     void ComputeStrain(std::shared_ptr<ChSectionLDPM> facet, unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& mStrain);
     ///
     ///
-    /// Compute stress at a CSL facet 
-    ///
-    void ComputeStress(std::shared_ptr<ChSectionLDPM> facet,unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& mstress);
-    ///
-    ///
 
     /// Computes the local STIFFNESS MATRIX of the element:
     /// K = Volume * [B]' * [D] * [B]

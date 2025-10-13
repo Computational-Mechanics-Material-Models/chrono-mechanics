@@ -319,31 +319,6 @@ void ChElementLDPM::ComputeStrain(std::shared_ptr<ChSectionLDPM> section, unsign
 }
 
 
-
-
-void ChElementLDPM::ComputeStress(std::shared_ptr<ChSectionLDPM> section, unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& mstress) {
-    mstress.resize(3);
-	ChVectorDynamic<> mstrain;
-	this->ComputeStrain(section, ind, jnd, mstrain);
-	//std::cout<<"\nmstrain:\n"<<mstrain<<std::endl;	
-	//
-	double E0=section-> Get_material()->Get_E0();
-	double alpha=section-> Get_material()->Get_alpha();	
-	//
-	double epsQ=pow(mstrain(0)*mstrain(0)+alpha*(mstrain(1)*mstrain(1)+mstrain(2)*mstrain(2)), 0.5);
-	double strsQ=E0*epsQ;	
-	//
-	if (epsQ!=0) {
-		mstress(0)=strsQ*mstrain(0)/epsQ;
-		mstress(1)=alpha*strsQ*mstrain(1)/epsQ;
-		mstress(2)=alpha*strsQ*mstrain(2)/epsQ;
-	}else{
-		mstress<< 0.0, 0.0, 0.0;
-		//mstress.setZero();
-	}	
-}
-
-
 double ChElementLDPM::ComputeVolume() {
     return ComputeTetVol(nodes[0]->GetPos(), nodes[1]->GetPos(), nodes[2]->GetPos(), nodes[3]->GetPos());
 }
