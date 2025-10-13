@@ -165,10 +165,6 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     /// Set and Get the section & material of the element
     void SetSection(std::vector<std::shared_ptr<ChSectionLDPM>> section) { my_section = section; }    
     std::vector<std::shared_ptr<ChSectionLDPM>> GetSection() { return my_section; }
-
-    /// Set the material of the element
-    void SetMaterial(std::shared_ptr<ChMaterialVECT> my_material) { Material = my_material; }
-    std::shared_ptr<ChMaterialVECT> GetMaterial() { return Material; }
     
     // Set and Get the individual facet information
     void AddFacetI(std::shared_ptr<ChSectionLDPM> my_facet) { my_section.push_back(my_facet); }    
@@ -275,8 +271,7 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     static double ComputeTetVol( ChVector3d p1, ChVector3d p2, ChVector3d p3, ChVector3d p4); // Compute volume of *any* tetrahedron (e.g., used for sub-tetrahedra in mass matrix calculation)
 	
     std::vector<std::shared_ptr<fea::ChNodeFEAxyzrot> > nodes;
-    std::vector<std::shared_ptr<ChSectionLDPM>> my_section;
-    std::shared_ptr<ChMaterialVECT> Material;
+    std::vector<std::shared_ptr<ChSectionLDPM>> my_section; // Each section owns a std::shared_ptr<ChMaterialVECT> that be different(P-LDPM can have several facets with different material properties)
     ChMatrixDynamic<> MatrB;            // matrix of shape function's partial derivatives
     ChMatrixDynamic<> StiffnessMatrix;  // undeformed local stiffness matrix
     ChMatrixNM<double, 4, 4> mM;        // for speeding up corotational approach	

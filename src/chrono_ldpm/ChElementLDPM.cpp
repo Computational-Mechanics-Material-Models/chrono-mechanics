@@ -23,6 +23,7 @@
 
 #include "chrono_ldpm/ChElementLDPM.h"
 #include "chrono/core/ChVector3.h"
+#include "chrono/utils/ChConstants.h"
 
 
 namespace chrono {
@@ -650,10 +651,13 @@ ChStressTensor<> ChElementLDPM::GetStress() {
 }
 
 void ChElementLDPM::ComputeNodalMass() {
-    nodes[0]->m_TotalMass += V0 * this->Material->Get_density() / 4.0;
-    nodes[1]->m_TotalMass += V0 * this->Material->Get_density() / 4.0;
-    nodes[2]->m_TotalMass += V0 * this->Material->Get_density() / 4.0;
-    nodes[3]->m_TotalMass += V0 * this->Material->Get_density() / 4.0;
+    // All sections materials have the same density, use first section
+    // Assign same mass to all nodes (I don't think this is used by FEA so this approximation is ok)
+    double nodal_mass = V0 * my_section[0]->Get_material()->Get_density() * 0.25;
+    nodes[0]->m_TotalMass += nodal_mass;
+    nodes[1]->m_TotalMass += nodal_mass;
+    nodes[2]->m_TotalMass += nodal_mass;
+    nodes[3]->m_TotalMass += nodal_mass;
 }
 
 void ChElementLDPM::LoadableGetStateBlockPosLevel(int block_offset, ChState& mD) {
