@@ -173,37 +173,8 @@ void ChElementLDPM::GetStateBlock(ChVectorDynamic<>& mD) {
 
 void ChElementLDPM::GetLatticeStateBlock(unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& mD) {
     mD.setZero(12);
-	mD.segment(0, 6)=DUn_1.segment(ind*6,6); 
+	mD.segment(0, 6)=DUn_1.segment(ind*6,6);
 	mD.segment(6, 6)=DUn_1.segment(jnd*6,6);
-    /*
-    //
-    ChVector3d delta_rot_dir;
-    double delta_rot_angle;
-    ChQuaternion<> q_delta;
-    //
-    // First node
-    //
-    // displacement dofs:
-    mD.segment(0, 3) = (nodes[ind]->Frame().GetPos() - nodes[ind]->GetX0().GetPos()).eigen();
-    // rotational dofs:
-    q_delta =  nodes[ind]->Frame().GetRot() ;    
-    q_delta.GetAngleAxis(delta_rot_angle, delta_rot_dir);	
-    if (delta_rot_angle > CH_PI) 
-        delta_rot_angle -= CH_2PI;  // no 0..360 range, use -180..+180	
-    mD.segment(3, 3) = delta_rot_angle * delta_rot_dir.eigen();
-    //
-    // Second node
-    //
-    // displacement dofs:
-    mD.segment(6, 3) = ( nodes[jnd]->Frame().GetPos() - nodes[jnd]->GetX0().GetPos()).eigen();    
-    // rotational dofs:
-    q_delta =  nodes[jnd]->Frame().GetRot() ;    
-    q_delta.GetAngleAxis(delta_rot_angle, delta_rot_dir);	
-    if (delta_rot_angle > CH_PI) 
-        delta_rot_angle -= CH_2PI;  // no 0..360 range, use -180..+180	
-    mD.segment(9, 3) = delta_rot_angle * delta_rot_dir.eigen();
-    */
-    
 }
 
 
