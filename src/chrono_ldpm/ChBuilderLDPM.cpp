@@ -563,7 +563,7 @@ void ChBuilderLDPM::read_LDPM_info(std::shared_ptr<ChMesh> my_mesh,  std::vector
 				
 				
 				auto mnode1= chrono_types::make_shared<ChNodeFEAxyzrot>(ChFrame<>(ChVector3d(Mvertices[int(facetvec[1])].x(), 
-				Mvertices[int(facetvec[1])].y(), Mvertices[int(facetvec[1])].z() )));
+				Mvertices[int(facetvec[1])].y(), Mvertices[int(facetvec[1])].z() ))); // TODO JBC: Mvertices is a std::vector of ChVector3d, so no need to index .x(), .y(), .z()
 				auto mnode2= chrono_types::make_shared<ChNodeFEAxyzrot>(ChFrame<>(ChVector3d(Mvertices[int(facetvec[2])].x(), 
 				Mvertices[int(facetvec[2])].y(), Mvertices[int(facetvec[2])].z() )));
 				auto mnode3= chrono_types::make_shared<ChNodeFEAxyzrot>(ChFrame<>(ChVector3d(Mvertices[int(facetvec[3])].x(), 

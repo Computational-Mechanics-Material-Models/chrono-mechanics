@@ -743,7 +743,9 @@ void ChElementLDPM::ComputeMmatrixGlobal(ChMatrixRef M) {
     // Mass Matrix 
     
 	
-	
+    // TODO JBC: this is dumb: why use FEAxyzrot nodes for the edge, face and tet vertices if we only need their initial position ?!
+    //                         This is expensive enought that the mass matrix of the element might be stored + rotated rather than recomputed
+    //                          or alternatively, a simpler mass ditribution should be assumed for the LDPM tetrahedron
 	auto vertices=this->V_vert_nodes;
 	unsigned int iface=0;
 	for(auto verts: vertices){	
