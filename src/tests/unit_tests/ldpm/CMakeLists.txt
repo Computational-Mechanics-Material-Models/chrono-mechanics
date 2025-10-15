@@ -9,6 +9,7 @@ SET(LIBRARIES
 )
 
 SET(TESTS
+    utest_LDPM
 )
 
 # A hack to set the working directory in which to execute the CTest

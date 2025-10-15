@@ -501,7 +501,7 @@ void ChElementLDPM::ComputeInternalForces(ChVectorDynamic<>& Fi) {
     //
     //
     unsigned int iface=0;
-    for (auto facet:this->GetSection()){    
+    for (auto facet:this->GetSection()){
     	//std::cout<<"iface: "<<iface<<"--------";
     	unsigned int ind=facetNodeNums(iface,0);
     	unsigned int jnd=facetNodeNums(iface,1);     	
