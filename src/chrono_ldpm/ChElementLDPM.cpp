@@ -22,8 +22,10 @@
 // =============================================================================
 
 #include "chrono_ldpm/ChElementLDPM.h"
+#include <memory>
 #include "chrono/core/ChVector3.h"
 #include "chrono/utils/ChConstants.h"
+#include "chrono_ldpm/ChSectionLDPM.h"
 
 
 namespace chrono {
@@ -484,99 +486,75 @@ void ChElementLDPM::ComputeKRMmatricesGlobal(ChMatrixRef H, double Kfactor, doub
 void ChElementLDPM::ComputeInternalForces(ChVectorDynamic<>& Fi) {
     assert(Fi.size() == 24);
     //assert(section);
-    // set up vector of nodal displacements (in local element system) u_l = R*p - p0
-    //ChVectorDynamic<> mD(24);
-    //this->GetStateBlock(mD);  // nodal displacements, local
+
     ChVectorDynamic<> displ(24);
     this->GetStateBlock(displ);
     DUn_1=displ-Un_1;
     Un_1=displ;
-    //
-    //ChVectorDynamic<> Fi(24);
+
     Fi.setZero();
     //
     // compute volumetric strain
     double V = this->ComputeVolume();	
     double epsV = (V - V0) / V0 * CH_1_3; // This 1/3 factor is correct! Original paper (https://doi.org/10.1016/j.cemconcomp.2011.02.011) without the 1/3 is a typo
-    //
-    //
-    unsigned int iface=0;
-    for (auto facet:this->GetSection()){
-    	//std::cout<<"iface: "<<iface<<"--------";
-    	unsigned int ind=facetNodeNums(iface,0);
-    	unsigned int jnd=facetNodeNums(iface,1);     	
-    	//
-	// Get facet area and length of beam
-	//
-	double area=facet->Get_area();
-	double length=facet->Get_Length();	
-    	
-	//std::cout<<" L: "<<length<<"\t";
-	// 
-	Amatrix AI; 	
-	Amatrix AJ;
-	// A matrix is calculated based on initial coordinates
-	this->ComputeAmatrix(AI, facet->Get_center(), this->nodes[ind]->GetX0().GetPos());
-									
-	this->ComputeAmatrix(AJ, facet->Get_center(), this->nodes[jnd]->GetX0().GetPos());
-									
-	ChMatrix33<double> nmL=facet->Get_facetFrame();
-	ChQuaternion<> q_delta=(facet->Get_abs_rot() *  facet->Get_ref_rot().GetConjugate());		
-	//	
-	ChMatrixNM<double,3,6> mBI;
-	ChMatrixNM<double,3,6> mBJ;
-	ChVectorN<double,3> n;	
-	for (int id=0;id<3;id++) {
-		ChVector3d nn{nmL(id,0), nmL(id,1), nmL(id,2)};	
-		nn=q_delta.Rotate(nn);
-		//nn=chrono::ChTransform<>::TransformParentToLocal(nn, ChVector3d(0, 0, 0) ,  q_delta);
-		n<< nn[0], nn[1], nn[2];				
-		//
-		// NodeA
-		//
-		mBI.block<1,6>(id,0) = n.transpose()*AI/length;	
-		//
-		// NodeB
-		//
-		mBJ.block<1,6>(id,0) = n.transpose()*AJ/length;
 
-	}	
-	//
-	// Get Stress values at facet center
-	//
-	/*
-	ChVectorDynamic<> mstress;
-	this->ComputeStress(facet, ind, jnd, mstress);
-	//std::cout<<"stress: \n"<<mstress<<std::endl;
-	*/
-	ChVectorDynamic<> mstress;	
-	ChVectorDynamic<> dmstrain;
-	ChVectorDynamic<> statev;
-	this->ComputeStrain(facet, ind, jnd, dmstrain);
-	//std::cout<<"strain_INC: "<<dmstrain(0)<<"\t"<<dmstrain(1)<<"\t"<<dmstrain(2)<<"\t";
-	statev=facet->Get_StateVar();	
-    	// 
-	//if (this->macro_strain)
-	//	facet->ComputeEigenStrain(this->macro_strain);
-	auto nonMechanicalStrain=facet->Get_nonMechanicStrain();
-    if (nonMechanicalStrain.size()){
-		facet->Get_material()->ComputeStress( dmstrain, nonMechanicalStrain, length,  epsV, statev, mstress, area);;
-	}else{
-		facet->Get_material()->ComputeStress( dmstrain, length,  epsV, statev, mstress, area);
-	}
-	facet->Set_StateVar(statev);	
-	
-	Fi.segment(ind*6,6)+= area*length*(mstress.transpose()*mBI);
-	Fi.segment(jnd*6,6)+= -area*length*(mstress.transpose()*mBJ);
-	//
-	//
-	//	
-	iface++;
-	
+    for (int iface = 0 ; iface < 12 ; iface++) {
+        std::shared_ptr<ChSectionLDPM> facet = my_section[iface];
+        unsigned int ind = facetNodeNums(iface,0);
+        unsigned int jnd = facetNodeNums(iface,1);
+
+        double area = facet->Get_area();
+        double length = facet->Get_Length();
+                                        
+        ChMatrix33<double> nmL=facet->Get_facetFrame();
+        if(ChElementLDPM::LargeDeflection){// TODO JBC: If the facet orientation were made to coincide with the quaternion, we could save a lot and move this to Update() instead of rotating the initial frame at every step
+            ChQuaternion<> q_delta=(facet->Get_abs_rot() *  facet->Get_ref_rot().GetConjugate());
+            for (int id=0; id<3; id++){
+                nmL.block<1,3>(id,0)=q_delta.Rotate(nmL.block<1,3>(id,0)).eigen();
+            }
+        }
+        ChMatrix33<double> nmL_tr = nmL.transpose();
+        //
+        // Get Stress values at facet center
+        //
+        ChVectorDynamic<> mstress;	
+        ChVectorDynamic<> dmstrain;
+        ChVectorDynamic<> statev;
+        this->ComputeStrain(facet, ind, jnd, dmstrain);
+        //std::cout<<"strain_INC: "<<dmstrain(0)<<"\t"<<dmstrain(1)<<"\t"<<dmstrain(2)<<"\t";
+        statev=facet->Get_StateVar();	
+
+        // TODO JBC: not sure why 2 lines below were kept commented. If not used, get rid of them
+        //if (this->macro_strain)
+        //	facet->ComputeEigenStrain(this->macro_strain);
+        auto nonMechanicalStrain=facet->Get_nonMechanicStrain();
+        if (nonMechanicalStrain.size()) {
+            facet->Get_material()->ComputeStress( dmstrain, nonMechanicalStrain, length,  epsV, statev, mstress, area);
+        } else {
+            facet->Get_material()->ComputeStress( dmstrain, length,  epsV, statev, mstress, area);
+        }
+        facet->Set_StateVar(statev);	
+
+        ChVector3d force = area * (nmL_tr * mstress);
+        ChVector3d xc_xi;
+        ChVector3d xc_xj;
+        // For small deflection, use the initial position of the nodes and facet centers
+        // to determine the displacement induced by the node rotation
+        if (!LargeDeflection) {
+            xc_xi = facet->Get_center() - this->nodes[ind]->GetX0().GetPos();
+            xc_xj = facet->Get_center() - this->nodes[jnd]->GetX0().GetPos();
+        }
+        else { // TODO: Find out how to evolve position of the center for large displacement
+               //       Erol's implementation computed the initial A matrix from Get_center and GetX0 as well, so code below does not change the behavior
+            xc_xi = facet->Get_center() - this->nodes[ind]->GetX0().GetPos(); // TEMPORARY
+            xc_xj = facet->Get_center() - this->nodes[jnd]->GetX0().GetPos(); // TEMPORARY
+        }
+
+        Fi.segment(ind*6+0,3) +=  force.eigen();
+        Fi.segment(ind*6+3,3) +=  xc_xi.Cross(force).eigen();
+        Fi.segment(jnd*6+0,3) += -force.eigen();
+        Fi.segment(jnd*6+3,3) += -xc_xj.Cross(force).eigen();
     }
-    
-    // Fi = C * Fi_local  with C block-diagonal rotations A
-    //ChMatrixCorotation::ComputeCK(FiK_local, this->A, 4, Fi);
 }
 
 ChStrainTensor<> ChElementLDPM::GetStrain() {
