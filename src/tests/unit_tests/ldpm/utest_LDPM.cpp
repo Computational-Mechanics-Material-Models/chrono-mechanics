@@ -154,8 +154,8 @@ class LDPMTest : public testing::Test {
             for (int f : {2,3}) {
                 auto face = vertices_map[i][f];
                 ChVector3<>center = (tet + edge + face) / 3;
-                ChVector3<> normal = (edge - tet).Cross(face - tet);;
-                double area = 0.5 * normal.Dot(node_to_node) / length; // Projected area
+                ChVector3<> normal = (edge - tet).Cross(face - tet);
+                double area = 0.5 * std::abs(normal.Dot(node_to_node)) / length; // Projected area
 
                 // The node-to-node direction is used as the facet normal "n_k" (as opposed to `normal` , which is "n_k0" in the paper)
                 ChMatrix33<> facetFrame;
