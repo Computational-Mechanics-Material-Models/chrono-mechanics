@@ -165,15 +165,6 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     const ChMatrixDynamic<>& GetMatrB() const { return MatrB; }
     const ChMatrixDynamic<>& GetStiffnessMatrix() const { return StiffnessMatrix; }
 
-    /// Returns the strain tensor (note that the tetrahedron 4 nodes is a linear
-    /// element, thus the strain is constant in the entire volume).
-    /// The tensor is in the original undeformed unrotated reference.
-    ChStrainTensor<> GetStrain();
-
-    /// Returns the stress tensor (note that the tetrahedron 4 nodes is a linear
-    /// element, thus the stress is constant in the entire volume).
-    /// The tensor is in the original undeformed unrotated reference.
-    ChStressTensor<> GetStress();
 
     /// This function computes and adds corresponding masses to ElementBase member m_TotalMass
     void ComputeNodalMass() override;

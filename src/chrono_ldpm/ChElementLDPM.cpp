@@ -498,19 +498,19 @@ void ChElementLDPM::ComputeInternalForces(ChVectorDynamic<>& Fi) {
     double V = this->ComputeVolume();	
     double epsV = (V - V0) / V0 * CH_1_3; // This 1/3 factor is correct! Original paper (https://doi.org/10.1016/j.cemconcomp.2011.02.011) without the 1/3 is a typo
 
-    for (int iface = 0 ; iface < 12 ; iface++) {
+    for (int iface = 0 ; iface < my_section.size() ; iface++) {
         std::shared_ptr<ChSectionLDPM> facet = my_section[iface];
-        unsigned int ind = facetNodeNums(iface,0);
-        unsigned int jnd = facetNodeNums(iface,1);
+        unsigned int ind = facetNodeNums(iface, 0);
+        unsigned int jnd = facetNodeNums(iface, 1);
 
         double area = facet->Get_area();
         double length = facet->Get_Length();
                                         
         ChMatrix33<double> nmL=facet->Get_facetFrame();
-        if(ChElementLDPM::LargeDeflection){// TODO JBC: If the facet orientation were made to coincide with the quaternion, we could save a lot and move this to Update() instead of rotating the initial frame at every step
+        if(ChElementLDPM::LargeDeflection) { // TODO JBC: If the facet orientation were made to coincide with the quaternion, we could save a lot and move this to Update() instead of rotating the initial frame at every step
             ChQuaternion<> q_delta=(facet->Get_abs_rot() *  facet->Get_ref_rot().GetConjugate());
             for (int id=0; id<3; id++){
-                nmL.block<1,3>(id,0)=q_delta.Rotate(nmL.block<1,3>(id,0)).eigen();
+                nmL.block<1,3>(id, 0) = q_delta.Rotate(nmL.block<1,3>(id, 0)).eigen();
             }
         }
         ChMatrix33<double> nmL_tr = nmL.transpose();
@@ -557,22 +557,6 @@ void ChElementLDPM::ComputeInternalForces(ChVectorDynamic<>& Fi) {
     }
 }
 
-ChStrainTensor<> ChElementLDPM::GetStrain() {
-    // set up vector of nodal displacements (in local element system) u_l = R*p - p0
-    ChVectorDynamic<> displ(12);
-    this->GetStateBlock(displ);  // nodal displacements, local
-
-    ChStrainTensor<> mstrain = MatrB * displ;
-    return mstrain;
-}
-
-ChStressTensor<> ChElementLDPM::GetStress() {
-     ChMatrixDynamic<> StressStrainMatrix;
-     StressStrainMatrix.setZero(6, 6);
-     //StressStrainMatrix=this->Material->Get_StressStrainMatrix()
-    ChStressTensor<> mstress =  StressStrainMatrix * this->GetStrain();
-    return mstress;
-}
 
 void ChElementLDPM::ComputeNodalMass() {
     // All sections materials have the same density, use first section
