@@ -127,7 +127,7 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     ///
     /// Compute strain at a LDPM facet
     ///
-    void ComputeStrain(std::shared_ptr<ChSectionLDPM> facet, unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& mStrain);
+    void ComputeStrain(std::shared_ptr<ChSectionLDPM> facet, unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& displ, ChVectorDynamic<>& mStrain);
     ///
     ///
 

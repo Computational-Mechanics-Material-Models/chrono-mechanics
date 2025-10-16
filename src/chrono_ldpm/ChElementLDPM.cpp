@@ -247,48 +247,39 @@ void ChElementLDPM::GetLatticeStateBlock(unsigned int& ind, unsigned int& jnd, C
 
 
 
-void ChElementLDPM::ComputeStrain(std::shared_ptr<ChSectionLDPM> section, unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& mstrain) {
+void ChElementLDPM::ComputeStrain(std::shared_ptr<ChSectionLDPM> section, unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& displ, ChVectorDynamic<>& mstrain) {
     mstrain.resize(3);    	
-	// 
-	// Displacement of nodes:
-	ChVectorDynamic<> displ(12);
-	this->GetLatticeStateBlock(ind, jnd, displ);	
-	auto dispN1=displ.segment(0,6);
-	auto dispN2=displ.segment(6,6);
-	//std::cout<<"dispN1:\n"<<dispN1<<std::endl;
-	//std::cout<<"dispN2:\n"<<dispN2<<std::endl;
-	//std::cout<<"TotaldispN1:\n"<<(this->nodes[ind]->Frame().GetPos() - this->nodes[ind]->GetX0().GetPos())<<std::endl;
-	//std::cout<<"TotaldispN2:\n"<<(this->nodes[jnd]->Frame().GetPos() - this->nodes[jnd]->GetX0().GetPos())<<std::endl;
-	//
-	double length=section->Get_Length();	
-	Amatrix AI; 	Amatrix AJ;
-	// A matrix is calculated based on initial coordinates
-	this->ComputeAmatrix(AI, section->Get_center(), this->nodes[ind]->GetX0().GetPos());
-									
-	this->ComputeAmatrix( AJ, section->Get_center(), this->nodes[jnd]->GetX0().GetPos());
-									
-	ChMatrix33<double> nmL=section->Get_facetFrame();
-	ChQuaternion<> q_delta=(section->Get_abs_rot() * section->Get_ref_rot().GetConjugate()) ;
-		
-	ChVectorN<double,3> n; //
-	for (int id=0;id<3;id++) {			
-			//
-			// NodeA
-			//
-			ChVector3d nn{nmL(id,0), nmL(id,1), nmL(id,2)};	
-			nn=q_delta.Rotate(nn);
-			//nn=chrono::ChTransform<>::TransformParentToLocal(nn, ChVector3d(0, 0, 0) ,  q_delta);
-			n<< nn[0], nn[1], nn[2];
-			ChMatrixNM<double,1,6> BI= n.transpose()*AI/length;				
-			//
-			// NodeB
-			//		
-			ChMatrixNM<double,1,6> BJ= n.transpose()*AJ/length;
-			//
-			mstrain(id)=double (BJ*dispN2)+ double (-BI*dispN1); 
-
-		}	
-	
+    // 
+    // Displacement of nodes:
+    auto dispN1=displ.segment(0,6);
+    auto dispN2=displ.segment(6,6);
+    double length=section->Get_Length();	
+    Amatrix AI; 	Amatrix AJ;
+    // A matrix is calculated based on initial coordinates
+    this->ComputeAmatrix(AI, section->Get_center(), this->nodes[ind]->GetX0().GetPos());
+                                    
+    this->ComputeAmatrix( AJ, section->Get_center(), this->nodes[jnd]->GetX0().GetPos());
+                                    
+    ChMatrix33<double> nmL=section->Get_facetFrame();
+    ChQuaternion<> q_delta=(section->Get_abs_rot() * section->Get_ref_rot().GetConjugate()) ;
+        
+    ChVectorN<double,3> n; //
+    for (int id=0;id<3;id++) {			
+        //
+        // NodeA
+        //
+        ChVector3d nn{nmL(id,0), nmL(id,1), nmL(id,2)};	
+        nn=q_delta.Rotate(nn);
+        //nn=chrono::ChTransform<>::TransformParentToLocal(nn, ChVector3d(0, 0, 0) ,  q_delta);
+        n<< nn[0], nn[1], nn[2];
+        ChMatrixNM<double,1,6> BI= n.transpose()*AI/length;				
+        //
+        // NodeB
+        //		
+        ChMatrixNM<double,1,6> BJ= n.transpose()*AJ/length;
+        //
+        mstrain(id)=double (BJ*dispN2)+ double (-BI*dispN1);
+    }	
 }
 
 
@@ -525,7 +516,9 @@ void ChElementLDPM::ComputeInternalForces(ChVectorDynamic<>& Fi) {
         ChVectorDynamic<> mstress;	
         ChVectorDynamic<> dmstrain;
         ChVectorDynamic<> statev;
-        this->ComputeStrain(facet, ind, jnd, dmstrain);
+        ChVectorDynamic<> displ_facet_nodes(12);
+        this->GetLatticeStateBlock(ind, jnd, displ_facet_nodes);	
+        this->ComputeStrain(facet, ind, jnd, displ_facet_nodes, dmstrain);
         //std::cout<<"strain_INC: "<<dmstrain(0)<<"\t"<<dmstrain(1)<<"\t"<<dmstrain(2)<<"\t";
         statev=facet->Get_StateVar();	
 
