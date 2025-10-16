@@ -328,9 +328,61 @@ TEST_F(LDPMTest, internal_forces) {
     }
 }
 
+TEST_F(LDPMTest, elastic_stiffness_matrix) {
+    // Small deflection can be used since the void ChElementLDPM::ComputeStrain function only really performs the
+    // computation of the strain according to https://doi.org/10.1016/j.cemconcomp.2011.02.011
+    my_LDPM_tet->SetLargeDeflection(false);
 
+    // Performing some kind of step / analysis is required for chrono to run the appropriate setup
+    // Functions setupInitial() etc, are all private functions and inaccessible from here, otherwise we use them to make a minimal setup
+    sys.DoStepDynamics(0);
 
+    // Chrono LDPM calculation of the elastic stiffness matrix
+    my_LDPM_tet->ComputeStiffnessMatrix();
+    auto chrono_matrix = my_LDPM_tet->GetStiffnessMatrix();
 
+    // Analytical calculation of the stiffness matrix
+    ChMatrixNM<double, 24, 24> analytical_matrix;
+    analytical_matrix.setZero();
+
+    for (int i = 0 ; i < 12 ; i++) {
+        auto section = my_LDPM_tet->GetSection()[i];
+        double facet_area = section->Get_area();
+        double length = section->Get_Length();
+        auto center = section->Get_center();
+        ChMatrix33<> Rf = section->Get_facetFrame().transpose();
+
+        ChMatrix33<> stiff_local;
+        stiff_local << facet_area * E0 / length , 0.0                             , 0.0                             ,
+                       0.0                      , facet_area * E0 * alpha / length, 0.0                             ,
+                       0.0                      , 0.0                             , facet_area * E0 * alpha / length;
+
+        ChVector3<> posNodeA = nodes[nodeIind[i]]->GetPos();
+        ChVector3<> posNodeB = nodes[nodeJind[i]]->GetPos();
+        ChVector3<> xc_xi = center - posNodeA;
+        ChVector3<> xc_xj = center - posNodeB;
+        ChMatrixNM<double,3,6> Ai, Aj;
+        Ai << 1.0, 0.0, 0.0, 0.0      ,  xc_xi[2], -xc_xi[1],
+            0.0, 1.0, 0.0, -xc_xi[2],  0.0     ,  xc_xi[0],
+            0.0, 0.0, 1.0,  xc_xi[1], -xc_xi[0],  0.0     ;
+        Aj << 1.0, 0.0, 0.0, 0.0      ,  xc_xj[2], -xc_xj[1],
+            0.0, 1.0, 0.0, -xc_xj[2],  0.0     ,  xc_xj[0],
+            0.0, 0.0, 1.0,  xc_xj[1], -xc_xj[0],  0.0     ;
+
+        // Stiffness from facet stresses
+        // Chain rule Derivatives of (12) (13) from https://doi.org/10.1016/j.cemconcomp.2011.02.011
+        analytical_matrix.block<6,6>(nodeIind[i]*6, nodeIind[i]*6) +=  Ai.transpose() * Rf * stiff_local * Rf.transpose() * Ai;
+        analytical_matrix.block<6,6>(nodeIind[i]*6, nodeJind[i]*6) += -Ai.transpose() * Rf * stiff_local * Rf.transpose() * Aj;
+        analytical_matrix.block<6,6>(nodeJind[i]*6, nodeIind[i]*6) += -Aj.transpose() * Rf * stiff_local * Rf.transpose() * Ai;
+        analytical_matrix.block<6,6>(nodeJind[i]*6, nodeJind[i]*6) +=  Aj.transpose() * Rf * stiff_local * Rf.transpose() * Aj;
+
+    }
+
+    for (int i = 0; i < 24; i++){
+        for (int j = 0 ; j < 24 ; j++) {
+            ASSERT_NEAR(chrono_matrix(i, j), analytical_matrix(i, j), tol_stiff);
+        }
+    }
 }
 
 TEST(LDPM_misc_tests, multiple_volume_calc) {
