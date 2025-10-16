@@ -119,11 +119,15 @@ class LDPMTest : public testing::Test {
         sys.Add(my_mesh);
         my_LDPM_tet = chrono_types::make_shared<ChElementLDPM>();
         my_mesh->AddElement(my_LDPM_tet);
-        node1 = chrono_types::make_shared<fea::ChNodeFEAxyzrot>(ChFrame(ChVector3<>(0,0,0), ChQuaternion<>(1, 0, 0, 0)));
-        node2 = chrono_types::make_shared<fea::ChNodeFEAxyzrot>(ChFrame(ChVector3<>(1,0,0), ChQuaternion<>(1, 0, 0, 0)));
-        node3 = chrono_types::make_shared<fea::ChNodeFEAxyzrot>(ChFrame(ChVector3<>(0,1,0), ChQuaternion<>(1, 0, 0, 0)));
-        node4 = chrono_types::make_shared<fea::ChNodeFEAxyzrot>(ChFrame(ChVector3<>(0,0,1), ChQuaternion<>(1, 0, 0, 0)));
-        for (auto node : std::initializer_list<std::shared_ptr<ChNodeFEAxyzrot>> {node1, node2, node3, node4}) {
+        std::shared_ptr<ChNodeFEAxyzrot> node1 = chrono_types::make_shared<fea::ChNodeFEAxyzrot>(ChFrame(ChVector3<>(0,0,0), ChQuaternion<>(1, 0, 0, 0)));
+        std::shared_ptr<ChNodeFEAxyzrot> node2 = chrono_types::make_shared<fea::ChNodeFEAxyzrot>(ChFrame(ChVector3<>(1,0,0), ChQuaternion<>(1, 0, 0, 0)));
+        std::shared_ptr<ChNodeFEAxyzrot> node3 = chrono_types::make_shared<fea::ChNodeFEAxyzrot>(ChFrame(ChVector3<>(0,1,0), ChQuaternion<>(1, 0, 0, 0)));
+        std::shared_ptr<ChNodeFEAxyzrot> node4 = chrono_types::make_shared<fea::ChNodeFEAxyzrot>(ChFrame(ChVector3<>(0,0,1), ChQuaternion<>(1, 0, 0, 0)));
+        nodes.push_back(node1);
+        nodes.push_back(node2);
+        nodes.push_back(node3);
+        nodes.push_back(node4);
+        for (auto node : nodes) {
             my_mesh->AddNode(node);
         }
         my_LDPM_tet->SetNodes(node1, node2, node3, node4);
@@ -178,6 +182,16 @@ class LDPMTest : public testing::Test {
                 my_LDPM_tet->AddVertNodeVec(std::vector<std::shared_ptr<fea::ChNodeFEAxyzrot>> {nonsense_unnecessary_xyzrot_1,nonsense_unnecessary_xyzrot_2,nonsense_unnecessary_xyzrot_3});
             }
         }
+
+        // Tolerances
+        for (auto section : my_LDPM_tet->GetSection()) {
+            average_area += section->Get_area();
+            average_length += section->Get_Length();
+        }
+        average_area /= my_LDPM_tet->GetSection().size();
+        average_length /= my_LDPM_tet->GetSection().size();
+        tol_force = E0 * average_area * rtol;
+        tol_stiff = E0 * average_area / average_length * rtol;
     }
 
     // Material parameters
@@ -210,7 +224,17 @@ class LDPMTest : public testing::Test {
     ChSystemSMC sys;
     std::shared_ptr<ChMesh> my_mesh;
     std::shared_ptr<ChElementLDPM> my_LDPM_tet;
-    std::shared_ptr<ChNodeFEAxyzrot> node1, node2, node3, node4;
+    std::vector<std::shared_ptr<ChNodeFEAxyzrot>> nodes;
+    // Facet node numbering ChElementLDPM::facetNodeNums << 0, 1, 0, 1, 0, 2, 0, 2, 0, 3, 0, 3, 1, 2, 1, 2, 1, 3, 1, 3, 2, 3, 2, 3;
+    std::vector<int> nodeIind = {0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2};
+    std::vector<int> nodeJind = {1, 1, 2, 2, 3, 3, 2, 2, 3, 3, 3, 3};
+
+    // Tolerance
+    double rtol = 1e-10;
+    double average_area = 0;
+    double average_length = 0;
+    double tol_force;
+    double tol_stiff;
 };
 
 TEST_F(LDPMTest, internal_forces) {
@@ -225,15 +249,15 @@ TEST_F(LDPMTest, internal_forces) {
     // Displace and rotate node 4 to cause imposed local strain
     // Strain only on facets 1-4, 2-4, 3-4
     ChVector3d dispB(0.0, 0.0, 0.01);
-    node4->SetPos(node4->GetPos() + dispB);
-    ChQuaterniond qB_ini = node4->GetRot();
+    nodes[3]->SetPos(nodes[3]->GetPos() + dispB);
+    ChQuaterniond qB_ini = nodes[3]->GetRot();
     double drotB_angle = 1e-2;
     ChVector3d drotB_axis(0.46, 1.5, -0.5);
     ChVector3d drotB = drotB_angle * drotB_axis.GetNormalized();
     ChQuaterniond dqB;
     dqB.SetFromRotVec(drotB);
     ChQuaterniond qB = dqB * qB_ini;
-    node4->SetRot(qB);
+    nodes[3]->SetRot(qB);
     // TODO JBC: Current rotational DOFs increment calculation inside ComputeInternalForces() is additive in terms of rotation vector
     // Multiplicative composition of quaternion/rotation matrices, which is exact, does not give the same result:
     // If the increment of rotation is given by the quaternion dq, then q2 = dq * q1. The increment rotation vector is RotVec(dq)
@@ -253,18 +277,15 @@ TEST_F(LDPMTest, internal_forces) {
     // Analytical calculation of the internal forces
     // Equation (12) (13) of https://doi.org/10.1016/j.cemconcomp.2011.02.011
     // Assume elasticity (stress calculation is not the responsibility of this test)
+    // this loading with the default material parameters gives elastic response
     // To be performed and aggregated on each of the 12 facets
-    // Facet node numbering ChElementLDPM::facetNodeNums << 0, 1, 0, 1, 0, 2, 0, 2, 0, 3, 0, 3, 1, 2, 1, 2, 1, 3, 1, 3, 2, 3, 2, 3;
-    std::vector<int> nodeIind = {0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2};
-    std::vector<int> nodeJind = {1, 1, 2, 2, 3, 3, 2, 2, 3, 3, 3, 3};
-    std::vector<std::shared_ptr<ChNodeFEAxyzrot>> nodes {node1, node2, node3, node4};
 
     ChVectorN<double, 24> Fi_analytical;
     Fi_analytical.setZero();
 
     // Reset position and orientation for analytical calculation
-    node4->SetPos(node4->GetPos() - dispB);
-    node4->SetRot(QUNIT);
+    nodes[3]->SetPos(nodes[3]->GetPos() - dispB);
+    nodes[3]->SetRot(QUNIT);
 
     // Strain only on facets 1-4, 2-4, 3-4
     for (int i : {4, 5, 8, 9, 10, 11}) {
@@ -273,11 +294,9 @@ TEST_F(LDPMTest, internal_forces) {
         auto facetFrame = section->Get_facetFrame();
         auto area = section->Get_area();
         auto length = section->Get_Length();
-        
-        ChVectorDynamic<> Fi_facet(12);
+
         ChVector3<> posNodeA = nodes[nodeIind[i]]->GetPos();
         ChVector3<> posNodeB = nodes[nodeJind[i]]->GetPos();
-        
 
         ChVector3<> imposed_local_strain = facetFrame * (dispB + rot_incr.Cross(center - posNodeB)) / length; // This is not very general, but sufficient if we only move node 4
         ChVector3<> stress_local = imposed_local_strain * E0 * ChVector3d(1.0, alpha, alpha);
@@ -299,17 +318,15 @@ TEST_F(LDPMTest, internal_forces) {
         Bn_j_tr = Aj.transpose() * facetFrame_tr.GetAxisX().eigen() / length;
         Bm_j_tr = Aj.transpose() * facetFrame_tr.GetAxisY().eigen() / length;
         Bl_j_tr = Aj.transpose() * facetFrame_tr.GetAxisZ().eigen() / length;
-        Fi_facet.segment(0,6) = - length * area * (stress_local[0] * Bn_i_tr + stress_local[1] * Bm_i_tr + stress_local[2] * Bl_i_tr);
-        Fi_facet.segment(6,6) =   length * area * (stress_local[0] * Bn_j_tr + stress_local[1] * Bm_j_tr + stress_local[2] * Bl_j_tr);
 
-        Fi_analytical.segment(nodeIind[i]*6, 6) += -Fi_facet.segment(0,6);
-        Fi_analytical.segment(nodeJind[i]*6, 6) += -Fi_facet.segment(6,6);
+        Fi_analytical.segment(nodeIind[i]*6, 6) +=  length * area * (stress_local[0] * Bn_i_tr + stress_local[1] * Bm_i_tr + stress_local[2] * Bl_i_tr);;
+        Fi_analytical.segment(nodeJind[i]*6, 6) += -length * area * (stress_local[0] * Bn_j_tr + stress_local[1] * Bm_j_tr + stress_local[2] * Bl_j_tr);
     }
 
-    double tol = 1e-8;
     for (int i = 0; i < 24; i++) {
-        ASSERT_NEAR(Fi(i), Fi_analytical(i), tol);
+        ASSERT_NEAR(Fi(i), Fi_analytical(i), tol_force);
     }
+}
 
 
 
