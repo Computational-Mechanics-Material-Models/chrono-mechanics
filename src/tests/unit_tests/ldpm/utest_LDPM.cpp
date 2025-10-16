@@ -46,111 +46,174 @@ using namespace chrono;
 using namespace fea;
 using namespace ldpm;
 
-// TODO: Write a Fixture to avoid repeating the code for setting up the test
-// TODO: Branch and duplicate test with / without largeDeflection (when implemented) and coupled forces
+// TODO: Branch and duplicate test with / without largeDeflection (when implemented)
 
+namespace {
+class LDPMTest : public testing::Test {
+    protected:
 
-TEST(LDPMFacetTest, internal_forces) {
-    //
-    ChSystemSMC sys;
-    auto my_mesh = chrono_types::make_shared<ChMesh>();
-    my_mesh->SetAutomaticGravity(false);
-    sys.Add(my_mesh);
+    void SetUp() override {
+        // Parameters from Appendix A. of our Overleaf
+        // TODO: update reference once this is published
 
-    auto my_LDPM_tet = chrono_types::make_shared<ChElementLDPM>();
-    my_mesh->AddElement(my_LDPM_tet);
+        // Material parameters (SI units)
+        const double MPa_to_Pa = 1e6;
+        const double mm_to_m = 1e-3;
 
-    auto node1 = chrono_types::make_shared<fea::ChNodeFEAxyzrot>(ChFrame(ChVector3<>(0,0,0), ChQuaternion<>(1, 0, 0, 0)));
-    auto node2 = chrono_types::make_shared<fea::ChNodeFEAxyzrot>(ChFrame(ChVector3<>(1,0,0), ChQuaternion<>(1, 0, 0, 0)));
-    auto node3 = chrono_types::make_shared<fea::ChNodeFEAxyzrot>(ChFrame(ChVector3<>(0,1,0), ChQuaternion<>(1, 0, 0, 0)));
-    auto node4 = chrono_types::make_shared<fea::ChNodeFEAxyzrot>(ChFrame(ChVector3<>(0,0,1), ChQuaternion<>(1, 0, 0, 0)));
-    std::vector<std::shared_ptr<ChNodeFEAxyzrot>> nodes {node1, node2, node3, node4};
-    for (auto node : nodes) {
-        my_mesh->AddNode(node);
-    }
-    my_LDPM_tet->SetNodes(node1, node2, node3, node4);
+        rho = 2380; // Density
+        E0 = 60273 * MPa_to_Pa; // Normal modulus
+        alpha = 0.25; // Alpha
+        sigmat = 3.44 * MPa_to_Pa; // Tensile strength
+        lt = 500 * mm_to_m; // Tensile charachteristic length
+        Gt = lt * sigmat * sigmat / (2 * E0); // Fracture energy
+        rt = 2.6; // Shear strength ratio
+        nt = 0.4; // Softening exponent
+        sigmac0 = 150 * MPa_to_Pa; // Compressive yield strength
+        Hc0 = 0.40 * E0; // Initial hardening modulus
+        kc0 = 4; // Transitional strain ratio
+        kc1 = 1; // Deviatoric strain threshold ratio
+        kc2 = 5; // Deviatoric damage parameter
+        kc3 = 0.1; // Volumetric strain parameter
+        mu0 = 0.4; // Initial friction
+        muinf = 0; // Asymptotic friction
+        sigmaN0 = 600 * MPa_to_Pa; // Transitional stress
+        Ed = 1 * E0; // Densification ratio
+        beta = 0; // Volumetric deviatoric coupling
+        kt = 0.0; // Tensile unloading
+        ks = 0.0; // Shear unloading
+        kc = 0.0; // Compressive unloading
+        rs = 0.0; // Shear softening modulus ratio
+        Hc1 = 0.1 * E0; // Final hardening modulus ratio
+        // Other parameters
+        double sigmas = rt * sigmat; // TODO: chrono wants sigmas as an input, not rt
 
-    // Assume all grain radii equal to zero to simplify construction
-    ChVector3<> edge12 = 0.5 * (node1->GetPos() + node2->GetPos());
-    ChVector3<> edge13 = 0.5 * (node1->GetPos() + node3->GetPos());
-    ChVector3<> edge14 = 0.5 * (node1->GetPos() + node4->GetPos());
-    ChVector3<> edge23 = 0.5 * (node2->GetPos() + node3->GetPos());
-    ChVector3<> edge24 = 0.5 * (node2->GetPos() + node4->GetPos());
-    ChVector3<> edge34 = 0.5 * (node3->GetPos() + node4->GetPos());
-    ChVector3<> face1 = (0.5 * (edge34 + node2->GetPos()) + 0.5 * (edge23 + node4->GetPos()) + 0.5 * (edge24 + node3->GetPos())) / 3;
-    ChVector3<> face2 = (0.5 * (edge34 + node1->GetPos()) + 0.5 * (edge14 + node3->GetPos()) + 0.5 * (edge13 + node4->GetPos())) / 3;
-    ChVector3<> face3 = (0.5 * (edge24 + node1->GetPos()) + 0.5 * (edge14 + node2->GetPos()) + 0.5 * (edge12 + node4->GetPos())) / 3;
-    ChVector3<> face4 = (0.5 * (edge12 + node3->GetPos()) + 0.5 * (edge23 + node1->GetPos()) + 0.5 * (edge13 + node2->GetPos())) / 3;
-    ChVector3<> tet = (0.5 * (face1 + node1->GetPos()) + 0.5 * (face2 + node2->GetPos()) + 0.5 * (face3 + node3->GetPos()) + 0.5 * (face4 + node4->GetPos())) / 4;
+        auto my_mat = chrono_types::make_shared<ChMaterialVECT>();
+        my_mat->Set_density(rho);
+        my_mat->Set_E0(E0);
+        my_mat->Set_alpha(alpha);
+        my_mat->Set_sigmat(sigmat);
+        my_mat->Set_lt(lt);
+        // my_mat->Set_Gt( Gt); // TODO: this function is not used and commented out in the chrono code
+        my_mat->Set_sigmas(sigmas); // TODO: chrono input asks for `sigmas`, not for `rt`
+        my_mat->Set_nt(nt);
+        my_mat->Set_sigmac0(sigmac0);
+        my_mat->Set_Hc0(Hc0);
+        my_mat->Set_kc0(kc0);
+        my_mat->Set_kc1(kc1);
+        my_mat->Set_kc2(kc2);
+        my_mat->Set_kc3(kc3);
+        my_mat->Set_mu0(mu0);
+        my_mat->Set_muinf(muinf);
+        my_mat->Set_sigmaN0(sigmaN0);
+        my_mat->Set_Ed(Ed);
+        my_mat->Set_beta(beta); // TODO: beta = 0 does not exercise e_DV (i.e. eDV = eV)
+        my_mat->Set_kt(kt); // TODO: kt = 0 does not exercise the different hysteresis behaviors
+        // TODO: no function available to set `ks`
+        // TODO: no function available to set `kc`
+        my_mat->Set_rs(rs);
+        my_mat->Set_Hc1(Hc1);
 
-    auto my_mat = chrono_types::make_shared<ChMaterialVECT>();
-    double E0 = 43748;
-    double alpha = 0.25;
-    // Assume elasticity (stress calculation is not the responsibility of this test)
-    // by selecting very larg stress limits
-    double sigmat = 1e10;
-    double sigmas = 1e10;
-    double sigmac0 = 1e10;
-    double sigmaN0 = 1e10;
-    my_mat->Set_density(2.370E-9);
-    my_mat->Set_E0(E0);
-    my_mat->Set_alpha(alpha);
-    my_mat->Set_sigmat(sigmat);
-    my_mat->Set_sigmas(sigmas);
-    my_mat->Set_nt(0.2);
-    my_mat->Set_lt(250);
-    my_mat->Set_Ed(43748);
-    my_mat->Set_sigmac0(sigmac0);
-    my_mat->Set_Hc0(17499);
-    my_mat->Set_Hc1(4374.8);
-    my_mat->Set_beta(0);
-    my_mat->Set_kc0(2);
-    my_mat->Set_kc1(1);
-    my_mat->Set_kc2(5);
-    my_mat->Set_kc3(0.1);
-    my_mat->Set_mu0(0.2);
-    my_mat->Set_muinf(0);
-    my_mat->Set_sigmaN0(sigmaN0);
+        // Create tetrahedron, create nodes, add to mesh setc
+        my_mesh = chrono_types::make_shared<ChMesh>();
+        my_mesh->SetAutomaticGravity(false);
+        sys.Add(my_mesh);
+        my_LDPM_tet = chrono_types::make_shared<ChElementLDPM>();
+        my_mesh->AddElement(my_LDPM_tet);
+        node1 = chrono_types::make_shared<fea::ChNodeFEAxyzrot>(ChFrame(ChVector3<>(0,0,0), ChQuaternion<>(1, 0, 0, 0)));
+        node2 = chrono_types::make_shared<fea::ChNodeFEAxyzrot>(ChFrame(ChVector3<>(1,0,0), ChQuaternion<>(1, 0, 0, 0)));
+        node3 = chrono_types::make_shared<fea::ChNodeFEAxyzrot>(ChFrame(ChVector3<>(0,1,0), ChQuaternion<>(1, 0, 0, 0)));
+        node4 = chrono_types::make_shared<fea::ChNodeFEAxyzrot>(ChFrame(ChVector3<>(0,0,1), ChQuaternion<>(1, 0, 0, 0)));
+        for (auto node : std::initializer_list<std::shared_ptr<ChNodeFEAxyzrot>> {node1, node2, node3, node4}) {
+            my_mesh->AddNode(node);
+        }
+        my_LDPM_tet->SetNodes(node1, node2, node3, node4);
 
-    std::vector<std::vector<ChVector3<>>> vertices_map{{node2->GetPos()-node1->GetPos(), edge12, face3, face4},
-                                                       {node3->GetPos()-node1->GetPos(), edge13, face2, face4},
-                                                       {node4->GetPos()-node1->GetPos(), edge14, face2, face3},
-                                                       {node3->GetPos()-node2->GetPos(), edge23, face1, face4},
-                                                       {node4->GetPos()-node2->GetPos(), edge24, face1, face3},
-                                                       {node4->GetPos()-node3->GetPos(), edge34, face1, face2}};
-    for (int i=0 ; i < 6 ; i++) {
-        auto node_to_node = vertices_map[i][0];
-        double length = node_to_node.Length();
-        auto edge = vertices_map[i][1];
-        for (int f : {2,3}) {
-            auto face = vertices_map[i][f];
-            ChVector3<>center = (tet + edge + face) / 3;
-            ChVector3<> normal = (edge - tet).Cross(face - tet);;
-            double area = 0.5 * normal.Dot(node_to_node) / length; // Projected area
+        // Assume all grain radii equal to zero to simplify construction
+        ChVector3<> edge12 = 0.5 * (node1->GetPos() + node2->GetPos());
+        ChVector3<> edge13 = 0.5 * (node1->GetPos() + node3->GetPos());
+        ChVector3<> edge14 = 0.5 * (node1->GetPos() + node4->GetPos());
+        ChVector3<> edge23 = 0.5 * (node2->GetPos() + node3->GetPos());
+        ChVector3<> edge24 = 0.5 * (node2->GetPos() + node4->GetPos());
+        ChVector3<> edge34 = 0.5 * (node3->GetPos() + node4->GetPos());
+        ChVector3<> face1 = (0.5 * (edge34 + node2->GetPos()) + 0.5 * (edge23 + node4->GetPos()) + 0.5 * (edge24 + node3->GetPos())) / 3;
+        ChVector3<> face2 = (0.5 * (edge34 + node1->GetPos()) + 0.5 * (edge14 + node3->GetPos()) + 0.5 * (edge13 + node4->GetPos())) / 3;
+        ChVector3<> face3 = (0.5 * (edge24 + node1->GetPos()) + 0.5 * (edge14 + node2->GetPos()) + 0.5 * (edge12 + node4->GetPos())) / 3;
+        ChVector3<> face4 = (0.5 * (edge12 + node3->GetPos()) + 0.5 * (edge23 + node1->GetPos()) + 0.5 * (edge13 + node2->GetPos())) / 3;
+        ChVector3<> tet = (0.5 * (face1 + node1->GetPos()) + 0.5 * (face2 + node2->GetPos()) + 0.5 * (face3 + node3->GetPos()) + 0.5 * (face4 + node4->GetPos())) / 4;
 
-            // The node-to-node direction is used as the facet normal "n_k" (as opposed to `normal` , which is "n_k0" in the paper)
-            ChMatrix33<> facetFrame;
-            facetFrame.SetFromAxisX(node_to_node, face - tet); // choice of Y-axis does not matter
-            // LDPM expects the facet frame matrix to be stored as the transpose of the rotation matrix:
-            // - n on the first row
-            // - m on the second row
-            // - l on the second row
-            // TODO JBC: I think this should eventually be changed as it might be confusing
-            // that this is different from all the other "frames" defined as ChMatrix33 in Chrono
-            auto section = chrono_types::make_shared<ChSectionLDPM>(my_mat, area, center, facetFrame.transpose());
-            section->Set_Length(length);
-            my_LDPM_tet->AddFacetI(section);
+        std::vector<std::vector<ChVector3<>>> vertices_map{{node2->GetPos()-node1->GetPos(), edge12, face3, face4},
+                                                           {node3->GetPos()-node1->GetPos(), edge13, face2, face4},
+                                                           {node4->GetPos()-node1->GetPos(), edge14, face2, face3},
+                                                           {node3->GetPos()-node2->GetPos(), edge23, face1, face4},
+                                                           {node4->GetPos()-node2->GetPos(), edge24, face1, face3},
+                                                           {node4->GetPos()-node3->GetPos(), edge34, face1, face2}};
+        for (int i=0 ; i < 6 ; i++) {
+            auto node_to_node = vertices_map[i][0];
+            double length = node_to_node.Length();
+            auto edge = vertices_map[i][1];
+            for (int f : {2,3}) {
+                auto face = vertices_map[i][f];
+                ChVector3<>center = (tet + edge + face) / 3;
+                ChVector3<> normal = (edge - tet).Cross(face - tet);;
+                double area = 0.5 * normal.Dot(node_to_node) / length; // Projected area
 
-            // Add vertices for initial mass calculation
-            // TODO JBC: not sure I am doing this correctly (order in particular) but the whole design is pretty stupid if I am being honest
-            auto nonsense_unnecessary_xyzrot_1 = chrono_types::make_shared<ChNodeFEAxyzrot>(ChFrame<>(tet, QUNIT));
-            auto nonsense_unnecessary_xyzrot_2 = chrono_types::make_shared<ChNodeFEAxyzrot>(ChFrame<>(edge, QUNIT));
-            auto nonsense_unnecessary_xyzrot_3 = chrono_types::make_shared<ChNodeFEAxyzrot>(ChFrame<>(face, QUNIT));
-            my_LDPM_tet->AddVertNodeVec(std::vector<std::shared_ptr<fea::ChNodeFEAxyzrot>> {nonsense_unnecessary_xyzrot_1,nonsense_unnecessary_xyzrot_2,nonsense_unnecessary_xyzrot_3});
+                // The node-to-node direction is used as the facet normal "n_k" (as opposed to `normal` , which is "n_k0" in the paper)
+                ChMatrix33<> facetFrame;
+                facetFrame.SetFromAxisX(node_to_node, face - tet); // choice of Y-axis does not matter
+                // LDPM expects the facet frame matrix to be stored as the transpose of the rotation matrix:
+                // - n on the first row
+                // - m on the second row
+                // - l on the second row
+                // TODO JBC: I think this should eventually be changed as it might be confusing
+                // that this is different from all the other "frames" defined as ChMatrix33 in Chrono
+                auto section = chrono_types::make_shared<ChSectionLDPM>(my_mat, area, center, facetFrame.transpose());
+                section->Set_Length(length);
+                my_LDPM_tet->AddFacetI(section);
+
+                // Add vertices for initial mass calculation
+                // TODO JBC: not sure I am doing this correctly (order in particular) but the whole design is pretty stupid if I am being honest
+                auto nonsense_unnecessary_xyzrot_1 = chrono_types::make_shared<ChNodeFEAxyzrot>(ChFrame<>(tet, QUNIT));
+                auto nonsense_unnecessary_xyzrot_2 = chrono_types::make_shared<ChNodeFEAxyzrot>(ChFrame<>(edge, QUNIT));
+                auto nonsense_unnecessary_xyzrot_3 = chrono_types::make_shared<ChNodeFEAxyzrot>(ChFrame<>(face, QUNIT));
+                my_LDPM_tet->AddVertNodeVec(std::vector<std::shared_ptr<fea::ChNodeFEAxyzrot>> {nonsense_unnecessary_xyzrot_1,nonsense_unnecessary_xyzrot_2,nonsense_unnecessary_xyzrot_3});
+            }
         }
     }
 
+    // Material parameters
+    double rho; // Density
+    double E0; // Normal modulus
+    double alpha; // Alpha
+    double sigmat; // Tensile strength
+    double lt; // Tensile charachteristic length
+    double Gt; // Fracture energy
+    double rt; // Shear strength ratio
+    double nt; // Softening exponent
+    double sigmac0; // Compressive yield strength
+    double Hc0; // Initial hardening modulus
+    double kc0; // Transitional strain ratio
+    double kc1; // Deviatoric strain threshold ratio
+    double kc2; // Deviatoric damage parameter
+    double kc3; // Volumetric strain parameter
+    double mu0; // Initial friction
+    double muinf; // Asymptotic friction
+    double sigmaN0; // Transitional stress
+    double Ed; // Densification ratio
+	double beta; // Volumetric deviatoric coupling
+    double kt; // Tensile unloading
+    double ks; // Shear unloading
+    double kc; // Compressive unloading
+    double rs; // Shear softening modulus ratio
+    double Hc1; // Final hardening modulus ratio
 
+    // LDPM element and Chrono internals
+    ChSystemSMC sys;
+    std::shared_ptr<ChMesh> my_mesh;
+    std::shared_ptr<ChElementLDPM> my_LDPM_tet;
+    std::shared_ptr<ChNodeFEAxyzrot> node1, node2, node3, node4;
+};
+
+TEST_F(LDPMTest, internal_forces) {
     // Small deflection can be used since the void ChElementLDPM::ComputeStrain function only really performs the
     // computation of the strain according to https://doi.org/10.1016/j.cemconcomp.2011.02.011
     my_LDPM_tet->SetLargeDeflection(false);
@@ -194,6 +257,8 @@ TEST(LDPMFacetTest, internal_forces) {
     // Facet node numbering ChElementLDPM::facetNodeNums << 0, 1, 0, 1, 0, 2, 0, 2, 0, 3, 0, 3, 1, 2, 1, 2, 1, 3, 1, 3, 2, 3, 2, 3;
     std::vector<int> nodeIind = {0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2};
     std::vector<int> nodeJind = {1, 1, 2, 2, 3, 3, 2, 2, 3, 3, 3, 3};
+    std::vector<std::shared_ptr<ChNodeFEAxyzrot>> nodes {node1, node2, node3, node4};
+
     ChVectorN<double, 24> Fi_analytical;
     Fi_analytical.setZero();
 
@@ -241,7 +306,7 @@ TEST(LDPMFacetTest, internal_forces) {
         Fi_analytical.segment(nodeJind[i]*6, 6) += -Fi_facet.segment(6,6);
     }
 
-    double tol = 1e-10;
+    double tol = 1e-8;
     for (int i = 0; i < 24; i++) {
         ASSERT_NEAR(Fi(i), Fi_analytical(i), tol);
     }
@@ -297,5 +362,5 @@ TEST(LDPM_misc_tests, multiple_volume_calc) {
 }
 
 
-
+} // namespace
 
