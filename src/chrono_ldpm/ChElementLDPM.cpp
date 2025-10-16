@@ -298,74 +298,79 @@ double ChElementLDPM::ComputeVolume() {
 
 void ChElementLDPM::ComputeStiffnessMatrix() {
     //assert(section);    
-    unsigned int iface=0; 
     StiffnessMatrix.setZero();     
-    for (auto facet:this->GetSection()){
-    	//std::cout<< "face: "<<iface+1<<"-------------------------------\n";
-    	unsigned int ind=facetNodeNums(iface,0);
-    	unsigned int jnd=facetNodeNums(iface,1);    	
-    	double E0= facet->Get_material()->Get_E0();
-    	double alpha=facet-> Get_material()->Get_alpha(); 
-    	double ET=alpha*E0;
-    	//    	
-    	//
-    	// Get facet area and length of beam
-    	double area=facet->Get_area();
-    	double length=facet->Get_Length();	
-    	double aLE_N=area*length*E0;
-	double aLE_T=aLE_N*alpha;	
-    	// 
-    	Amatrix AI; 
-    	Amatrix AJ;
-    	// A matrix is calculated based on initial coordinates
-    	this->ComputeAmatrix(AI, facet->Get_center(),  this->nodes[ind]->GetX0().GetPos());
-    	this->ComputeAmatrix(AJ, facet->Get_center(), this->nodes[jnd]->GetX0().GetPos());    	
-        //
-    	ChMatrix33<double> nmL=facet->Get_facetFrame(); 
-    	ChQuaternion<> q_delta=(facet->Get_abs_rot() *  facet->Get_ref_rot().GetConjugate());
-    	//	
-    	ChMatrixNM<double,3,6> mBI;
-    	ChMatrixNM<double,3,6> mBJ;
-    	ChVectorN<double,3> n;
-    	for (int id=0;id<3;id++) {
-	    	ChVector3d nn{nmL(id,0), nmL(id,1), nmL(id,2)};		    	
-	    	nn=q_delta.Rotate(nn);
-	    	//nn=chrono::ChTransform<>::TransformParentToLocal(nn, ChVector3d(0, 0, 0) ,  q_delta);
-	    	n<< nn[0], nn[1], nn[2]; 
-	    	//
-	    	// NodeA
-	    	//
-	    	mBI.block<1,6>(id,0) = n.transpose()*AI/length;	
-	    	//
-	    	// NodeB
-	    	//
-	    	mBJ.block<1,6>(id,0) = n.transpose()*AJ/length;
-    	}
-	    //
-	    
-	    //std::cout<<"mBI:\n"<<mBI<<std::endl;
-	    //std::cout<<"mBJ:\n"<<mBJ<<std::endl;	    
-	    
-	    // Kii
-	    StiffnessMatrix.block<6,6>(ind*6,ind*6)+=( aLE_N*mBI.block<1,6>(0,0).transpose()*mBI.block<1,6>(0,0)+
-	    			aLE_T*(mBI.block<1,6>(1,0).transpose()*mBI.block<1,6>(1,0)+
-	    			mBI.block<1,6>(2,0).transpose()*mBI.block<1,6>(2,0) ) );
-	    // Kjj
-	    StiffnessMatrix.block<6,6>(jnd*6,jnd*6)+=( aLE_N*mBJ.block<1,6>(0,0).transpose()*mBJ.block<1,6>(0,0)+
-	    			aLE_T*(mBJ.block<1,6>(1,0).transpose()*mBJ.block<1,6>(1,0)+
-	    			mBJ.block<1,6>(2,0).transpose()*mBJ.block<1,6>(2,0) ) );
-	    // Kij
-	    StiffnessMatrix.block<6,6>(ind*6,jnd*6)+=( -aLE_N*mBI.block<1,6>(0,0).transpose()*mBJ.block<1,6>(0,0)-
-	    			aLE_T*(mBI.block<1,6>(1,0).transpose()*mBJ.block<1,6>(1,0)+
-	    			mBI.block<1,6>(2,0).transpose()*mBJ.block<1,6>(2,0) ) );
-	    // Kji
-	    StiffnessMatrix.block<6,6>(jnd*6,ind*6)+=( -aLE_N*mBJ.block<1,6>(0,0).transpose()*mBI.block<1,6>(0,0)-
-	    			aLE_T*(mBJ.block<1,6>(1,0).transpose()*mBI.block<1,6>(1,0)+
-	    			mBJ.block<1,6>(2,0).transpose()*mBI.block<1,6>(2,0) ) );
-	    //
-	    iface++;	    
-    }    
-    //    
+    for (int iface = 0 ; iface < my_section.size() ; iface++) {
+        std::shared_ptr<ChSectionLDPM> facet = my_section[iface];
+        unsigned int ind = facetNodeNums(iface, 0);
+        unsigned int jnd = facetNodeNums(iface, 1);
+
+        double normal_stiff = facet->Get_material()->Get_E0() * facet->Get_area() / facet->Get_Length();
+        double tangent_stiff = normal_stiff * facet->Get_material()->Get_alpha();
+        Eigen::DiagonalMatrix<double, 3> K_diag(normal_stiff, tangent_stiff, tangent_stiff);
+
+        ChMatrix33<double> nmL = facet->Get_facetFrame();
+        if(ChElementLDPM::LargeDeflection) { // TODO JBC: If the facet orientation were made to coincide with the quaternion, we could save a lot and move this to Update() instead of rotating the initial frame at every step
+            ChQuaternion<> q_delta = facet->Get_abs_rot() * facet->Get_ref_rot().GetConjugate();
+            for (int id=0; id<3; id++){
+                nmL.block<1,3>(id, 0) = q_delta.Rotate(nmL.block<1,3>(id, 0)).eigen();
+            }
+        }
+        ChMatrix33<double> nmL_tr = nmL.transpose();
+        ChMatrix33<> K_material = nmL_tr * K_diag * nmL;
+
+        // For small deflection, use the initial position of the nodes and facet centers
+        // to determine the displacement induced by the node rotation
+        ChVector3d xc_xi;
+        ChVector3d xc_xj;
+        if (!ChElementLDPM::LargeDeflection) {
+            xc_xi = facet->Get_center() - this->nodes[ind]->GetX0().GetPos();
+            xc_xj = facet->Get_center() - this->nodes[jnd]->GetX0().GetPos();
+        }
+        else { // TODO: Find out how to evolve position of the center for large displacement
+               //       Erol's implementation computed the initial A matrix from Get_center and GetX0 as well, so code below does not change the behavior
+            xc_xi = facet->Get_center() - this->nodes[ind]->GetX0().GetPos(); // TEMPORARY
+            xc_xj = facet->Get_center() - this->nodes[jnd]->GetX0().GetPos(); // TEMPORARY
+        }
+
+        ChMatrix33<> Ai_cross; // 3x3 right sub-block of Ai matrix for skew-symmetric cross-product vector
+        ChMatrix33<> Aj_cross; // 3x3 right sub-block of Aj matrix for skew-symmetric cross-product vector
+        Ai_cross << 0.0      ,  xc_xi[2], -xc_xi[1],
+                    -xc_xi[2],  0.0     ,  xc_xi[0],
+                     xc_xi[1], -xc_xi[0],  0.0     ;
+        Aj_cross << 0.0      ,  xc_xj[2], -xc_xj[1],
+                    -xc_xj[2],  0.0     ,  xc_xj[0],
+                     xc_xj[1], -xc_xj[0],  0.0     ;
+
+        ChMatrix33<> K_material_Id_Ai = K_material * Ai_cross;
+        ChMatrix33<> K_material_Ai_Id = K_material_Id_Ai.transpose();
+        ChMatrix33<> K_material_Ai_Ai = K_material_Ai_Id * Ai_cross;
+        ChMatrix33<> K_material_Id_Aj = K_material * Aj_cross;
+        ChMatrix33<> K_material_Aj_Id = K_material_Id_Aj.transpose();
+        ChMatrix33<> K_material_Aj_Aj = K_material_Aj_Id * Aj_cross;
+        ChMatrix33<> K_material_Ai_Aj = K_material_Ai_Id * Aj_cross;
+        ChMatrix33<> K_material_Aj_Ai = K_material_Ai_Aj.transpose();
+
+        // dFi / dQi
+        StiffnessMatrix.block<3,3>(ind*6  , ind*6)   +=  K_material;
+        StiffnessMatrix.block<3,3>(ind*6  , ind*6+3) +=  K_material_Id_Ai;
+        StiffnessMatrix.block<3,3>(ind*6+3, ind*6)   +=  K_material_Ai_Id;
+        StiffnessMatrix.block<3,3>(ind*6+3, ind*6+3) +=  K_material_Ai_Ai;
+        // dFi / dQj
+        StiffnessMatrix.block<3,3>(ind*6  , jnd*6)   += -K_material;
+        StiffnessMatrix.block<3,3>(ind*6  , jnd*6+3) += -K_material_Id_Aj;
+        StiffnessMatrix.block<3,3>(ind*6+3, jnd*6)   += -K_material_Ai_Id;
+        StiffnessMatrix.block<3,3>(ind*6+3, jnd*6+3) += -K_material_Ai_Aj;
+        // dFj / dQi
+        StiffnessMatrix.block<3,3>(jnd*6  , ind*6)   += -K_material;
+        StiffnessMatrix.block<3,3>(jnd*6  , ind*6+3) += -K_material_Id_Ai;
+        StiffnessMatrix.block<3,3>(jnd*6+3, ind*6)   += -K_material_Aj_Id;
+        StiffnessMatrix.block<3,3>(jnd*6+3, ind*6+3) += -K_material_Aj_Ai;
+        // dFj / dQj
+        StiffnessMatrix.block<3,3>(jnd*6  , jnd*6)   +=  K_material;
+        StiffnessMatrix.block<3,3>(jnd*6  , jnd*6+3) +=  K_material_Id_Aj;
+        StiffnessMatrix.block<3,3>(jnd*6+3, jnd*6)   +=  K_material_Aj_Id;
+        StiffnessMatrix.block<3,3>(jnd*6+3, jnd*6+3) +=  K_material_Aj_Aj;
+    }
 }
 
 void ChElementLDPM::SetupInitial(ChSystem* system) {
@@ -508,7 +513,7 @@ void ChElementLDPM::ComputeInternalForces(ChVectorDynamic<>& Fi) {
                                         
         ChMatrix33<double> nmL=facet->Get_facetFrame();
         if(ChElementLDPM::LargeDeflection) { // TODO JBC: If the facet orientation were made to coincide with the quaternion, we could save a lot and move this to Update() instead of rotating the initial frame at every step
-            ChQuaternion<> q_delta=(facet->Get_abs_rot() *  facet->Get_ref_rot().GetConjugate());
+            ChQuaternion<> q_delta = facet->Get_abs_rot() *  facet->Get_ref_rot().GetConjugate();
             for (int id=0; id<3; id++){
                 nmL.block<1,3>(id, 0) = q_delta.Rotate(nmL.block<1,3>(id, 0)).eigen();
             }
@@ -540,7 +545,7 @@ void ChElementLDPM::ComputeInternalForces(ChVectorDynamic<>& Fi) {
         ChVector3d xc_xj;
         // For small deflection, use the initial position of the nodes and facet centers
         // to determine the displacement induced by the node rotation
-        if (!LargeDeflection) {
+        if (!ChElementLDPM::LargeDeflection) {
             xc_xi = facet->Get_center() - this->nodes[ind]->GetX0().GetPos();
             xc_xj = facet->Get_center() - this->nodes[jnd]->GetX0().GetPos();
         }
