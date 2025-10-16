@@ -78,8 +78,8 @@ void ChMaterialVECT::ComputeStress(ChVectorDynamic<>& dmstrain, double &len, dou
 	ChVectorDynamic<> mstrain(3);
 	mstrain=statev.segment(0,3)+dmstrain;	
 	//
-	double epsQ = pow(mstrain(0) * mstrain(0) + alpha * (mstrain(1) * mstrain(1) + mstrain(2) * mstrain(2)), 0.5);
-	double epsT = pow(mstrain(1) * mstrain(1) + mstrain(2) * mstrain(2), 0.5);
+	double epsQ = std::sqrt(mstrain(0) * mstrain(0) + alpha * (mstrain(1) * mstrain(1) + mstrain(2) * mstrain(2)));
+	double epsT = std::sqrt(mstrain(1) * mstrain(1) + mstrain(2) * mstrain(2));
 	
 	if (statev(6) < mstrain(0)) {
 		statev(6) = mstrain(0);
@@ -113,7 +113,7 @@ void ChMaterialVECT::ComputeStress(ChVectorDynamic<>& dmstrain, double &len, dou
 		double w_M = len * (mstrain(1) - mstress(1) / (E0*alpha));
 		double w_L = len * (mstrain(2) - mstress(2) / (E0 * alpha));
 
-		double w = pow(w_N * w_N + w_M * w_M + w_L * w_L, 0.5);
+		double w = std::sqrt(w_N * w_N + w_M * w_M + w_L * w_L);
 
 		statev(0) = mstrain(0);
 		statev(1) = mstrain(1);
@@ -121,8 +121,8 @@ void ChMaterialVECT::ComputeStress(ChVectorDynamic<>& dmstrain, double &len, dou
 		statev(3) = mstress(0);
 		statev(4) = mstress(1);
 		statev(5) = mstress(2);
-		statev(8) = pow(statev(0) * statev(0) + alpha * (statev(1) * statev(1) + statev(2) * statev(2)), 0.5);
-		statev(9) = pow(statev(3) * statev(3) + (statev(4) * statev(4) + statev(5) * statev(5)) / alpha, 0.5);
+		statev(8) = std::sqrt(statev(0) * statev(0) + alpha * (statev(1) * statev(1) + statev(2) * statev(2)));
+		statev(9) = std::sqrt(statev(3) * statev(3) + (statev(4) * statev(4) + statev(5) * statev(5)) / alpha);
 		statev(10) = Wint + statev(10);
 		statev(11) = w;
 	}
@@ -188,8 +188,8 @@ void ChMaterialVECT::ComputeStress(ChVectorDynamic<>& dmstrain, ChVectorDynamic<
 	///std::cout<<"dmstrain: "<<dmstrain.x()<<"\t"<<dmstrain.y()<<"\t"<<dmstrain.z()<<"\t"	;
 	//std::cout<<"netstrain: "<<netstrain.x()<<"\t"<<netstrain.y()<<"\t"<<netstrain.z()<<"\n";
 	//
-	double epsQ = pow(netstrain(0) * netstrain(0) + alpha * (netstrain(1) * netstrain(1) + netstrain(2) * netstrain(2)), 0.5);
-	double epsT = pow(netstrain(1) * netstrain(1) + netstrain(2) * netstrain(2), 0.5);
+	double epsQ = std::sqrt(netstrain(0) * netstrain(0) + alpha * (netstrain(1) * netstrain(1) + netstrain(2) * netstrain(2)));
+	double epsT = std::sqrt(netstrain(1) * netstrain(1) + netstrain(2) * netstrain(2));
 	//std::cout<<"epsQ: "<<epsQ<<"\n";
 	
 	if (statev(6) < netstrain(0)) {
@@ -226,7 +226,7 @@ void ChMaterialVECT::ComputeStress(ChVectorDynamic<>& dmstrain, ChVectorDynamic<
 		double w_L = len * (netstrain(2) - mstress(2) / (E0 * alpha));
 
 
-		double w = pow(w_N * w_N + w_M * w_M + w_L * w_L, 0.5);
+		double w = std::sqrt(w_N * w_N + w_M * w_M + w_L * w_L);
 
 		statev(0) = mstrain(0);
 		statev(1) = mstrain(1);
@@ -234,8 +234,8 @@ void ChMaterialVECT::ComputeStress(ChVectorDynamic<>& dmstrain, ChVectorDynamic<
 		statev(3) = mstress(0);
 		statev(4) = mstress(1);
 		statev(5) = mstress(2);
-		statev(8) = pow(netstrain(0) * netstrain(0) + alpha * (netstrain(1) * netstrain(1) + netstrain(2) * netstrain(2)), 0.5);
-		statev(9) = pow(mstress(0) * mstress(0) + (mstress(1) * mstress(1) + mstress(2) * mstress(2)) / alpha, 0.5);
+		statev(8) = std::sqrt(netstrain(0) * netstrain(0) + alpha * (netstrain(1) * netstrain(1) + netstrain(2) * netstrain(2)));
+		statev(9) = std::sqrt(mstress(0) * mstress(0) + (mstress(1) * mstress(1) + mstress(2) * mstress(2)) / alpha);
 		statev(10) = Wint + statev(10);
 		statev(11) = w;
 		statev(12) = netstrain(0);
@@ -299,14 +299,14 @@ double ChMaterialVECT::FractureBC(ChVectorDynamic<>& mstrain, double& len, ChVec
 	double rs = this->Get_rs();
 	//double Gt = this->Get_Gt();
 	//
-	double epsQ = pow(mstrain(0) * mstrain(0) + alpha * (mstrain(1) * mstrain(1) + mstrain(2) * mstrain(2)), 0.5);
-	double epsT = pow(mstrain(1) * mstrain(1) + mstrain(2) * mstrain(2), 0.5);
+	double epsQ = std::sqrt(mstrain(0) * mstrain(0) + alpha * (mstrain(1) * mstrain(1) + mstrain(2) * mstrain(2)));
+	double epsT = std::sqrt(mstrain(1) * mstrain(1) + mstrain(2) * mstrain(2));
 
 	// calculate stress boudary sigma_bt for tension
 	double omega, sinw, cosw, cosw2, sigma0;
 	double r_st = sigmas / sigmat;
 
-	omega = atan(mstrain(0) / (pow(alpha, 0.5) * epsT));
+	omega = atan(mstrain(0) / (std::sqrt(alpha) * epsT));
 	sinw = sin(omega);
 	cosw = cos(omega);
 	cosw2 = cos(omega) * cos(omega);
@@ -317,7 +317,7 @@ double ChMaterialVECT::FractureBC(ChVectorDynamic<>& mstrain, double& len, ChVec
 	}
 	else {
 		//omega = atan(mstrain(0) / (pow(alpha, 0.5) * epsT));
-		sigma0 = sigmat * (-sin(omega) + pow((sin(omega) * sin(omega) + 4 * alpha * cosw2 / r_st / r_st), 0.5)) / (2 * alpha * cosw2 / r_st / r_st);
+		sigma0 = sigmat * (-sin(omega) + std::sqrt((sin(omega) * sin(omega) + 4 * alpha * cosw2 / r_st / r_st))) / (2 * alpha * cosw2 / r_st / r_st);
 
 	}
 
@@ -328,7 +328,7 @@ double ChMaterialVECT::FractureBC(ChVectorDynamic<>& mstrain, double& len, ChVec
 	//double H0 = Ht * pow(2 * omega / CH_PI, nt);
 	double H0 = Hs/alpha + ( Ht- Hs/alpha )* pow(2 * omega / CH_PI, nt);
 
-	double eps_max = pow(statev(6) * statev(6) + alpha * statev(7) * statev(7), 0.5);
+	double eps_max = std::sqrt(statev(6) * statev(6) + alpha * statev(7) * statev(7));
 	double sigma_bt = sigma0 * exp(-H0 * std::max((eps_max - eps0), 0.0) / sigma0);
 
 	
@@ -419,7 +419,7 @@ std::pair<double, double> ChMaterialVECT::ShearBC(ChVectorDynamic<>& mstrain, Ch
 	double ET = alpha * E0;
 	double sigmaM_ela = statev(4) + (mstrain(1) - statev(1)) * ET;
 	double sigmaL_ela = statev(5) + (mstrain(2) - statev(2)) * ET;
-	double sigmaT_ela = pow(sigmaM_ela * sigmaM_ela + sigmaL_ela * sigmaL_ela, 0.5);
+	double sigmaT_ela = std::sqrt(sigmaM_ela * sigmaM_ela + sigmaL_ela * sigmaL_ela);
 
 	double sigmaT = std::min(std::max(sigmaT_ela, 0.0), sigmabs);
 
@@ -513,7 +513,7 @@ std::pair<double, double> ChMaterialVECT::ShearBC(ChVectorDynamic<>& mstrain, Ch
 	double ET = alpha * E0;
 	double sigmaM_ela = statev(4) + (dmstrain(1) ) * ET;
 	double sigmaL_ela = statev(5) + (dmstrain(2) ) * ET;
-	double sigmaT_ela = pow(sigmaM_ela * sigmaM_ela + sigmaL_ela * sigmaL_ela, 0.5);
+	double sigmaT_ela = std::sqrt(sigmaM_ela * sigmaM_ela + sigmaL_ela * sigmaL_ela);
 
 	double sigmaT = std::min(std::max(sigmaT_ela, 0.0), sigmabs);
 
