@@ -35,7 +35,6 @@ namespace ldpm {
 
 ChElementLDPM::ChElementLDPM() : V0(0) {
     nodes.resize(4);
-    this->MatrB.setZero(6, 24);
     this->StiffnessMatrix.setZero(24, 24);    
 }
 

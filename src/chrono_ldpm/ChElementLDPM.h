@@ -159,8 +159,7 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     void AddFacetI(std::shared_ptr<ChSectionLDPM> my_facet) { my_section.push_back(my_facet); }    
     std::shared_ptr<ChSectionLDPM> GetFacetI(int i) { return my_section[i]; }
 
-    /// Get the partial derivatives matrix MatrB and the StiffnessMatrix
-    const ChMatrixDynamic<>& GetMatrB() const { return MatrB; }
+    /// Get the StiffnessMatrix
     const ChMatrixDynamic<>& GetStiffnessMatrix() const { return StiffnessMatrix; }
 
 
@@ -252,7 +251,6 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
 	
     std::vector<std::shared_ptr<fea::ChNodeFEAxyzrot> > nodes;
     std::vector<std::shared_ptr<ChSectionLDPM>> my_section; // Each section owns a std::shared_ptr<ChMaterialVECT> that be different(P-LDPM can have several facets with different material properties)
-    ChMatrixDynamic<> MatrB;            // matrix of shape function's partial derivatives
     ChMatrixDynamic<> StiffnessMatrix;  // undeformed local stiffness matrix
     ChMatrixNM<double, 4, 4> mM;        // for speeding up corotational approach	
     double V0;
