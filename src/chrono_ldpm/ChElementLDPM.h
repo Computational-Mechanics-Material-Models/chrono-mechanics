@@ -105,8 +105,6 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     /// but to avoid wasting zero and repeated elements, here
     /// it stores only the n1 n2 n3 n4 values in a 1 row, 4 columns matrix.
     void ShapeFunctions(ShapeVector& N, double r, double s, double t);
-    
-    void ComputeAmatrix( Amatrix& A, chrono::ChVector3d X , chrono::ChVector3d XI );
 	
     /// Fills the D vector (displacement) with the currentfield values at the nodes of the element, with proper
     /// ordering. If the D vector has not the size of this->GetNdofs(), it will be resized.For corotational elements,

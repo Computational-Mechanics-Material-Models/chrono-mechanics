@@ -94,25 +94,6 @@ void ChElementLDPM::ShapeFunctions(ShapeVector& N, double r, double s, double t)
 }
 
 
-void ChElementLDPM:: ComputeAmatrix( Amatrix& Amat, chrono::ChVector3d X , chrono::ChVector3d XI ){
-		
-		Amat.setZero();
-		Amat(0,0)=1.0;
-		Amat(1,1)=1.0;
-		Amat(2,2)=1.0;
-		//
-		Amat(0,4)=X[2]-XI[2];
-		Amat(0,5)=XI[1]-X[1];
-		//
-		Amat(1,3)=XI[2]-X[2];
-		Amat(1,5)=X[0]-XI[0];
-		//
-		Amat(2,3)=X[1]-XI[1];
-		Amat(2,4)=XI[0]-X[0];
-		
-}
-
-
 void ChElementLDPM::GetStateBlock(ChVectorDynamic<>& mD) {
     mD.setZero(this->GetNumCoordsPosLevel());
     
@@ -248,38 +229,38 @@ void ChElementLDPM::GetLatticeStateBlock(unsigned int& ind, unsigned int& jnd, C
 
 
 void ChElementLDPM::ComputeStrain(std::shared_ptr<ChSectionLDPM> section, unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& displ, ChVectorDynamic<>& mstrain) {
-    mstrain.resize(3);    	
-    // 
-    // Displacement of nodes:
-    auto dispN1=displ.segment(0,6);
-    auto dispN2=displ.segment(6,6);
-    double length=section->Get_Length();	
-    Amatrix AI; 	Amatrix AJ;
-    // A matrix is calculated based on initial coordinates
-    this->ComputeAmatrix(AI, section->Get_center(), this->nodes[ind]->GetX0().GetPos());
-                                    
-    this->ComputeAmatrix( AJ, section->Get_center(), this->nodes[jnd]->GetX0().GetPos());
-                                    
-    ChMatrix33<double> nmL=section->Get_facetFrame();
-    ChQuaternion<> q_delta=(section->Get_abs_rot() * section->Get_ref_rot().GetConjugate()) ;
-        
-    ChVectorN<double,3> n; //
-    for (int id=0;id<3;id++) {			
-        //
-        // NodeA
-        //
-        ChVector3d nn{nmL(id,0), nmL(id,1), nmL(id,2)};	
-        nn=q_delta.Rotate(nn);
-        //nn=chrono::ChTransform<>::TransformParentToLocal(nn, ChVector3d(0, 0, 0) ,  q_delta);
-        n<< nn[0], nn[1], nn[2];
-        ChMatrixNM<double,1,6> BI= n.transpose()*AI/length;				
-        //
-        // NodeB
-        //		
-        ChMatrixNM<double,1,6> BJ= n.transpose()*AJ/length;
-        //
-        mstrain(id)=double (BJ*dispN2)+ double (-BI*dispN1);
-    }	
+    mstrain.resize(3);
+    ChVector3d ui = displ.segment(0,3);
+    ChVector3d ri = displ.segment(3,3);
+    ChVector3d uj = displ.segment(6,3);
+    ChVector3d rj = displ.segment(9,3);
+    ChVector3d xc_xi;
+    ChVector3d xc_xj;
+
+    double linv = 1.0 / section->Get_Length();
+    // For small deflection, use the initial position of the nodes and facet centers
+    // to determine the displacement induced by the node rotation
+    if (!ChElementLDPM::LargeDeflection) {
+        xc_xi = section->Get_center() - this->nodes[ind]->GetX0().GetPos();
+        xc_xj = section->Get_center() - this->nodes[jnd]->GetX0().GetPos();
+    }
+    else { // TODO: Find out how to evolve position of the center for large displacement
+            //       Erol's implementation computed the initial A matrix from Get_center and GetX0 as well, so code below does not change the behavior
+        xc_xi = section->Get_center() - this->nodes[ind]->GetX0().GetPos(); // TEMPORARY
+        xc_xj = section->Get_center() - this->nodes[jnd]->GetX0().GetPos(); // TEMPORARY
+    }
+
+    ChMatrix33<double> nmL = section->Get_facetFrame();
+    if(ChElementLDPM::LargeDeflection) { // TODO JBC: If the facet orientation were made to coincide with the quaternion, we could save a lot and move this to Update() instead of rotating the initial frame at every step
+        ChQuaternion<> q_delta = section->Get_abs_rot() *  section->Get_ref_rot().GetConjugate();
+        for (int id=0; id<3; id++){
+            nmL.block<1,3>(id, 0) = q_delta.Rotate(nmL.block<1,3>(id, 0)).eigen();
+        }
+    }
+
+    // Strain
+    ChVector3d strain_increment = (uj + rj.Cross(xc_xj) - (ui + ri.Cross(xc_xi))) * linv;
+    mstrain = nmL * strain_increment.eigen();
 }
 
 
