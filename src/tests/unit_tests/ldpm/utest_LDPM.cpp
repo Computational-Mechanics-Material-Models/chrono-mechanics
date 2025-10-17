@@ -17,6 +17,7 @@
 #include <map>
 #include <memory>
 #include "chrono/core/ChFrame.h"
+#include "chrono/core/ChMatrix.h"
 #include "chrono/core/ChMatrix33.h"
 #include "chrono/core/ChQuaternion.h"
 #include "chrono/core/ChTypes.h"
@@ -382,6 +383,92 @@ TEST_F(LDPMTest, elastic_stiffness_matrix) {
         for (int j = 0 ; j < 24 ; j++) {
             ASSERT_NEAR(chrono_matrix(i, j), analytical_matrix(i, j), tol_stiff);
         }
+    }
+}
+
+TEST_F(LDPMTest, compute_strain) {
+    // Small deflection can be used since the void ChElementLDPM::ComputeStrain function only really performs the
+    // computation of the strain according to https://doi.org/10.1016/j.cemconcomp.2011.02.011
+    my_LDPM_tet->SetLargeDeflection(false);
+
+    // Performing some kind of step / analysis is required for chrono to run the appropriate setup
+    // Functions setupInitial() etc, are all private functions and inaccessible from here, otherwise we use them to make a minimal setup
+    sys.DoStepDynamics(0);
+
+    // Only test the first section
+    auto section = my_LDPM_tet->GetSection()[0];
+    unsigned int ind = nodeIind[0];
+    unsigned int jnd = nodeJind[0];
+    double length = section->Get_Length();
+    ChVector3<> center = section->Get_center();
+    ChMatrix33<> nmL = section->Get_facetFrame();
+    ChMatrix33<> nmL_tr = nmL.transpose();
+    std::vector<ChVector3<>> NML = {nmL_tr.GetAxisX(), nmL_tr.GetAxisY(), nmL_tr.GetAxisZ()};
+
+    double disp = 0.01;
+    double rot = 0.01;
+    ChVectorDynamic<> strain;
+    ChVectorDynamic<> displ_incr;
+    displ_incr.setZero(12);
+
+    double eps = 1e-15;
+
+    // Translation of node A
+    for (int i = 0; i<3 ; i++) {
+        displ_incr.segment(0,3) = disp * NML[i].eigen(); // N, M, L displacement
+        my_LDPM_tet->ComputeStrain(section, ind, jnd, displ_incr, strain);
+        ASSERT_NEAR(strain[i], -disp / length, eps);
+        ASSERT_NEAR(strain[(i+1)%3], 0.0, eps);
+        ASSERT_NEAR(strain[(i+2)%3], 0.0, eps);
+        displ_incr.setZero();
+    }
+        // NML displacements
+        displ_incr.segment(0,3) = disp * (NML[0]+NML[1]+NML[2]).eigen();
+        my_LDPM_tet->ComputeStrain(section, ind, jnd, displ_incr, strain);
+        ASSERT_NEAR(strain[0], -disp / length, eps);
+        ASSERT_NEAR(strain[1], -disp / length, eps);
+        ASSERT_NEAR(strain[2], -disp / length, eps);
+        displ_incr.setZero();
+
+    // Rotation of node A
+    for (int i = 0; i<3 ; i++) {
+        displ_incr(3+i) = rot; // X, Y, Z rotation
+        ChVector3<> rot_vector(rot*(i==0), rot*(i==1), rot*(i==2));
+        my_LDPM_tet->ComputeStrain(section, ind, jnd, displ_incr, strain);
+        ChVector3<> strain_analytical = -nmL * rot_vector.Cross(center - nodes[ind]->GetPos()).eigen();
+        ASSERT_NEAR(strain[0], strain_analytical[0], eps);
+        ASSERT_NEAR(strain[1], strain_analytical[1], eps);
+        ASSERT_NEAR(strain[2], strain_analytical[2], eps);
+        displ_incr.setZero();
+    }
+
+    // Translation of node B
+    for (int i = 0; i<3 ; i++) {
+        displ_incr.segment(6, 3) = disp * NML[i].eigen(); // N, M, L displacement
+        my_LDPM_tet->ComputeStrain(section, ind, jnd, displ_incr, strain);
+        ASSERT_NEAR(strain[i], disp / length, eps);
+        ASSERT_NEAR(strain[(i+1)%3], 0.0, eps);
+        ASSERT_NEAR(strain[(i+2)%3], 0.0, eps);
+        displ_incr.setZero();
+    }
+        // NML displacements
+        displ_incr.segment(6,3) = disp * (NML[0]+NML[1]+NML[2]).eigen();
+        my_LDPM_tet->ComputeStrain(section, ind, jnd, displ_incr, strain);
+        ASSERT_NEAR(strain[0], disp / length, eps);
+        ASSERT_NEAR(strain[1], disp / length, eps);
+        ASSERT_NEAR(strain[2], disp / length, eps);
+        displ_incr.setZero();
+
+    // Rotation of node B
+    for (int i = 0; i<3 ; i++) {
+        displ_incr(9+i) = rot; // X, Y, Z rotation
+        ChVector3<> rot_vector(rot*(i==0), rot*(i==1), rot*(i==2));
+        my_LDPM_tet->ComputeStrain(section, ind, jnd, displ_incr, strain);
+        ChVector3<> strain_analytical = nmL * rot_vector.Cross(center - nodes[jnd]->GetPos());
+        ASSERT_NEAR(strain[0], strain_analytical[0], eps);
+        ASSERT_NEAR(strain[1], strain_analytical[1], eps);
+        ASSERT_NEAR(strain[2], strain_analytical[2], eps);
+        displ_incr.setZero();
     }
 }
 
