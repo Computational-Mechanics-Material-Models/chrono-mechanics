@@ -252,7 +252,6 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     std::vector<std::shared_ptr<fea::ChNodeFEAxyzrot> > nodes;
     std::vector<std::shared_ptr<ChSectionLDPM>> my_section; // Each section owns a std::shared_ptr<ChMaterialVECT> that be different(P-LDPM can have several facets with different material properties)
     ChMatrixDynamic<> StiffnessMatrix;  // undeformed local stiffness matrix
-    ChMatrixNM<double, 4, 4> mM;        // for speeding up corotational approach	
     double V0;
     bool LargeDeflection=false; 
     
