@@ -113,7 +113,7 @@ class ChLdpmApi ChSectionLDPM  : public chrono::fea::ChBeamSection {
     ChVectorDynamic<>  m_nonMechanicStrain;
 	 
     ChQuaternion<> mq_lattice_abs_rot;
-    ChQuaternion<> mq_lattice_ref_rot; 
+    ChQuaternion<> mq_lattice_ref_rot; // TODO JBC: this quaternion seems to hold the same information as m_facetFrame. Consider simplifying
     
     //std::shared_ptr<ChInternalDataCSL> m_state;    
     double m_area=1.0; 

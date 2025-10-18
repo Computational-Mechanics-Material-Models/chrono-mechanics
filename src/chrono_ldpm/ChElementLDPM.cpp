@@ -61,28 +61,20 @@ void ChElementLDPM::Update() {
     // parent class update:
     ChElementGeneric::Update();
     // always keep updated the rotation matrix A:
-    this->UpdateRotation();
-    //this->ComputeStiffnessMatrix();
-	//
-	// update projection matrix
-	if (LargeDeflection && macro_strain){
-		for( auto facet:this->GetSection()){ 
-			facet->ComputeProjectionMatrix();		
-		}
-	}
-	
-	if(this->macro_strain){
-		for( auto facet:this->GetSection()){ 
-			facet->ComputeEigenStrain(this->macro_strain);				
-		}
-	}
-	//		
-	/*
-    ChVectorDynamic<> displ(24);
-    this->GetStateBlock(displ);
-    DUn_1=displ-Un_1;
-    Un_1=displ;
-    */
+    // TODO JBC: Because we inherit from a corotational element, we might consider using
+    //           the `disable_corotational` in addition to/instead of the `LargeDeflection` flag we defined here
+    if (ChElementLDPM::LargeDeflection) {
+        this->UpdateRotation();
+
+        // update projection matrix and compute eigenstrains
+        if (macro_strain) {
+            for( auto facet:this->GetSection()){
+                facet->ComputeProjectionMatrix();
+                facet->ComputeEigenStrain(this->macro_strain);
+            }
+        }
+    }
+    // TODO JBC: Erol's original code updates the length of the sections in updateRotation()
 }
 
 void ChElementLDPM::ShapeFunctions(ShapeVector& N, double r, double s, double t) {
@@ -352,11 +344,12 @@ void ChElementLDPM::SetupInitial(ChSystem* system) {
     	unsigned int ind=facetNodeNums(iface,0);
     	unsigned int jnd=facetNodeNums(iface,1);
 	    
+        // TODO JBC: the quaternion should be defined at the tetrahedron level, this would save a lot of compute and memory!
 	    ChMatrix33<> A0;
 	    ChVector3d mXele = nodes[jnd]->GetX0().GetPos() - nodes[ind]->GetX0().GetPos();
 	    ChVector3d myele =
 		(nodes[ind]->GetX0().GetRotMat().GetAxisY() + nodes[jnd]->GetX0().GetRotMat().GetAxisY()).GetNormalized();
-	    A0.SetFromAxisX(mXele, myele);
+	    A0.SetFromAxisX(mXele, myele); // If the Y-axes are aligned with the node-to-node direction, , or cancel out, Gram-Schmidt will fail and use an arbitrary direction
 	    facet->Set_ref_rot( A0.GetQuaternion() );
 	    ///
 		///		
@@ -385,7 +378,7 @@ void ChElementLDPM::SetupInitial(ChSystem* system) {
     this->GetStateBlock(displ);
 	Un_1=displ;
 	
-    this->UpdateRotation();
+    this->UpdateRotation(); // TODO JBC: not sure why this is needed here
     //
     this->SetInitialVolume(ComputeVolume());
 }
@@ -397,33 +390,32 @@ void ChElementLDPM::UpdateRotation() {
     for( auto facet:this->GetSection()){
     	    unsigned int ind=facetNodeNums(iface,0);
     	    unsigned int jnd=facetNodeNums(iface,1);   
-    	          
-	    ChMatrix33<> A0(facet->Get_ref_rot());	
-	    ChMatrix33<> Aabs;
-	    ChQuaternion<> q_lattice_abs_rot;
-	    if (!LargeDeflection) {
-		Aabs = A0;
-		q_lattice_abs_rot =facet->Get_ref_rot();
-	    }else {
-	    			
-	    	ChVector3d mXele = nodes[jnd]->Frame().GetPos() - nodes[ind]->Frame().GetPos();
-	    	ChVector3d myele = (nodes[ind]->Frame().GetRotMat().GetAxisY() + nodes[jnd]->Frame().GetRotMat().GetAxisY()).GetNormalized();
-		
-	    	Aabs.SetFromAxisX(mXele, myele);        
-	    	q_lattice_abs_rot = Aabs.GetQuaternion();	    	
-	    	
-			double length = (this->GetTetrahedronNode(ind)->GetX0().GetPos() - this->GetTetrahedronNode(jnd)->GetX0().GetPos()).Length();		
-			facet->Set_Length(length);
-	    }
-		
-	    facet->Set_abs_rot(q_lattice_abs_rot);	    
-	    iface++;
-    
+
+        ChMatrix33<> A0(facet->Get_ref_rot());
+        ChMatrix33<> Aabs;
+        ChQuaternion<> q_lattice_abs_rot;
+        if (!LargeDeflection) {
+        Aabs = A0;
+        q_lattice_abs_rot =facet->Get_ref_rot();
+        } else {
+            ChVector3d mXele = nodes[jnd]->Frame().GetPos() - nodes[ind]->Frame().GetPos();
+            ChVector3d myele = (nodes[ind]->Frame().GetRotMat().GetAxisY() + nodes[jnd]->Frame().GetRotMat().GetAxisY()).GetNormalized();
+            // TODO JBC: This looks fragile and relies on assumptions and current behavior of other parts of the code
+            //           - If the Y-axes are aligned with the node-to-node direction, or cancel out, Gram-Schmidt will fail and use an arbitrary direction
+            //              This arbitrary direction is repeatable, that is the only thing that guarantee this works, otherwise, the initial quaternion determined in SetupInitial() might be different
+            //              Any change to the fallback behavior of ChMatrix33::SetFromAxisX() will break this code !
+            //           - We could compute the rigid body motion of the tegrahedron, rather than compute and store an individual quaternion for all 12 facet to facets.
+            //              This is what is done in `ChElementTetraCorot_4::UpdateRotation()` using polar decompositoin, which seems better suited
+            //              The difficulty is that the N-axis might not be aligned with the node-to-node direction because of the deformation, albeit small
+            Aabs.SetFromAxisX(mXele, myele);
+            q_lattice_abs_rot = Aabs.GetQuaternion();
+
+            double length = (this->GetTetrahedronNode(ind)->GetX0().GetPos() - this->GetTetrahedronNode(jnd)->GetX0().GetPos()).Length(); // TODO JBC: this has nothing to do with rotation	and could be taken to Update()
+            facet->Set_Length(length);
+        }
+        facet->Set_abs_rot(q_lattice_abs_rot);
+        iface++;
     }
-	
-	//DUn_1
-    
-   
 }
 
 void ChElementLDPM::ComputeKRMmatricesGlobal(ChMatrixRef H, double Kfactor, double Rfactor, double Mfactor) {
