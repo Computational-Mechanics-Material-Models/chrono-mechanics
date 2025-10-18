@@ -408,7 +408,7 @@ TEST_F(LDPMTest, compute_strain) {
 
     double disp = 0.01;
     double rot = 0.01;
-    ChVectorDynamic<> strain;
+    ChVector3d strain;
     ChVectorDynamic<> displ_incr;
     displ_incr.setZero(12);
 

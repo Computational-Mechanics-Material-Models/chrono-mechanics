@@ -30,6 +30,7 @@
 #include <string>
 #include <cmath>
 
+#include "chrono/core/ChVector3.h"
 #include "chrono_ldpm/ChLdpmApi.h"
 #include "chrono_ldpm/ChMaterialVECT.h"
 #include "chrono/fea/ChBeamSection.h"
@@ -89,8 +90,8 @@ class ChLdpmApi ChSectionLDPM  : public chrono::fea::ChBeamSection {
     ChVectorDynamic<>  Get_StateVar() const { return m_state; };
     void Set_StateVar(ChVectorDynamic<>  state) { m_state=state; }  
 	// Setter & Getter for facet state variables
-    ChVectorDynamic<>  Get_nonMechanicStrain() const { return m_nonMechanicStrain; };
-    void Set_nonMechanicStrain(ChVectorDynamic<>  nonMechanicStrain) { m_nonMechanicStrain=nonMechanicStrain; } 
+    ChVector3d  Get_nonMechanicStrain() const { return m_nonMechanicStrain; };
+    void Set_nonMechanicStrain(ChVector3d  nonMechanicStrain) { m_nonMechanicStrain=nonMechanicStrain; }
     // Setter & Getter for rotation of the lattice
     ChQuaternion<> Get_ref_rot() const { return mq_lattice_ref_rot; }
     void Set_ref_rot(ChQuaternion<> q_element_ref_rot) { mq_lattice_ref_rot=q_element_ref_rot; }
@@ -110,7 +111,7 @@ class ChLdpmApi ChSectionLDPM  : public chrono::fea::ChBeamSection {
     ChVector3d m_center;
     ChMatrix33<double> m_facetFrame;
     ChVectorDynamic<>  m_state;
-    ChVectorDynamic<>  m_nonMechanicStrain;
+    ChVector3d m_nonMechanicStrain;
 	 
     ChQuaternion<> mq_lattice_abs_rot;
     ChQuaternion<> mq_lattice_ref_rot; // TODO JBC: this quaternion seems to hold the same information as m_facetFrame. Consider simplifying

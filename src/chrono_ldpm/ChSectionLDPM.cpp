@@ -22,6 +22,7 @@
 // =============================================================================
 
 #include "chrono_ldpm/ChSectionLDPM.h"
+#include "chrono/core/ChVector3.h"
 
 namespace chrono {
 namespace ldpm {
@@ -64,11 +65,10 @@ void ChSectionLDPM::ComputeProjectionMatrix() {
 };
 
 void ChSectionLDPM::ComputeEigenStrain(std::shared_ptr<ChMatrixNM<double,1,9>> macro_strain){
-	ChVectorDynamic<> eigen_strain;					
+	ChVector3d eigen_strain;
 	auto pp=this->GetProjectionMatrix();
-	eigen_strain = -pp * macro_strain->transpose();	
-	this->Set_nonMechanicStrain(eigen_strain);				
-			
+	eigen_strain = -pp * macro_strain->transpose();
+	this->Set_nonMechanicStrain(eigen_strain);
 }
 
 //pSM =[n11*n21, n12*n22, n13*n23, n11*n22 + n12*n21, n11*n23 + n13*n21, n12*n23 + n13*n22]

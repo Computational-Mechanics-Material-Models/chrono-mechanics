@@ -68,9 +68,13 @@ void ChElementLDPM::Update() {
 
         // update projection matrix and compute eigenstrains
         if (macro_strain) {
-            for( auto facet:this->GetSection()){
+            for( auto facet:this->GetSection()) {
                 facet->ComputeProjectionMatrix();
                 facet->ComputeEigenStrain(this->macro_strain);
+            }
+        } else { // JBC: This might not be necessary since the value of 0.0 in SetupInitial() should remain if macro_strain is nullptr
+            for( auto facet:this->GetSection()) {
+                facet->Set_nonMechanicStrain(ChVector3d(0.0, 0.0, 0.0));
             }
         }
     }
@@ -159,8 +163,7 @@ void ChElementLDPM::GetLatticeField_dt(unsigned int& ind, unsigned int& jnd, ChV
 
 
 
-void ChElementLDPM::ComputeStrain(std::shared_ptr<ChSectionLDPM> section, unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& displ, ChVectorDynamic<>& mstrain) {
-    mstrain.resize(3);
+void ChElementLDPM::ComputeStrain(std::shared_ptr<ChSectionLDPM> section, unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& displ, ChVector3d& mstrain) {
     ChVector3d ui = displ.segment(0,3);
     ChVector3d ri = displ.segment(3,3);
     ChVector3d uj = displ.segment(6,3);
@@ -306,20 +309,18 @@ void ChElementLDPM::SetupInitial(ChSystem* system) {
 		if(this->macro_strain){
 			facet->ComputeProjectionMatrix();			
 			facet->ComputeEigenStrain(this->macro_strain);
-		}
-		///
-		///
+		} else {
+            facet->Set_nonMechanicStrain(ChVector3d(0.0, 0.0, 0.0));
+        }
 	    iface++;
-     }	
-	 
-	
-    
+     }
+
 	ChVectorDynamic<> displ(24);
     this->GetStateBlock(displ);
 	Un_1=displ;
-	
+
     this->UpdateRotation(); // TODO JBC: not sure why this is needed here
-    //
+
     this->SetInitialVolume(ComputeVolume());
 }
 
@@ -417,8 +418,8 @@ void ChElementLDPM::ComputeInternalForces(ChVectorDynamic<>& Fi) {
         //
         // Get Stress values at facet center
         //
-        ChVectorDynamic<> mstress;	
-        ChVectorDynamic<> dmstrain;
+        ChVector3d mstress;
+        ChVector3d dmstrain;
         ChVectorDynamic<> statev;
         ChVectorDynamic<> displ_facet_nodes(12);
         this->GetLatticeStateBlock(ind, jnd, displ_facet_nodes);	
@@ -429,12 +430,8 @@ void ChElementLDPM::ComputeInternalForces(ChVectorDynamic<>& Fi) {
         // TODO JBC: not sure why 2 lines below were kept commented. If not used, get rid of them
         //if (this->macro_strain)
         //	facet->ComputeEigenStrain(this->macro_strain);
-        auto nonMechanicalStrain=facet->Get_nonMechanicStrain();
-        if (nonMechanicalStrain.size()) {
-            facet->Get_material()->ComputeStress( dmstrain, nonMechanicalStrain, length,  epsV, statev, mstress, area);
-        } else {
-            facet->Get_material()->ComputeStress( dmstrain, length,  epsV, statev, mstress, area);
-        }
+        ChVector3d nonMechanicalStrain=facet->Get_nonMechanicStrain();
+        facet->Get_material()->ComputeStress( dmstrain, nonMechanicalStrain, length,  epsV, statev, mstress, area);
         facet->Set_StateVar(statev);	
 
         ChVector3d force = area * (nmL_tr * mstress);

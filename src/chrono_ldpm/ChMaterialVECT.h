@@ -20,6 +20,8 @@
 #ifndef CHMATERIALVECT_H
 #define CHMATERIALVECT_H
 
+#include "chrono/core/ChMatrix.h"
+#include "chrono/core/ChVector3.h"
 #include "chrono_ldpm/ChLdpmApi.h"
 #include "chrono/core/ChMatrix33.h"
 #include <vector>
@@ -155,17 +157,11 @@ class ChLdpmApi ChMaterialVECT {
     void SetRayleighDampingM(double myRayleighDampingM) { RayleighDampingM = myRayleighDampingM; }
 
     /// Compute stresses from given strains and state variables.
-    void ComputeStress(ChVectorDynamic<>& mstrain, double &len, double& epsV, ChVectorDynamic<>& statev,ChVectorDynamic<>& mstress, double& area);
-    void ComputeStress(ChVectorDynamic<>& mstrain, ChVectorDynamic<>& eigenstrain, double &len, double& epsV, ChVectorDynamic<>& statev,ChVectorDynamic<>& mstress, double& area);
+    void ComputeStress(ChVector3d& mstrain, ChVector3d& eigenstrain, double &len, double& epsV, ChVectorDynamic<>& statev, ChVector3d& mstress, double& area);
 
-    double FractureBC(ChVectorDynamic<>& mstrain, double& len, ChVectorDynamic<>& statev);
-
-    double CompressBC(ChVectorDynamic<>& mstrain, double& epsV, ChVectorDynamic<>& statev);
-
-    std::pair<double, double> ShearBC(ChVectorDynamic<>& mstrain, ChVectorDynamic<>& statev);
-    
-    double CompressBC(ChVectorDynamic<>& mstrain, ChVectorDynamic<>& dmstrain, double& epsV, ChVectorDynamic<>& statev);
-    std::pair<double, double> ShearBC(ChVectorDynamic<>& mstrain, ChVectorDynamic<>& dmstrain, ChVectorDynamic<>& statev);
+    double FractureBC(ChVector3d& mstrain, double& len, ChVectorDynamic<>& statev);
+    double CompressBC(ChVector3d& mstrain, ChVector3d& dmstrain, double& epsV, ChVectorDynamic<>& statev);
+    std::pair<double, double> ShearBC(ChVector3d& mstrain, ChVector3d& dmstrain, ChVectorDynamic<>& statev);
     
   private:
     
