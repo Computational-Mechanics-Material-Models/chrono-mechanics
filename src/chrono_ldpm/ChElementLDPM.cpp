@@ -87,59 +87,43 @@ void ChElementLDPM::ShapeFunctions(ShapeVector& N, double r, double s, double t)
 
 void ChElementLDPM::GetStateBlock(ChVectorDynamic<>& mD) {
     mD.setZero(this->GetNumCoordsPosLevel());
-    
-    //
-    ChVector3d delta_rot_dir;
-    double delta_rot_angle;
-    ChQuaternion<> q_delta;
+
+    // Node displacement in global frame
+    auto getDisplacement = [&] (std::shared_ptr<fea::ChNodeFEAxyzrot> node) {
+        return node->Frame().GetPos() - node->GetX0().GetPos();
+    };
+
+    // Node rotation in global frame
+    auto getRotation = [&] (std::shared_ptr<fea::ChNodeFEAxyzrot> node) {
+        ChQuaternion<> global_dq = node->Frame().GetRot() * node->GetX0().GetRot().GetConjugate();
+        ChVector3d delta_rot_dir;
+        double delta_rot_angle;
+        global_dq.GetAngleAxis(delta_rot_angle, delta_rot_dir);
+        // TODO: We may want to use GetRotVec directly, but the angle is not within [-PI .. PI]
+        // TODO: Consider changing GetRotVec() to return within [-PI .. PI]
+        return delta_rot_angle * delta_rot_dir;
+    };
+
     //
     // First node
     //
-    // displacement dofs:
-    mD.segment(0, 3) = (nodes[0]->Frame().GetPos() - nodes[0]->GetX0().GetPos()).eigen();
-    // rotational dofs:
-    q_delta =  nodes[0]->Frame().GetRot() ;    
-    q_delta.GetAngleAxis(delta_rot_angle, delta_rot_dir);	
-    if (delta_rot_angle > CH_PI) 
-        delta_rot_angle -= CH_2PI;  // no 0..360 range, use -180..+180	
-    mD.segment(3, 3) = delta_rot_angle * delta_rot_dir.eigen();
+    mD.segment(0, 3) = getDisplacement(nodes[0]).eigen();
+    mD.segment(3, 3) = getRotation(nodes[0]).eigen();
     //
     // Second node
     //
-    // displacement dofs:
-    mD.segment(6, 3) = ( nodes[1]->Frame().GetPos() - nodes[1]->GetX0().GetPos()).eigen();    
-    // rotational dofs:
-    q_delta =  nodes[1]->Frame().GetRot() ;    
-    q_delta.GetAngleAxis(delta_rot_angle, delta_rot_dir);	
-    if (delta_rot_angle > CH_PI) 
-        delta_rot_angle -= CH_2PI;  // no 0..360 range, use -180..+180	
-    mD.segment(9, 3) = delta_rot_angle * delta_rot_dir.eigen();
+    mD.segment(6, 3) = getDisplacement(nodes[1]).eigen();
+    mD.segment(9, 3) = getRotation(nodes[1]).eigen();
     //
     // third node
     //
-    // displacement dofs:
-    //
-    mD.segment(12, 3) = ( nodes[2]->Frame().GetPos() - nodes[2]->GetX0().GetPos()).eigen();
-    // rotational dofs:
-    q_delta =  nodes[2]->Frame().GetRot() ;    
-    q_delta.GetAngleAxis(delta_rot_angle, delta_rot_dir);	
-    if (delta_rot_angle > CH_PI) 
-        delta_rot_angle -= CH_2PI;  // no 0..360 range, use -180..+180	
-    mD.segment(15, 3) = delta_rot_angle * delta_rot_dir.eigen();
+    mD.segment(12, 3) = getDisplacement(nodes[2]).eigen();
+    mD.segment(15, 3) = getRotation(nodes[2]).eigen();
     //
     // fourth node
     //
-    // displacement dofs:
-    //
-    mD.segment(18, 3) = ( nodes[3]->Frame().GetPos() - nodes[3]->GetX0().GetPos()).eigen();
-    // rotational dofs:
-    q_delta =  nodes[3]->Frame().GetRot() ;    
-    q_delta.GetAngleAxis(delta_rot_angle, delta_rot_dir);	
-    if (delta_rot_angle > CH_PI) 
-        delta_rot_angle -= CH_2PI;  // no 0..360 range, use -180..+180	
-    mD.segment(21, 3) = delta_rot_angle * delta_rot_dir.eigen();
-    
-    
+    mD.segment(18, 3) = getDisplacement(nodes[3]).eigen();
+    mD.segment(21, 3) = getRotation(nodes[3]).eigen();
 }
 
 
