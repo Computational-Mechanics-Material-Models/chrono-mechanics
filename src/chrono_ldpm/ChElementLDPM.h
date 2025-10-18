@@ -48,9 +48,9 @@ namespace ldpm {
 
 
 class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
-                                    public fea::ChElementGeneric,
-                                    public fea::ChElementCorotational,
-                                    public ChLoadableUVW {
+                                public fea::ChElementGeneric,
+                                public fea::ChElementCorotational,
+                                public ChLoadableUVW {
   public:
     static chrono::ChMatrixNM<int,12,2> facetNodeNums;
     using ShapeVector = ChMatrixNM<double, 1, 4>;
@@ -69,7 +69,7 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     virtual std::shared_ptr<fea::ChNodeFEAbase> GetNode(unsigned int n) override { return nodes[n]; }
 
     /// Return the specified tetrahedron node (0 <= n <= 3).
-   virtual std::shared_ptr<fea::ChNodeFEAxyzrot> GetTetrahedronNode(unsigned int n) override { return nodes[n]; }
+    virtual std::shared_ptr<fea::ChNodeFEAxyzrot> GetTetrahedronNode(unsigned int n) override { return nodes[n]; }
 
     virtual void SetNodes(std::shared_ptr<fea::ChNodeFEAxyzrot> nodeA,
                           std::shared_ptr<fea::ChNodeFEAxyzrot> nodeB,
@@ -105,23 +105,22 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     /// but to avoid wasting zero and repeated elements, here
     /// it stores only the n1 n2 n3 n4 values in a 1 row, 4 columns matrix.
     void ShapeFunctions(ShapeVector& N, double r, double s, double t);
-	
+
     /// Fills the D vector (displacement) with the currentfield values at the nodes of the element, with proper
     /// ordering. If the D vector has not the size of this->GetNdofs(), it will be resized.For corotational elements,
     /// field is assumed in local reference!
     virtual void GetStateBlock(ChVectorDynamic<>& mD) override;
-    
+
     void GetLatticeStateBlock(unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& mD);
-    
+
     void GetField_dt(ChVectorDynamic<>& mD_dt);
-    
+
     void GetLatticeField_dt(unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& mD_dt);
-    
+
     double GetCurrentTimeIncrement(ChSystem* sys) const { return sys->GetStep();};
 
     double ComputeVolume(); // Volume of the LDPM tetrahedron
-    
-    ///
+
     ///
     /// Compute strain at a LDPM facet
     ///
@@ -129,9 +128,8 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     ///
     ///
 
-    /// Computes the local STIFFNESS MATRIX of the element:
-    /// K = Volume * [B]' * [D] * [B]
-    virtual void ComputeStiffnessMatrix();
+    /// Computes the global stiffness matrix of the element
+    virtual void ComputeStiffnessMatrixGlobal(ChMatrixRef Km); // TODO JBC: why is this function virtual ?!?!
 
     /// compute large rotation of element for corotational approach
     virtual void UpdateRotation() override;
@@ -158,10 +156,6 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     // Set and Get the individual facet information
     void AddFacetI(std::shared_ptr<ChSectionLDPM> my_facet) { my_section.push_back(my_facet); }    
     std::shared_ptr<ChSectionLDPM> GetFacetI(int i) { return my_section[i]; }
-
-    /// Get the StiffnessMatrix
-    const ChMatrixDynamic<>& GetStiffnessMatrix() const { return StiffnessMatrix; }
-
 
     /// This function computes and adds corresponding masses to ElementBase member m_TotalMass
     void ComputeNodalMass() override;
@@ -251,7 +245,6 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
 	
     std::vector<std::shared_ptr<fea::ChNodeFEAxyzrot> > nodes;
     std::vector<std::shared_ptr<ChSectionLDPM>> my_section; // Each section owns a std::shared_ptr<ChMaterialVECT> that be different(P-LDPM can have several facets with different material properties)
-    ChMatrixDynamic<> StiffnessMatrix;  // undeformed local stiffness matrix
     double V0;
     bool LargeDeflection=false; 
     

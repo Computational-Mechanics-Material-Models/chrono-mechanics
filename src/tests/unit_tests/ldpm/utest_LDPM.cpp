@@ -339,8 +339,9 @@ TEST_F(LDPMTest, elastic_stiffness_matrix) {
     sys.DoStepDynamics(0);
 
     // Chrono LDPM calculation of the elastic stiffness matrix
-    my_LDPM_tet->ComputeStiffnessMatrix();
-    auto chrono_matrix = my_LDPM_tet->GetStiffnessMatrix();
+    ChMatrixNM<double, 24, 24> chrono_matrix;
+    chrono_matrix.setZero();
+    my_LDPM_tet->ComputeStiffnessMatrixGlobal(chrono_matrix);
 
     // Analytical calculation of the stiffness matrix
     ChMatrixNM<double, 24, 24> analytical_matrix;

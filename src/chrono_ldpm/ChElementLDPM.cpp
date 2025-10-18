@@ -23,6 +23,7 @@
 
 #include "chrono_ldpm/ChElementLDPM.h"
 #include <memory>
+#include "chrono/core/ChMatrix.h"
 #include "chrono/core/ChVector3.h"
 #include "chrono/utils/ChConstants.h"
 #include "chrono_ldpm/ChSectionLDPM.h"
@@ -35,7 +36,6 @@ namespace ldpm {
 
 ChElementLDPM::ChElementLDPM() : V0(0) {
     nodes.resize(4);
-    this->StiffnessMatrix.setZero(24, 24);    
 }
 
 ChElementLDPM::~ChElementLDPM() {}
@@ -267,9 +267,8 @@ double ChElementLDPM::ComputeVolume() {
     return ComputeTetVol(nodes[0]->GetPos(), nodes[1]->GetPos(), nodes[2]->GetPos(), nodes[3]->GetPos());
 }
 
-void ChElementLDPM::ComputeStiffnessMatrix() {
-    //assert(section);    
-    StiffnessMatrix.setZero();     
+void ChElementLDPM::ComputeStiffnessMatrixGlobal(ChMatrixRef Km) {
+    // Assume Km is 24*24 and zero. Not checked here
     for (int iface = 0 ; iface < my_section.size() ; iface++) {
         std::shared_ptr<ChSectionLDPM> facet = my_section[iface];
         unsigned int ind = facetNodeNums(iface, 0);
@@ -322,25 +321,25 @@ void ChElementLDPM::ComputeStiffnessMatrix() {
         ChMatrix33<> K_material_Aj_Ai = K_material_Ai_Aj.transpose();
 
         // dFi / dQi
-        StiffnessMatrix.block<3,3>(ind*6  , ind*6)   +=  K_material;
-        StiffnessMatrix.block<3,3>(ind*6  , ind*6+3) +=  K_material_Id_Ai;
-        StiffnessMatrix.block<3,3>(ind*6+3, ind*6)   +=  K_material_Ai_Id;
-        StiffnessMatrix.block<3,3>(ind*6+3, ind*6+3) +=  K_material_Ai_Ai;
+        Km.block<3,3>(ind*6  , ind*6)   +=  K_material;
+        Km.block<3,3>(ind*6  , ind*6+3) +=  K_material_Id_Ai;
+        Km.block<3,3>(ind*6+3, ind*6)   +=  K_material_Ai_Id;
+        Km.block<3,3>(ind*6+3, ind*6+3) +=  K_material_Ai_Ai;
         // dFi / dQj
-        StiffnessMatrix.block<3,3>(ind*6  , jnd*6)   += -K_material;
-        StiffnessMatrix.block<3,3>(ind*6  , jnd*6+3) += -K_material_Id_Aj;
-        StiffnessMatrix.block<3,3>(ind*6+3, jnd*6)   += -K_material_Ai_Id;
-        StiffnessMatrix.block<3,3>(ind*6+3, jnd*6+3) += -K_material_Ai_Aj;
+        Km.block<3,3>(ind*6  , jnd*6)   += -K_material;
+        Km.block<3,3>(ind*6  , jnd*6+3) += -K_material_Id_Aj;
+        Km.block<3,3>(ind*6+3, jnd*6)   += -K_material_Ai_Id;
+        Km.block<3,3>(ind*6+3, jnd*6+3) += -K_material_Ai_Aj;
         // dFj / dQi
-        StiffnessMatrix.block<3,3>(jnd*6  , ind*6)   += -K_material;
-        StiffnessMatrix.block<3,3>(jnd*6  , ind*6+3) += -K_material_Id_Ai;
-        StiffnessMatrix.block<3,3>(jnd*6+3, ind*6)   += -K_material_Aj_Id;
-        StiffnessMatrix.block<3,3>(jnd*6+3, ind*6+3) += -K_material_Aj_Ai;
+        Km.block<3,3>(jnd*6  , ind*6)   += -K_material;
+        Km.block<3,3>(jnd*6  , ind*6+3) += -K_material_Id_Ai;
+        Km.block<3,3>(jnd*6+3, ind*6)   += -K_material_Aj_Id;
+        Km.block<3,3>(jnd*6+3, ind*6+3) += -K_material_Aj_Ai;
         // dFj / dQj
-        StiffnessMatrix.block<3,3>(jnd*6  , jnd*6)   +=  K_material;
-        StiffnessMatrix.block<3,3>(jnd*6  , jnd*6+3) +=  K_material_Id_Aj;
-        StiffnessMatrix.block<3,3>(jnd*6+3, jnd*6)   +=  K_material_Aj_Id;
-        StiffnessMatrix.block<3,3>(jnd*6+3, jnd*6+3) +=  K_material_Aj_Aj;
+        Km.block<3,3>(jnd*6  , jnd*6)   +=  K_material;
+        Km.block<3,3>(jnd*6  , jnd*6+3) +=  K_material_Id_Aj;
+        Km.block<3,3>(jnd*6+3, jnd*6)   +=  K_material_Aj_Id;
+        Km.block<3,3>(jnd*6+3, jnd*6+3) +=  K_material_Aj_Aj;
     }
 }
 
@@ -389,8 +388,6 @@ void ChElementLDPM::SetupInitial(ChSystem* system) {
     this->UpdateRotation();
     //
     this->SetInitialVolume(ComputeVolume());
-    //
-    ComputeStiffnessMatrix();
 }
 
 void ChElementLDPM::UpdateRotation() {
@@ -431,31 +428,26 @@ void ChElementLDPM::UpdateRotation() {
 
 void ChElementLDPM::ComputeKRMmatricesGlobal(ChMatrixRef H, double Kfactor, double Rfactor, double Mfactor) {
     assert((H.rows() == 24) && (H.cols() == 24));    
-	//std::cout<<"Krm: "<<Kfactor<<" "<<Rfactor<<" "<<Mfactor<<"\t";
     // For K stiffness matrix and R damping matrix:
     double RayleighDampingK=this->GetFacetI(0)->Get_material()->GetRayleighDampingK();
     double RayleighDampingM=this->GetFacetI(0)->Get_material()->GetRayleighDampingM();
-	//std::cout<<RayleighDampingK<<" "<<RayleighDampingM<<std::endl;
-	//std::cout<<"node0: "<<this->nodes[0]->GetX0().GetPos()<<"\t";
-	//std::cout<<"node1: "<<this->nodes[1]->GetX0().GetPos()<<"\t";
-	//std::cout<<"node2: "<<this->nodes[2]->GetX0().GetPos()<<"\t";
-	//std::cout<<"node3: "<<this->nodes[3]->GetX0().GetPos()<<"\n";
-	
-    //
-    if (Kfactor || Rfactor) { 
-    double mkfactor = Kfactor + Rfactor * RayleighDampingK;
-    H.block(0, 0, 24, 24) = mkfactor*this->StiffnessMatrix;   
+
+    if (Kfactor || Rfactor) {
+        // LDPM currently uses the initial elastic stiffness matrix
+        ChMatrixNM<double, 24, 24> Km;
+        Km.setZero();
+        ComputeStiffnessMatrixGlobal(Km);
+        double mkfactor = Kfactor + Rfactor * RayleighDampingK;
+        H.block(0, 0, 24, 24) = mkfactor*Km;
     }
-    // For M mass matrix:
+
     if (Mfactor || Rfactor) {      	    
         ChMatrixDynamic<> Mloc(24, 24); 
 	this->ComputeMmatrixGlobal(Mloc);	
 	double amfactor = Mfactor + Rfactor * RayleighDampingM;
-	H.block(0, 0, 24, 24)+= amfactor*Mloc;        
+	H.block(0, 0, 24, 24)+= amfactor*Mloc;
     }
-     
-    //std::cout<<"H:\n"<<H<<std::endl;
-	//std::cout<<std::endl;
+
     //***TO DO*** better per-node lumping, or 12x12 consistent mass matrix.
 }
 
