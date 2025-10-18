@@ -484,9 +484,9 @@ void WriteFrame1(std::shared_ptr<ChMesh> mesh, const std::string& mesh_filename,
 
         for (int j = 0; j < 12; j++) {
             auto vertices = elem->GetVertNodeVec(j);
-            auto pC = vertices[0]->GetX0().GetPos();
-            auto pA = vertices[1]->GetX0().GetPos();
-            auto pB = vertices[2]->GetX0().GetPos();
+            auto pC = vertices[0];
+            auto pA = vertices[1];
+            auto pB = vertices[2];
             out_stream << pC << "\n";
             out_stream << pA << "\n";
             out_stream << pB << "\n";

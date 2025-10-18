@@ -601,33 +601,29 @@ ChMatrixNM<double,6,6> ChElementLDPM::ComputeTetMassN(std::shared_ptr<ChSectionL
 
 void ChElementLDPM::ComputeMmatrixGlobal(ChMatrixRef M) {
     M.setZero();
-    // Mass Matrix 
-    
-	
-    // TODO JBC: this is dumb: why use FEAxyzrot nodes for the edge, face and tet vertices if we only need their initial position ?!
-    //                         This is expensive enought that the mass matrix of the element might be stored + rotated rather than recomputed
-    //                          or alternatively, a simpler mass ditribution should be assumed for the LDPM tetrahedron
-	auto vertices=this->V_vert_nodes;
-	unsigned int iface=0;
-	for(auto verts: vertices){	
-		unsigned int ind=facetNodeNums(iface,0);
-    		unsigned int jnd=facetNodeNums(iface,1);
-    		//
-    		ChVector3d pNA=this->nodes[ind]->GetX0().GetPos();
-		ChVector3d pNB=this->nodes[jnd]->GetX0().GetPos();
-    		//
-		auto pC=verts[0]->GetX0().GetPos();
-		auto pA=verts[1]->GetX0().GetPos();
-		auto pB=verts[2]->GetX0().GetPos();		
-		//
-		ChMatrixNM<double,6,6> mA=this->ComputeTetMassN(this->GetFacetI(iface), pNA, pC, pA, pB);
-		ChMatrixNM<double,6,6> mB=this->ComputeTetMassN(this->GetFacetI(iface), pNB, pC, pA, pB);
-		M.block<6,6>(ind*6,ind*6)+=mA;
-		M.block<6,6>(jnd*6,jnd*6)+=mB;
-		//
-		iface++;
-	}
-	
+    // Mass Matrix
+    // TODO JBC: This is expensive enough that the mass matrix of the element might be stored + rotated rather than recomputed.
+    //           Alternatively, a simpler mass ditribution should be assumed for the LDPM tetrahedron
+    auto vertices=this->V_vert_nodes;
+    unsigned int iface=0;
+    for(auto verts: vertices){	
+        unsigned int ind=facetNodeNums(iface,0);
+        unsigned int jnd=facetNodeNums(iface,1);
+        //
+        ChVector3d pNA=this->nodes[ind]->GetX0().GetPos();
+        ChVector3d pNB=this->nodes[jnd]->GetX0().GetPos();
+        //
+        auto pC=verts[0];
+        auto pA=verts[1];
+        auto pB=verts[2];		
+        //
+        ChMatrixNM<double,6,6> mA=this->ComputeTetMassN(this->GetFacetI(iface), pNA, pC, pA, pB);
+        ChMatrixNM<double,6,6> mB=this->ComputeTetMassN(this->GetFacetI(iface), pNB, pC, pA, pB);
+        M.block<6,6>(ind*6,ind*6)+=mA;
+        M.block<6,6>(jnd*6,jnd*6)+=mB;
+        //
+        iface++;
+    }
 }
 
 

@@ -176,11 +176,9 @@ class LDPMTest : public testing::Test {
                 my_LDPM_tet->AddFacetI(section);
 
                 // Add vertices for initial mass calculation
-                // TODO JBC: not sure I am doing this correctly (order in particular) but the whole design is pretty stupid if I am being honest
-                auto nonsense_unnecessary_xyzrot_1 = chrono_types::make_shared<ChNodeFEAxyzrot>(ChFrame<>(tet, QUNIT));
-                auto nonsense_unnecessary_xyzrot_2 = chrono_types::make_shared<ChNodeFEAxyzrot>(ChFrame<>(edge, QUNIT));
-                auto nonsense_unnecessary_xyzrot_3 = chrono_types::make_shared<ChNodeFEAxyzrot>(ChFrame<>(face, QUNIT));
-                my_LDPM_tet->AddVertNodeVec(std::vector<std::shared_ptr<fea::ChNodeFEAxyzrot>> {nonsense_unnecessary_xyzrot_1,nonsense_unnecessary_xyzrot_2,nonsense_unnecessary_xyzrot_3});
+                // TODO JBC: not sure I am doing this correctly (order in particular).
+                // See more in ChElementLDPM::ComputeMmatrixGlobal() on how to potentially do this better
+                my_LDPM_tet->AddVertNodeVec(std::initializer_list<ChVector3d>{tet, edge, face});
             }
         }
 

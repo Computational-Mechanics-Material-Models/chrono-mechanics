@@ -18,8 +18,10 @@
 //
 // 
 // =============================================================================
+#include "chrono/core/ChVector3.h"
 #include "chrono/physics/ChSystem.h"
 #include "chrono_ldpm/ChBuilderLDPM.h"
+#include <initializer_list>
 
 using namespace chrono;
 using namespace fea;
@@ -137,26 +139,6 @@ void ChBuilderLDPM::read_LDPM_info(std::shared_ptr<ChMesh> my_mesh,  std::shared
 	int elementnum=my_mesh->GetNumElements ();
 	std::cout<<"elementnum "<<elementnum<<std::endl;
 	
-	/*
-	for(int i=0; i<my_mesh->GetNumElements (); i++){    
-	    	auto iel = std::dynamic_pointer_cast<ChElementLDPM>(my_mesh->GetElement(i));
-	    	auto nI=std::dynamic_pointer_cast<ChNodeFEAxyzrot>(iel->GetNodeN(0));
-	    	auto nJ=std::dynamic_pointer_cast<ChNodeFEAxyzrot>(iel->GetNodeN(1));
-	    	auto nK=std::dynamic_pointer_cast<ChNodeFEAxyzrot>(iel->GetNodeN(2));
-	    	auto nL=std::dynamic_pointer_cast<ChNodeFEAxyzrot>(iel->GetNodeN(3));
-	    	std::cout<< i <<". element:  ";
-	    	std::cout<<nI->Frame().GetPos().x()<<"\t"<<nI->Frame().GetPos().y()<<"\t"<<nI->Frame().GetPos().z()<<"\t";
-	    	std::cout<<nJ->Frame().GetPos().x()<<"\t"<<nJ->Frame().GetPos().y()<<"\t"<<nJ->Frame().GetPos().z()<<"\t";
-	    	std::cout<<nK->Frame().GetPos().x()<<"\t"<<nK->Frame().GetPos().y()<<"\t"<<nK->Frame().GetPos().z()<<"\t";
-	    	std::cout<<nL->Frame().GetPos().x()<<"\t"<<nL->Frame().GetPos().y()<<"\t"<<nL->Frame().GetPos().z()<<std::endl;
-    
-    	}
-	*/
-	
-	
-    
-	
-	
 	////////////////////////////////////////////////////////////////////////
     //
     // Read coordinate infor of facet vertices from Freecad produced "<projectname>-data-facetsVertices.dat" file
@@ -169,20 +151,13 @@ void ChBuilderLDPM::read_LDPM_info(std::shared_ptr<ChMesh> my_mesh,  std::shared
 	if (verticesFile.is_open()) {
        	//
        	double x, y, z;
-       	unsigned int idfacet=0;		
 		std::string line;
 		while (std::getline(verticesFile, line)) {
 			//
 			if( line[0]!='/') {				
 				std::istringstream sline(line);
 				sline>> x >> y >> z ;	
-				//std::cout<< idfacet <<". vertice: "<<x<<"\t"<<y<<"\t"<<z<<std::endl;			
-				//Mvertices[idfacet][0]=x;
-				//Mvertices[idfacet][1]=y;
-				//Mvertices[idfacet][2]=z;
 				Mvertices.push_back(ChVector3d(x, y, z));
-                		++idfacet;                		
-				
 			}
 		}		
     }
@@ -208,8 +183,6 @@ void ChBuilderLDPM::read_LDPM_info(std::shared_ptr<ChMesh> my_mesh,  std::shared
 	////////////////////////////////////////////////////////////////////////  
 	if (facetFile.is_open()) {
        	//
-		        	
-       		unsigned int idfacet=0, iel_1=-1;
 		double val;
 		//
 		double area=0;
@@ -229,12 +202,6 @@ void ChBuilderLDPM::read_LDPM_info(std::shared_ptr<ChMesh> my_mesh,  std::shared
 				while(sline>>val){
 					facetvec.push_back(val);
 				}
-				/*
-				std::cout<<idfacet<< " facetvec: "<<facetvec.size()<<std::endl;
-				for (auto val:facetvec)
-					std::cout<<val<<"\t";
-				std::cout<<std::endl;
-				*/	
 												
 				// Element IDs 
 				int iel=int(facetvec[0]);	
@@ -243,10 +210,6 @@ void ChBuilderLDPM::read_LDPM_info(std::shared_ptr<ChMesh> my_mesh,  std::shared
 				// Get element object and create a section object for it
 				//
 				auto elem = std::dynamic_pointer_cast<ChElementLDPM>(my_mesh->GetElement(iel));
-				if (iel_1!=iel)					        				
-					iel_1=iel;
-					idfacet=0;
-				
 				//
 				auto msection = chrono_types::make_shared<ChSectionLDPM>();				
 				//
@@ -279,69 +242,15 @@ void ChBuilderLDPM::read_LDPM_info(std::shared_ptr<ChMesh> my_mesh,  std::shared
 				//
 				// Store vertices coordinate info for mass calculation
 				//
-				/*
-				auto mnode1= chrono_types::make_shared<ChNodeFEAxyzrot>(ChFrame<>(ChVector3d(Mvertices[int(facetvec[1])][0], 
-				Mvertices[int(facetvec[1])][1], Mvertices[int(facetvec[1])][2])));
-				auto mnode2= chrono_types::make_shared<ChNodeFEAxyzrot>(ChFrame<>(ChVector3d(Mvertices[int(facetvec[2])][0], 
-				Mvertices[int(facetvec[2])][1], Mvertices[int(facetvec[2])][2])));
-				auto mnode3= chrono_types::make_shared<ChNodeFEAxyzrot>(ChFrame<>(ChVector3d(Mvertices[int(facetvec[3])][0], 
-				Mvertices[int(facetvec[3])][1], Mvertices[int(facetvec[3])][2])));
-				std::vector<std::shared_ptr<ChNodeFEAxyzrot>> node_vec{mnode1,mnode2,mnode3};		
-				elem->AddVertNodeVec(node_vec);
-				*/
-				
-				
-				auto mnode1= chrono_types::make_shared<ChNodeFEAxyzrot>(ChFrame<>(ChVector3d(Mvertices[int(facetvec[1])].x(), 
-				Mvertices[int(facetvec[1])].y(), Mvertices[int(facetvec[1])].z() )));
-				auto mnode2= chrono_types::make_shared<ChNodeFEAxyzrot>(ChFrame<>(ChVector3d(Mvertices[int(facetvec[2])].x(), 
-				Mvertices[int(facetvec[2])].y(), Mvertices[int(facetvec[2])].z() )));
-				auto mnode3= chrono_types::make_shared<ChNodeFEAxyzrot>(ChFrame<>(ChVector3d(Mvertices[int(facetvec[3])].x(), 
-				Mvertices[int(facetvec[3])].y(), Mvertices[int(facetvec[3])].z() )));
-				std::vector<std::shared_ptr<ChNodeFEAxyzrot>> node_vec{mnode1,mnode2,mnode3};		
-				elem->AddVertNodeVec(node_vec);
-				
-				
-				idfacet+1;				
-
+				elem->AddVertNodeVec(std::initializer_list<ChVector3d>{Mvertices[int(facetvec[1])], Mvertices[int(facetvec[2])], Mvertices[int(facetvec[3])]});
 			}	
-					
-
-		}		
-		
-
-    }
-    else{
+		}
+    } else {
     	throw std::runtime_error("ERROR opening facet info file: " + std::string(facetFilename) + "\n");
     	exit(EXIT_FAILURE);
     }
-	
-	/*
-	for(int i=0; i<my_mesh->GetNumElements ()*0; i++){    
-	    	auto iel = std::dynamic_pointer_cast<ChElementLDPM>(my_mesh->GetElement(i));
-	    	auto nI=std::dynamic_pointer_cast<ChNodeFEAxyzrot>(iel->GetNodeN(0));
-	    	auto nJ=std::dynamic_pointer_cast<ChNodeFEAxyzrot>(iel->GetNodeN(1));
-	    	auto nK=std::dynamic_pointer_cast<ChNodeFEAxyzrot>(iel->GetNodeN(2));
-	    	auto nL=std::dynamic_pointer_cast<ChNodeFEAxyzrot>(iel->GetNodeN(3));	    	
-	    	std::cout<< i <<". element: \n";
-	    	
-	    	for (int ifc=0; ifc<12; ifc++){
-		    	auto facet=iel->GetFacetI(ifc);
-		    	
-		    	std::cout<<ifc <<"Area"<<"\t"<<facet->Get_area()<<std::endl;
-		    	//std::cout<<nJ->Frame().GetPos().x()<<"\t"<<nJ->Frame().GetPos().y()<<"\t"<<nJ->Frame().GetPos().z()<<std::endl;		    	
-	    	}
-    
-    	}
-	
-	*/
-	
 	Mvertices.clear();
-	
 }
-
-
-
-
 
 void ChBuilderLDPM::read_LDPM_info(std::shared_ptr<ChMesh> my_mesh,  std::vector<std::shared_ptr<ChMaterialVECT>> vect_mat, std::string& LDPM_data_path, 
 				std::string& LDPM_GeoName){
@@ -450,36 +359,19 @@ void ChBuilderLDPM::read_LDPM_info(std::shared_ptr<ChMesh> my_mesh,  std::vector
 	if (verticesFile.is_open()) {
        	//
        	double x, y, z;
-       	unsigned int idfacet=0;		
 		std::string line;
 		while (std::getline(verticesFile, line)) {
 			//
 			if( line[0]!='/') {				
 				std::istringstream sline(line);
 				sline>> x >> y >> z ;	
-				//std::cout<< idfacet <<". vertice: "<<x<<"\t"<<y<<"\t"<<z<<std::endl;			
-				//Mvertices[idfacet][0]=x;
-				//Mvertices[idfacet][1]=y;
-				//Mvertices[idfacet][2]=z;
 				Mvertices.push_back(ChVector3d(x, y, z));
-                		++idfacet;                		
-				
 			}
 		}		
-    }
-    else{
+    } else {
     	throw std::runtime_error("ERROR opening vertices file: " + std::string(verticesFilename) + "\n");
     	exit(EXIT_FAILURE);
-    }	
-    
-    /*
-     for(int i=0; i<my_mesh->GetNumElements ()*36; i++){
-    
-    	
-    	std::cout<< i <<". vertice: "<<Mvertices[i].x()<<"\t"<<Mvertices[i].y()<<"\t"<<Mvertices[i].z()<<std::endl;
-    
     }
-    */
     	
 	////////////////////////////////////////////////////////////////////////
     //
@@ -489,8 +381,6 @@ void ChBuilderLDPM::read_LDPM_info(std::shared_ptr<ChMesh> my_mesh,  std::vector
 	////////////////////////////////////////////////////////////////////////  
 	if (facetFile.is_open()) {
        	//
-		        	
-       		unsigned int idfacet=0, iel_1=-1;
 		double val;
 		//
 		double area=0;
@@ -510,12 +400,6 @@ void ChBuilderLDPM::read_LDPM_info(std::shared_ptr<ChMesh> my_mesh,  std::vector
 				while(sline>>val){
 					facetvec.push_back(val);
 				}
-				/*
-				std::cout<<idfacet<< " facetvec: "<<facetvec.size()<<std::endl;
-				for (auto val:facetvec)
-					std::cout<<val<<"\t";
-				std::cout<<std::endl;
-				*/	
 												
 				// Element IDs 
 				int iel=int(facetvec[0]);	
@@ -524,9 +408,6 @@ void ChBuilderLDPM::read_LDPM_info(std::shared_ptr<ChMesh> my_mesh,  std::vector
 				// Get element object and create a section object for it
 				//
 				auto elem = std::dynamic_pointer_cast<ChElementLDPM>(my_mesh->GetElement(iel));
-				if (iel_1!=iel)					        				
-					iel_1=iel;
-					idfacet=0;
 				
 				//
 				auto msection = chrono_types::make_shared<ChSectionLDPM>();				
@@ -559,37 +440,15 @@ void ChBuilderLDPM::read_LDPM_info(std::shared_ptr<ChMesh> my_mesh,  std::vector
 				elem->AddFacetI(msection);							
 				//
 				// Store vertices coordinate info for mass calculation
-				//
-				
-				
-				auto mnode1= chrono_types::make_shared<ChNodeFEAxyzrot>(ChFrame<>(ChVector3d(Mvertices[int(facetvec[1])].x(), 
-				Mvertices[int(facetvec[1])].y(), Mvertices[int(facetvec[1])].z() ))); // TODO JBC: Mvertices is a std::vector of ChVector3d, so no need to index .x(), .y(), .z()
-				auto mnode2= chrono_types::make_shared<ChNodeFEAxyzrot>(ChFrame<>(ChVector3d(Mvertices[int(facetvec[2])].x(), 
-				Mvertices[int(facetvec[2])].y(), Mvertices[int(facetvec[2])].z() )));
-				auto mnode3= chrono_types::make_shared<ChNodeFEAxyzrot>(ChFrame<>(ChVector3d(Mvertices[int(facetvec[3])].x(), 
-				Mvertices[int(facetvec[3])].y(), Mvertices[int(facetvec[3])].z() )));
-				std::vector<std::shared_ptr<ChNodeFEAxyzrot>> node_vec{mnode1,mnode2,mnode3};		
-				elem->AddVertNodeVec(node_vec);
-				
-				
-				idfacet+1;				
-
-			}	
-					
-
-		}		
-		
-
-    }
-    else{
+				//	
+				elem->AddVertNodeVec(std::initializer_list<ChVector3d>{Mvertices[int(facetvec[1])], Mvertices[int(facetvec[2])], Mvertices[int(facetvec[3])]});
+			}
+		}
+    } else {
     	throw std::runtime_error("ERROR opening facet info file: " + std::string(facetFilename) + "\n");
     	exit(EXIT_FAILURE);
     }
-	
-	
-	
 	Mvertices.clear();
-	
 }
 
 

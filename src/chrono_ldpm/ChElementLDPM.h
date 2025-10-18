@@ -26,6 +26,7 @@
 
 #include <cmath>
 
+#include "chrono/core/ChVector3.h"
 #include "chrono_ldpm/ChLdpmApi.h"
 //#include "chrono_ldpm/ChElementRVE.h"
 #include "chrono_ldpm/ChElementTetrahedron_6DOFs.h"
@@ -79,9 +80,9 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
                           
     int GetVertNodeVec_Size() { return V_vert_nodes.size(); }
 	
-    std::vector<std::shared_ptr<fea::ChNodeFEAxyzrot>> GetVertNodeVec(int n) { return this->V_vert_nodes[n]; }
-    void SetVertNodeVec(std::vector<std::vector<std::shared_ptr<fea::ChNodeFEAxyzrot>>> mVvert) { V_vert_nodes=mVvert; }
-    void AddVertNodeVec(std::vector<std::shared_ptr<fea::ChNodeFEAxyzrot>> mvec) {		
+    std::vector<ChVector3d> GetVertNodeVec(int n) { return this->V_vert_nodes[n]; }
+    void SetVertNodeVec(std::vector<std::vector<ChVector3d>> mVvert) { V_vert_nodes=mVvert; }
+    void AddVertNodeVec(std::vector<ChVector3d> mvec) {		
 		V_vert_nodes.push_back(mvec);
     }
 	
@@ -243,10 +244,8 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     std::vector<std::shared_ptr<ChSectionLDPM>> my_section; // Each section owns a std::shared_ptr<ChMaterialVECT> that be different(P-LDPM can have several facets with different material properties)
     double V0;
     bool LargeDeflection=false; 
-    
-    //ChSystem* mysystem;
-    
-    std::vector<std::vector<std::shared_ptr<fea::ChNodeFEAxyzrot>>> V_vert_nodes;  
+
+    std::vector<std::vector<ChVector3d>> V_vert_nodes;
 	
 	//template <typename T>
 	//friend class ChElementRVE;
