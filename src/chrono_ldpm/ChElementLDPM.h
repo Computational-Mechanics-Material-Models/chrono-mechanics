@@ -113,11 +113,7 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
 
     void GetLatticeStateBlock(unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& mD);
 
-    void GetField_dt(ChVectorDynamic<>& mD_dt);
-
     void GetLatticeField_dt(unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& mD_dt);
-
-    double GetCurrentTimeIncrement(ChSystem* sys) const { return sys->GetStep();};
 
     double ComputeVolume(); // Volume of the LDPM tetrahedron
 

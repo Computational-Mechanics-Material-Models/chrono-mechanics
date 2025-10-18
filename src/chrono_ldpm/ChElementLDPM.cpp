@@ -137,38 +137,6 @@ void ChElementLDPM::GetLatticeStateBlock(unsigned int& ind, unsigned int& jnd, C
 
 
 
-/*
-void ChElementLDPM::GetField_dt(ChVectorDynamic<>& mD_dt) {
-    mD_dt.resize(12);
-
-    // Node 0, velocity (in local element frame, corotated back by A' )
-    mD_dt.segment(0, 3) = (nodes[0]->Frame().GetPosDt()).eigen();
-
-    // Node 0, x,y,z ang.velocity (in local element frame, corotated back by A' )
-    mD_dt.segment(3, 3) = (nodes[0]->Frame().GetAngVelParent()).eigen();
-
-    // Node 1, velocity (in local element frame, corotated back by A' )
-    mD_dt.segment(6, 3) = (nodes[1]->Frame().GetPosDt()).eigen();
-
-    // Node 1, x,y,z ang.velocity (in local element frame, corotated back by A' )
-    mD_dt.segment(9, 3) = (nodes[1]->Frame().GetAngVelParent()).eigen();
-    
-     // Node 2, velocity (in local element frame, corotated back by A' )
-    mD_dt.segment(12, 3) = (nodes[2]->Frame().GetPosDt()).eigen();
-
-    // Node 2, x,y,z ang.velocity (in local element frame, corotated back by A' )
-    mD_dt.segment(15, 3) = (nodes[2]->Frame().GetAngVelParent()).eigen();
-
-    // Node 3, velocity (in local element frame, corotated back by A' )
-    mD_dt.segment(18, 3) = (nodes[3]->Frame().GetPosDt()).eigen();
-
-    // Node 3, x,y,z ang.velocity (in local element frame, corotated back by A' )
-    mD_dt.segment(21, 3) = (nodes[3]->Frame().GetAngVelParent()).eigen();
-}
-*/
-
-
-
 void ChElementLDPM::GetLatticeField_dt(unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& mD) {
     mD.setZero(12);    
     //
@@ -188,18 +156,6 @@ void ChElementLDPM::GetLatticeField_dt(unsigned int& ind, unsigned int& jnd, ChV
     mD.segment(9, 3) = (nodes[jnd]->Frame().GetAngVelParent()).eigen();
         
 }
-
-/*
-void ChElementLDPM::GetLatticeStateBlock(unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& mD) {
-    mD.setZero(12);    
-    double dT=this->GetCurrentTimeIncrement(this->mysystem);
-    std::cout<<"Step time: "<<	 this->mysystem->GetChTime()<<"  dT: "<<dT<<"\t";
-    this->GetLatticeField_dt(ind, jnd, mD);
-	printf("mD-1: %f %f %f %f %f %f %f %f %f %f %f %f\n", mD(0), mD(1), mD(2), mD(3), mD(4), mD(5),mD(6), mD(7), mD(8), mD(9), mD(10), mD(11));
-    mD*=dT;	
-	printf("mD-2: %f %f %f %f %f %f %f %f %f %f %f %f\n", mD(0), mD(1), mD(2), mD(3), mD(4), mD(5),mD(6), mD(7), mD(8), mD(9), mD(10), mD(11));
-}
-*/
 
 
 
