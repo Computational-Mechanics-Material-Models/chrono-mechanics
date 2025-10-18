@@ -473,51 +473,5 @@ TEST_F(LDPMTest, compute_strain) {
     }
 }
 
-TEST(LDPM_misc_tests, multiple_volume_calc) {
-    // ChSystemSMC sys;
-    
-    // auto my_mesh = chrono_types::make_shared<ChMesh>();
-    // my_mesh->SetAutomaticGravity(false);
-    // sys.Add(my_mesh);
-
-    // ChElementLDPM my_LDPM_tet;
-    // auto nodeA = chrono_types::make_shared<fea::ChNodeFEAxyzrot>(ChFrame(ChVector3<>(0,0,0), ChQuaternion<>(1, 0, 0, 0)));
-    // auto nodeB = chrono_types::make_shared<fea::ChNodeFEAxyzrot>(ChFrame(ChVector3<>(1,0,0), ChQuaternion<>(1, 0, 0, 0)));
-    // auto nodeC = chrono_types::make_shared<fea::ChNodeFEAxyzrot>(ChFrame(ChVector3<>(0,1,0), ChQuaternion<>(1, 0, 0, 0)));
-    // auto nodeD = chrono_types::make_shared<fea::ChNodeFEAxyzrot>(ChFrame(ChVector3<>(0,0,1), ChQuaternion<>(1, 0, 0, 0)));
-    
-    // my_LDPM_tet.SetNodes(nodeA, nodeB, nodeC, nodeD);
-
-
-    // std::cout<<"ComputeVolume()" <<my_LDPM_tet.ComputeVolume()<<std::endl;
-    
-
-    // for (int i = 0 ; i < 100 ; i++) {
-    //     double rx = static_cast <double> (rand()) / static_cast <double> (RAND_MAX);
-    //     double ry = static_cast <double> (rand()) / static_cast <double> (RAND_MAX);
-    //     double rz = static_cast <double> (rand()) / static_cast <double> (RAND_MAX);
-    //     nodeD->SetPos(ChVector3<>(rx, ry, rz));
-    //     std::cout<<my_LDPM_tet.ComputeVolume() << " ";
-    // }
-
-    // std::cout<< " PROFILING"<<std::endl;
-
-
-
-
-    // double dummy = 0;
-    // auto startTime = now();
-    // for (int i = 0 ; i < 100000 ; i++) {
-    //     nodeB->SetPos(nodeB->GetPos() + ChVector3<>(1e-4, 0, 0));
-    //     dummy += my_LDPM_tet.ComputeVolume();
-    // }
-    // auto elapsed = now() - startTime;
-    // auto seconds = std::chrono::duration_cast<FloatSecs>(elapsed);
-    // std::cout << "ComputeVolume()" << seconds.count() << " dummy = " << dummy << std::endl;
-
-
-}
-
-
 } // namespace
 
