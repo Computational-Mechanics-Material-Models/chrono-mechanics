@@ -32,7 +32,8 @@
 namespace chrono {
 namespace ldpm {
 
-
+bool ChElementLDPM::LargeDeflection = false;
+ChElementLDPM::MassMatrixType ChElementLDPM::Mmatrix_type = ChElementLDPM::MassMatrixType::CONSISTENT;
 
 ChElementLDPM::ChElementLDPM() : V0(0) {
     nodes.resize(4);
@@ -552,77 +553,102 @@ double ChElementLDPM::ComputeTetVol(ChVector3d p1, ChVector3d p2, ChVector3d p3,
 	return tetvol;
 }
 
-ChMatrixNM<double,6,6> ChElementLDPM::ComputeTetMassN(std::shared_ptr<ChSectionLDPM> section, ChVector3d pN, ChVector3d pC, ChVector3d pA, ChVector3d pB){
-	ChMatrixNM<double,6,6> MN;
-	MN.setZero();
-	double density=section->Get_material()->Get_density();
-	//
-	ChMatrix33<double> coef={{0.1, 0.05, 0.05},{0.05, 0.1, 0.05},{0.05, 0.05, 0.1}};
-	//
-	
-	double vol=this->ComputeTetVol(pN, pC, pA, pB);
-	double tetmass=vol*density;
-	ChVector3d  pG=(pN+pC+pA+pB)/4.0;
-	ChVectorN<double,3> X={pA[0]-pN[0], pB[0]-pN[0], pC[0]-pN[0]};
-	ChVectorN<double,3> Y={pA[1]-pN[1], pB[1]-pN[1], pC[1]-pN[1]};
-	ChVectorN<double,3> Z={pA[2]-pN[2], pB[2]-pN[2], pC[2]-pN[2]};
-	// first moment of area
-	double Sx=(pG[0]-pN[0])*tetmass;
-	double Sy=(pG[1]-pN[1])*tetmass;
-	double Sz=(pG[2]-pN[2])*tetmass;
-	// Moment of inertia
-	double Ixx=double (X.transpose()*(coef*X))*tetmass;
-	double Iyy=double(Y.transpose()*(coef*Y))*tetmass;
-	double Izz=double(Z.transpose()*(coef*Z))*tetmass;
-	double Ixy=double(X.transpose()*(coef*Y))*tetmass;
-	double Ixz=double(X.transpose()*(coef*Z))*tetmass;
-	double Iyz=double(Y.transpose()*(coef*Z))*tetmass;
-	//	
-	if (false){ //lumped mass
-		MN(0,0)=tetmass; 
-		MN(1,1)=tetmass; 
-		MN(2,2)=tetmass; 
-		MN(3,3)=Iyy+Izz;
-		MN(4,4)=Ixx+Izz; 
-		MN(5,5)=Ixx+Iyy; 
-	}else{ //consistent mass
-		MN(0,0)=tetmass; MN(0,4)=Sz; MN(0,5)=-Sy;
-		MN(1,1)=tetmass; MN(1,3)=-Sz; MN(1,5)=Sx;
-		MN(2,2)=tetmass; MN(2,3)=Sy; MN(2,4)=-Sx;
-		MN(3,1)=-Sz; MN(3,2)=Sy; MN(3,3)=Iyy+Izz; MN(3,4)=-Ixy; MN(3,5)=-Ixz;
-		MN(4,0)=Sz; MN(4,2)=-Sx; MN(4,3)=-Ixy; 	MN(4,4)=Ixx+Izz; MN(4,5)=-Iyz;
-		MN(5,0)=-Sy; MN(5,1)= Sx; MN(5,3)=-Ixz; MN(5,4)=-Iyz; MN(5,5)=Ixx+Iyy; 
-	}
-	//
-	
+ChMatrixNM<double,6,6> ChElementLDPM::ComputeSubTetMassMatrix(std::shared_ptr<ChSectionLDPM> section, ChVector3d pN, ChVector3d pC, ChVector3d pA, ChVector3d pB){
+    double tetmass = section->Get_material()->Get_density() * this->ComputeTetVol(pN, pC, pA, pB);
+    ChVector3d pG = 0.25 * (pN + pC + pA + pB);
+    ChVector3d X = {pA[0] - pN[0], pB[0] - pN[0], pC[0] - pN[0]};
+    ChVector3d Y = {pA[1] - pN[1], pB[1] - pN[1], pC[1] - pN[1]};
+    ChVector3d Z = {pA[2] - pN[2], pB[2] - pN[2], pC[2] - pN[2]};
+    // first moment of area
+    double Sx = (pG[0] - pN[0]) * tetmass;
+    double Sy = (pG[1] - pN[1]) * tetmass;
+    double Sz = (pG[2] - pN[2]) * tetmass;
+    // Moment of inertia
+    // Calculation in expanded bilinear form:
+    // coef = {{0.1, 0.05, 0.05},{0.05, 0.1, 0.05},{0.05, 0.05, 0.1}};
+    // I_XY = (X^T * coef * Y) * tetmass (for all "X" and "Y")
+    // Simplified form below to avoid the overhead of matrix calculations and conversions
+    ChVector3d coefX = {0.1 * X[0] + 0.05 * (X[1] + X[2]), 0.1 * X[1] + 0.05 * (X[0] + X[2]), 0.1 * X[2] + 0.05 * (X[0] + X[1])};
+    ChVector3d coefY = {0.1 * Y[0] + 0.05 * (Y[1] + Y[2]), 0.1 * Y[1] + 0.05 * (Y[0] + Y[2]), 0.1 * Y[2] + 0.05 * (Y[0] + Y[1])};
+    ChVector3d coefZ = {0.1 * Z[0] + 0.05 * (Z[1] + Z[2]), 0.1 * Z[1] + 0.05 * (Z[0] + Z[2]), 0.1 * Z[2] + 0.05 * (Z[0] + Z[1])};
+    double Ixx = X.Dot(coefX) * tetmass;
+    double Iyy = Y.Dot(coefY) * tetmass;
+    double Izz = Z.Dot(coefZ) * tetmass;
+    double Ixy = X.Dot(coefY) * tetmass;
+    double Ixz = X.Dot(coefZ) * tetmass;
+    double Iyz = Y.Dot(coefZ) * tetmass;
+    ChMatrixNM<double,6,6> MN;
+    MN.setZero();
+    MN(0,0) = tetmass; MN(0,4) =  Sz; MN(0,5) = -Sy;
+    MN(1,1) = tetmass; MN(1,3) = -Sz; MN(1,5) =  Sx;
+    MN(2,2) = tetmass; MN(2,3) =  Sy; MN(2,4) = -Sx;
+    MN(3,1) = -Sz; MN(3,2) =  Sy; MN(3,3) = Iyy+Izz; MN(3,4) =    -Ixy; MN(3,5) =    -Ixz;
+    MN(4,0) =  Sz; MN(4,2) = -Sx; MN(4,3) =    -Ixy; MN(4,4) = Ixx+Izz; MN(4,5) =    -Iyz;
+    MN(5,0) = -Sy; MN(5,1) =  Sx; MN(5,3) =    -Ixz; MN(5,4) =    -Iyz; MN(5,5) = Ixx+Iyy;
 	return MN;
 }
 
 
 void ChElementLDPM::ComputeMmatrixGlobal(ChMatrixRef M) {
     M.setZero();
-    // Mass Matrix
-    // TODO JBC: This is expensive enough that the mass matrix of the element might be stored + rotated rather than recomputed.
-    //           Alternatively, a simpler mass ditribution should be assumed for the LDPM tetrahedron
-    auto vertices=this->V_vert_nodes;
-    unsigned int iface=0;
-    for(auto verts: vertices){	
-        unsigned int ind=facetNodeNums(iface,0);
-        unsigned int jnd=facetNodeNums(iface,1);
-        //
-        ChVector3d pNA=this->nodes[ind]->GetX0().GetPos();
-        ChVector3d pNB=this->nodes[jnd]->GetX0().GetPos();
-        //
-        auto pC=verts[0];
-        auto pA=verts[1];
-        auto pB=verts[2];		
-        //
-        ChMatrixNM<double,6,6> mA=this->ComputeTetMassN(this->GetFacetI(iface), pNA, pC, pA, pB);
-        ChMatrixNM<double,6,6> mB=this->ComputeTetMassN(this->GetFacetI(iface), pNB, pC, pA, pB);
-        M.block<6,6>(ind*6,ind*6)+=mA;
-        M.block<6,6>(jnd*6,jnd*6)+=mB;
-        //
-        iface++;
+    if (Mmatrix_type == MassMatrixType::LUMPED) {
+        // This hydrostatic LUMPED mass matrix is invariant by rigid-body rotation of the tetrahedron
+        // It is very cheap to compute and is preferred over the CONSISTENT one for quasi-static analyses.
+
+        // Translational DOFs
+        // TODO JBC: same mass on each node: this could be refined based e.g., on volume fractions, but OK for now.
+        double nodal_mass = V0 * my_section[0]->Get_material()->Get_density() * 0.25; // All sections materials have the same density, use first section
+        M(0,0)   = M(1,1)   = M(2,2)   = nodal_mass; // Node 1
+        M(6,6)   = M(7,7)   = M(8,8)   = nodal_mass; // Node 2
+        M(12,12) = M(13,13) = M(14,14) = nodal_mass; // Node 3
+        M(18,18) = M(19,19) = M(20,20) = nodal_mass; // Node 4
+
+        // Rotational DOFs
+        // The moment of inertia computed from the lumped mass at the nodes alone is already larger than
+        // the true moment of inertia of the tetrahedron. Adding rotational lumped mass would make it worse.
+        // This is a know issue for beams (see e.g., for beams https://quickfem.com/wp-content/uploads/IFEM.Ch31.pdf)
+        // and a small value is taken so that the mass matrix is not singular, but not ill-defined either.
+        // For Euler-Bernoulli beams, (see ChBeamSectionEuler::JzzJyy_factor) Chrono uses a value of 1/500.
+        // We use the same value here.
+        double factor = 1.0 / 500;
+        M(3,3)   = M(4,4)   = M(5,5)   = nodal_mass * factor; // Node 1
+        M(9,9)   = M(10,10) = M(11,11) = nodal_mass * factor; // Node 2
+        M(15,15) = M(16,16) = M(17,17) = nodal_mass * factor; // Node 3
+        M(21,21) = M(22,22) = M(23,23) = nodal_mass * factor; // Node 4
+
+    } else if (Mmatrix_type == MassMatrixType::CONSISTENT) {
+        // This CONSISTENT mass matrix is very expensive to compute and is not preferred for performance.
+        // That is because the HHT timestepper currently computes the inertial term in residual using:
+        //      integrable2->LoadResidual_Mv(R, Anew, -1 / (1 + alpha));  // -1/(1+alpha)*M*a_new
+        // which requests recalculation of the mass matrix from every element (even for JacobianUpdate::NEVER).
+        // TODO JBC: Storing the sparse, system-wide mass matrix in HHT is the way to go, but that requires infrastructure changes to be discussed with Alessandro Tasora.
+        // Storing the 24x24 dense matrix at the element level would be too memory-intensive for tetrahedral meshes, where 1 vertex can be shared by more than 10 tetrahedra in 3D
+        // so for the time being, this matrix is re-computed everytime Chrono asks for it...
+        auto vertices=this->V_vert_nodes;
+        unsigned int iface=0;
+        for(auto verts: vertices){	
+            unsigned int ind=facetNodeNums(iface,0);
+            unsigned int jnd=facetNodeNums(iface,1);
+            //
+            ChVector3d pNA=this->nodes[ind]->GetX0().GetPos();
+            ChVector3d pNB=this->nodes[jnd]->GetX0().GetPos();
+            //
+            auto pC=verts[0];
+            auto pA=verts[1];
+            auto pB=verts[2];		
+            //
+            ChMatrixNM<double,6,6> mA=this->ComputeSubTetMassMatrix(this->GetFacetI(iface), pNA, pC, pA, pB);
+            ChMatrixNM<double,6,6> mB=this->ComputeSubTetMassMatrix(this->GetFacetI(iface), pNB, pC, pA, pB);
+            M.block<6,6>(ind*6,ind*6)+=mA;
+            M.block<6,6>(jnd*6,jnd*6)+=mB;
+            //
+            iface++;
+        }
+
+        if (ChElementLDPM::LargeDeflection) {
+            // TODO JBC: the mass matrix must be rotated into the current spatial orientation of the tetrahedron
+            //           I think instead of rotating the 24*24 matrix here, we should rotate the vertices into the current configuration before building the matrix above. TBD
+        }
     }
 }
 

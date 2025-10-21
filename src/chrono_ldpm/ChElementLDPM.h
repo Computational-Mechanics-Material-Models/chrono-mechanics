@@ -141,7 +141,15 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     /// Computes the internal forces (ex. the actual position of nodes is not in relaxed reference position) and set
     /// values in the Fi vector.
     virtual void ComputeInternalForces(ChVectorDynamic<>& Fi) override;
-    //
+
+    /// Available styles of mass matrix
+    enum class MassMatrixType {
+        LUMPED,
+        CONSISTENT,   // Computes and assign mass and inertia from
+    };
+    void SetMassMatrixType(MassMatrixType Mtype) { Mmatrix_type = Mtype; }
+    MassMatrixType GetMassMatrixType() { return Mmatrix_type; }
+
     virtual void ComputeMmatrixGlobal(ChMatrixRef M) override ;
     //
     // Custom properties functions
@@ -228,11 +236,14 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     void SetLargeDeflection(bool mtrue) { LargeDeflection=mtrue; }
     bool GetLargeDeflection() { return LargeDeflection; }
     
-    ChMatrixNM<double,6,6> ComputeTetMassN(std::shared_ptr<ChSectionLDPM> facet, ChVector3d pN, ChVector3d pC, ChVector3d pA, ChVector3d pB);
+    ChMatrixNM<double,6,6> ComputeSubTetMassMatrix(std::shared_ptr<ChSectionLDPM> facet, ChVector3d pN, ChVector3d pC, ChVector3d pA, ChVector3d pB);
 	
 	//std::vector<ChMatrixNM<double,3,9>> ComputeProjectionMatrix();
 	
 	ChMatrixNM<double, 1, 9> ComputeMacroStressContribution();
+
+    static bool LargeDeflection;
+    static MassMatrixType Mmatrix_type;
 
   private:    
 	
@@ -243,7 +254,6 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     std::vector<std::shared_ptr<fea::ChNodeFEAxyzrot> > nodes;
     std::vector<std::shared_ptr<ChSectionLDPM>> my_section; // Each section owns a std::shared_ptr<ChMaterialVECT> that be different(P-LDPM can have several facets with different material properties)
     double V0;
-    bool LargeDeflection=false; 
 
     std::vector<std::vector<ChVector3d>> V_vert_nodes;
 	

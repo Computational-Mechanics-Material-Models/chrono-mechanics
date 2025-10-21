@@ -837,6 +837,10 @@ int main(int argc, char** argv) {
 
         std::vector<int> N_iter;
 
+        ChElementLDPM::LargeDeflection = false;
+        // Uncomment below to test LUMPED mass matrix
+        // ChElementLDPM::Mmatrix_type = ChElementLDPM::MassMatrixType::LUMPED;
+
         while (sys.GetChTime() <= 0.01) {
             sys.DoStepDynamics(timestep);
 

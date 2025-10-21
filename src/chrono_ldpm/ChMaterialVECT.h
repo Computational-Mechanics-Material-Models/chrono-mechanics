@@ -9,8 +9,7 @@
 // http://projectchrono.org/license-chrono.txt.
 //
 // =============================================================================
-// Authors: Erol Lale
-//          Ke Yu
+// Authors: Erol Lale, Ke Yu, Jibril B. Coulibaly
 // =============================================================================
 // Material class for LDPM and CSL elements 
 //
