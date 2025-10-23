@@ -65,21 +65,21 @@ void ChElementLDPM::Update() {
     // TODO JBC: Because we inherit from a corotational element, we might consider using
     //           the `disable_corotational` in addition to/instead of the `LargeDeflection` flag we defined here
     if (ChElementLDPM::LargeDeflection) {
-        this->UpdateRotation();
+        UpdateRotation();
+        // TODO JBC: Erol's original code updates the length of the sections inside updateRotation(), kept as is for now
 
-        // update projection matrix and compute eigenstrains
+        // TODO JBC: ChSectionLDPM::ComputeProjectionMatrix() uses the initial facet frame, so the projection matrix is actually never updated
+        //           and eigenstrain do not currently work under large deformation
         if (macro_strain) {
-            for( auto facet:this->GetSection()) {
+            for(std::shared_ptr<ChSectionLDPM> facet : GetSection())
                 facet->ComputeProjectionMatrix();
-                facet->ComputeEigenStrain(this->macro_strain);
-            }
-        } else { // JBC: This might not be necessary since the value of 0.0 in SetupInitial() should remain if macro_strain is nullptr
-            for( auto facet:this->GetSection()) {
-                facet->Set_nonMechanicStrain(ChVector3d(0.0, 0.0, 0.0));
-            }
         }
     }
-    // TODO JBC: Erol's original code updates the length of the sections in updateRotation()
+
+    if (macro_strain) {
+        for(std::shared_ptr<ChSectionLDPM> facet : GetSection())
+            facet->ComputeEigenStrain(this->macro_strain);
+    }
 }
 
 void ChElementLDPM::ShapeFunctions(ShapeVector& N, double r, double s, double t) {
