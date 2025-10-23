@@ -66,7 +66,20 @@ void ChElementLDPM::Update() {
     //           the `disable_corotational` in addition to/instead of the `LargeDeflection` flag we defined here
     if (ChElementLDPM::LargeDeflection) {
         UpdateRotation();
-        // TODO JBC: Erol's original code updates the length of the sections inside updateRotation(), kept as is for now
+
+        // Update lengths and areas of facets
+        for (int iface = 0 ; iface < my_section.size() ; iface++) {
+            std::shared_ptr<ChSectionLDPM> facet = my_section[iface];
+            unsigned int ind = facetNodeNums(iface, 0);
+            unsigned int jnd = facetNodeNums(iface, 1);
+            double new_length = (nodes[ind]->GetPos() - nodes[jnd]->GetPos()).Length();
+
+            double stretch_increment = new_length / facet->Get_Length();
+            double new_area = facet->Get_area() * (stretch_increment * stretch_increment); // Infer area stretch increment from 1D stretch increment assuming small isotropic deformation
+
+            facet->Set_Length(new_length);
+            facet->Set_area(new_area);
+        }
 
         // TODO JBC: ChSectionLDPM::ComputeProjectionMatrix() uses the initial facet frame, so the projection matrix is actually never updated
         //           and eigenstrain do not currently work under large deformation
@@ -327,9 +340,6 @@ void ChElementLDPM::UpdateRotation() {
         q_lattice_abs_rot = Aabs.GetQuaternion();
         facet->Set_abs_rot(q_lattice_abs_rot);
 
-        double length = (this->GetTetrahedronNode(ind)->GetX0().GetPos() - this->GetTetrahedronNode(jnd)->GetX0().GetPos()).Length(); // TODO JBC: this has nothing to do with rotation	and could be taken to Update()
-        facet->Set_Length(length);
-
         ChQuaternion<> q_delta = q_lattice_abs_rot * facet->Get_ref_rot().GetConjugate();
         // New center position and node-center vectors must be computed
         // Average of center positions obtained from rigid body motion of node A and B
@@ -397,6 +407,7 @@ void ChElementLDPM::ComputeInternalForces(ChVectorDynamic<>& Fi) {
         unsigned int ind = facetNodeNums(iface, 0);
         unsigned int jnd = facetNodeNums(iface, 1);
 
+        // 
         double area = facet->Get_area();
         double length = facet->Get_Length();
 
