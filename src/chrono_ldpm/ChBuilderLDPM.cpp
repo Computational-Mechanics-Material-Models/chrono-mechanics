@@ -236,7 +236,7 @@ void ChBuilderLDPM::read_LDPM_info(std::shared_ptr<ChMesh> my_mesh,  std::shared
 				
 				msection->Set_material(vect_mat);
 				msection->Set_area(area);
-				msection->Set_center(facetC);
+				msection->Set_center_ref(facetC);
 				msection->Set_facetFrame(nmL);				
 				elem->AddFacetI(msection);							
 				//
@@ -435,7 +435,7 @@ void ChBuilderLDPM::read_LDPM_info(std::shared_ptr<ChMesh> my_mesh,  std::vector
 				
 				msection->Set_material(vect_mat[matFlag]);
 				msection->Set_area(area);
-				msection->Set_center(facetC);
+				msection->Set_center_ref(facetC);
 				msection->Set_facetFrame(nmL);				
 				elem->AddFacetI(msection);							
 				//

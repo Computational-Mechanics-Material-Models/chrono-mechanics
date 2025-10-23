@@ -83,6 +83,9 @@ class ChLdpmApi ChSectionLDPM  : public chrono::fea::ChBeamSection {
     // Setter & Getter for centroid of facet
     ChVector3d Get_center() const { return m_center; }
     void Set_center( ChVector3d center) { m_center=center; }
+    // Setter & Getter for initial (reference configuration) centroid of facet
+    ChVector3d Get_center_ref() const { return m_center_ref; }
+    void Set_center_ref( ChVector3d center) { m_center_ref=center; }
     //
     ChMatrix33<double> Get_facetFrame() const { return m_facetFrame; }
     void Set_facetFrame( ChMatrix33<double> facetFrame) { m_facetFrame=facetFrame; }
@@ -109,6 +112,7 @@ class ChLdpmApi ChSectionLDPM  : public chrono::fea::ChBeamSection {
   protected:
     std::shared_ptr<ChMaterialVECT> m_material;
     ChVector3d m_center;
+    ChVector3d m_center_ref; // Initial position of facet center
     ChMatrix33<double> m_facetFrame;
     ChVectorDynamic<>  m_state;
     ChVector3d m_nonMechanicStrain;

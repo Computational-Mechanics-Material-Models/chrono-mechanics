@@ -164,37 +164,26 @@ void ChElementLDPM::GetLatticeField_dt(unsigned int& ind, unsigned int& jnd, ChV
 
 
 
-void ChElementLDPM::ComputeStrain(std::shared_ptr<ChSectionLDPM> section, unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& displ, ChVector3d& mstrain) {
+void ChElementLDPM::ComputeStrainIncrement(std::shared_ptr<ChSectionLDPM> section, unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& displ, ChVector3d& mstrain) {
     ChVector3d ui = displ.segment(0,3);
     ChVector3d ri = displ.segment(3,3);
     ChVector3d uj = displ.segment(6,3);
     ChVector3d rj = displ.segment(9,3);
-    ChVector3d xc_xi;
-    ChVector3d xc_xj;
 
     double linv = 1.0 / section->Get_Length();
-    // For small deflection, use the initial position of the nodes and facet centers
-    // to determine the displacement induced by the node rotation
-    if (!ChElementLDPM::LargeDeflection) {
-        xc_xi = section->Get_center() - this->nodes[ind]->GetX0().GetPos();
-        xc_xj = section->Get_center() - this->nodes[jnd]->GetX0().GetPos();
-    }
-    else { // TODO: Find out how to evolve position of the center for large displacement
-            //       Erol's implementation computed the initial A matrix from Get_center and GetX0 as well, so code below does not change the behavior
-        xc_xi = section->Get_center() - this->nodes[ind]->GetX0().GetPos(); // TEMPORARY
-        xc_xj = section->Get_center() - this->nodes[jnd]->GetX0().GetPos(); // TEMPORARY
-    }
-
     ChMatrix33<double> nmL = section->Get_facetFrame();
-    if(ChElementLDPM::LargeDeflection) { // TODO JBC: If the facet orientation were made to coincide with the quaternion, we could save a lot and move this to Update() instead of rotating the initial frame at every step
+    if (ChElementLDPM::LargeDeflection) { // TODO JBC: If the facet orientation were made to coincide with the quaternion, we could save a lot and move this to Update() instead of rotating the initial frame at every step
         ChQuaternion<> q_delta = section->Get_abs_rot() *  section->Get_ref_rot().GetConjugate();
         for (int id=0; id<3; id++){
             nmL.block<1,3>(id, 0) = q_delta.Rotate(nmL.block<1,3>(id, 0)).eigen();
         }
     }
 
+    ChVector3d xi_xc, xj_xc;
+    ComputeBranchVectors(section, ind, jnd, xi_xc, xj_xc);
+
     // Strain
-    ChVector3d strain_increment = (uj + rj.Cross(xc_xj) - (ui + ri.Cross(xc_xi))) * linv;
+    ChVector3d strain_increment = (uj + rj.Cross(xj_xc) - (ui + ri.Cross(xi_xc))) * linv;
     mstrain = nmL * strain_increment.eigen();
 }
 
@@ -224,28 +213,18 @@ void ChElementLDPM::ComputeStiffnessMatrixGlobal(ChMatrixRef Km) {
         ChMatrix33<double> nmL_tr = nmL.transpose();
         ChMatrix33<> K_material = nmL_tr * K_diag * nmL;
 
-        // For small deflection, use the initial position of the nodes and facet centers
-        // to determine the displacement induced by the node rotation
-        ChVector3d xc_xi;
-        ChVector3d xc_xj;
-        if (!ChElementLDPM::LargeDeflection) {
-            xc_xi = facet->Get_center() - this->nodes[ind]->GetX0().GetPos();
-            xc_xj = facet->Get_center() - this->nodes[jnd]->GetX0().GetPos();
-        }
-        else { // TODO: Find out how to evolve position of the center for large displacement
-               //       Erol's implementation computed the initial A matrix from Get_center and GetX0 as well, so code below does not change the behavior
-            xc_xi = facet->Get_center() - this->nodes[ind]->GetX0().GetPos(); // TEMPORARY
-            xc_xj = facet->Get_center() - this->nodes[jnd]->GetX0().GetPos(); // TEMPORARY
-        }
-
-        ChMatrix33<> Ai_cross; // 3x3 right sub-block of Ai matrix for skew-symmetric cross-product vector
-        ChMatrix33<> Aj_cross; // 3x3 right sub-block of Aj matrix for skew-symmetric cross-product vector
-        Ai_cross << 0.0      ,  xc_xi[2], -xc_xi[1],
-                    -xc_xi[2],  0.0     ,  xc_xi[0],
-                     xc_xi[1], -xc_xi[0],  0.0     ;
-        Aj_cross << 0.0      ,  xc_xj[2], -xc_xj[1],
-                    -xc_xj[2],  0.0     ,  xc_xj[0],
-                     xc_xj[1], -xc_xj[0],  0.0     ;
+        ChVector3d xi_xc, xj_xc;
+        ComputeBranchVectors(facet, ind, jnd, xi_xc, xj_xc);
+        // 3x3 right sub-block of Ai matrix for skew-symmetric cross-product vector
+        ChMatrix33<> Ai_cross(0.0);
+        Ai_cross(0,1) =  xi_xc[2]; Ai_cross(1,0) = -xi_xc[2];
+        Ai_cross(0,2) = -xi_xc[1]; Ai_cross(2,0) =  xi_xc[1];
+        Ai_cross(1,2) =  xi_xc[0]; Ai_cross(2,1) = -xi_xc[0];
+        // 3x3 right sub-block of Aj matrix for skew-symmetric cross-product vector
+        ChMatrix33<> Aj_cross(0.0);
+        Aj_cross(0,1) =  xj_xc[2]; Aj_cross(1,0) = -xj_xc[2];
+        Aj_cross(0,2) = -xj_xc[1]; Aj_cross(2,0) =  xj_xc[1];
+        Aj_cross(1,2) =  xj_xc[0]; Aj_cross(2,1) = -xj_xc[0];
 
         ChMatrix33<> K_material_Id_Ai = K_material * Ai_cross;
         ChMatrix33<> K_material_Ai_Id = K_material_Id_Ai.transpose();
@@ -288,7 +267,8 @@ void ChElementLDPM::SetupInitial(ChSystem* system) {
     	unsigned int ind=facetNodeNums(iface,0);
     	unsigned int jnd=facetNodeNums(iface,1);
 	    
-        // TODO JBC: the quaternion should be defined at the tetrahedron level, this would save a lot of compute and memory!
+        // TODO JBC: the quaternion could be defined at the tetrahedron level, this would save a lot of compute and memory!
+        // TODO JBC: Alternatively, the quaternion could be made to coincide the initial nmL as discussed in other TODOs
 	    ChMatrix33<> A0;
 	    ChVector3d mXele = nodes[jnd]->GetX0().GetPos() - nodes[ind]->GetX0().GetPos();
 	    ChVector3d myele =
@@ -299,8 +279,9 @@ void ChElementLDPM::SetupInitial(ChSystem* system) {
 		///		
 		double length = (this->GetTetrahedronNode(ind)->GetX0().GetPos() - this->GetTetrahedronNode(jnd)->GetX0().GetPos()).Length();		
 		facet->Set_Length(length);
-	    ///
-	    ///
+
+        facet->Set_center(facet->Get_center_ref());
+
 	    auto statev= facet->Get_StateVar();
 	    statev.resize(16); // TODO JBC: this is sized to 16 but the highest it is ever accessed in (15) inside ChMaterialVECT
 	    statev.setZero();
@@ -320,43 +301,54 @@ void ChElementLDPM::SetupInitial(ChSystem* system) {
     this->GetStateBlock(displ);
 	Un_1=displ;
 
-    this->UpdateRotation(); // TODO JBC: not sure why this is needed here
-
     this->SetInitialVolume(ComputeVolume());
 }
 
 void ChElementLDPM::UpdateRotation() {
-    //
-    //    
-    unsigned int iface=0;    
-    for( auto facet:this->GetSection()){
-    	    unsigned int ind=facetNodeNums(iface,0);
-    	    unsigned int jnd=facetNodeNums(iface,1);   
+    for (int iface = 0 ; iface < my_section.size() ; iface++) {
+        std::shared_ptr<ChSectionLDPM> facet = my_section[iface];
+        unsigned int ind = facetNodeNums(iface,0);
+        unsigned int jnd = facetNodeNums(iface,1);   
 
         ChMatrix33<> A0(facet->Get_ref_rot());
         ChMatrix33<> Aabs;
         ChQuaternion<> q_lattice_abs_rot;
-        if (!LargeDeflection) {
-        Aabs = A0;
-        q_lattice_abs_rot =facet->Get_ref_rot();
-        } else {
-            ChVector3d mXele = nodes[jnd]->Frame().GetPos() - nodes[ind]->Frame().GetPos();
-            ChVector3d myele = (nodes[ind]->Frame().GetRotMat().GetAxisY() + nodes[jnd]->Frame().GetRotMat().GetAxisY()).GetNormalized();
-            // TODO JBC: This looks fragile and relies on assumptions and current behavior of other parts of the code
-            //           - If the Y-axes are aligned with the node-to-node direction, or cancel out, Gram-Schmidt will fail and use an arbitrary direction
-            //              This arbitrary direction is repeatable, that is the only thing that guarantee this works, otherwise, the initial quaternion determined in SetupInitial() might be different
-            //              Any change to the fallback behavior of ChMatrix33::SetFromAxisX() will break this code !
-            //           - We could compute the rigid body motion of the tegrahedron, rather than compute and store an individual quaternion for all 12 facet to facets.
-            //              This is what is done in `ChElementTetraCorot_4::UpdateRotation()` using polar decompositoin, which seems better suited
-            //              The difficulty is that the N-axis might not be aligned with the node-to-node direction because of the deformation, albeit small
-            Aabs.SetFromAxisX(mXele, myele);
-            q_lattice_abs_rot = Aabs.GetQuaternion();
 
-            double length = (this->GetTetrahedronNode(ind)->GetX0().GetPos() - this->GetTetrahedronNode(jnd)->GetX0().GetPos()).Length(); // TODO JBC: this has nothing to do with rotation	and could be taken to Update()
-            facet->Set_Length(length);
-        }
+        ChVector3d mXele = nodes[jnd]->Frame().GetPos() - nodes[ind]->Frame().GetPos();
+        ChVector3d myele = (nodes[ind]->Frame().GetRotMat().GetAxisY() + nodes[jnd]->Frame().GetRotMat().GetAxisY()).GetNormalized();
+        // TODO JBC: This looks fragile and relies on assumptions and current behavior of other parts of the code
+        //           - If the Y-axes are aligned with the node-to-node direction, or cancel out, Gram-Schmidt will fail and use an arbitrary direction
+        //              This arbitrary direction is repeatable, that is the only thing that guarantee this works, otherwise, the initial quaternion determined in SetupInitial() might be different
+        //              Any change to the fallback behavior of ChMatrix33::SetFromAxisX() will break this code !
+        //           - We could compute the rigid body motion of the tegrahedron, rather than compute and store an individual quaternion for all 12 facet to facets.
+        //              This is what is done in `ChElementTetraCorot_4::UpdateRotation()` using polar decompositoin, which seems better suited
+        //              The difficulty is that the N-axis might not be aligned with the node-to-node direction because of the deformation, albeit small
+        Aabs.SetFromAxisX(mXele, myele);
+        q_lattice_abs_rot = Aabs.GetQuaternion();
         facet->Set_abs_rot(q_lattice_abs_rot);
-        iface++;
+
+        double length = (this->GetTetrahedronNode(ind)->GetX0().GetPos() - this->GetTetrahedronNode(jnd)->GetX0().GetPos()).Length(); // TODO JBC: this has nothing to do with rotation	and could be taken to Update()
+        facet->Set_Length(length);
+
+        ChQuaternion<> q_delta = q_lattice_abs_rot * facet->Get_ref_rot().GetConjugate();
+        // New center position and node-center vectors must be computed
+        // Average of center positions obtained from rigid body motion of node A and B
+        ChVector3d center_i = this->nodes[ind]->GetPos() + q_delta.Rotate(facet->Get_center_ref() - nodes[ind]->GetX0().GetPos());
+        ChVector3d center_j = this->nodes[jnd]->GetPos() + q_delta.Rotate(facet->Get_center_ref() - nodes[jnd]->GetX0().GetPos());
+        facet->Set_center(0.5 * (center_i + center_j));
+    }
+}
+
+
+void ChElementLDPM::ComputeBranchVectors(std::shared_ptr<ChSectionLDPM> facet, unsigned int ind, unsigned int jnd, ChVector3d& xind_xc, ChVector3d& xjnd_xc) {
+    if (!ChElementLDPM::LargeDeflection) {
+        // For small deflection, use the initial position of the nodes and facet centers
+        xind_xc = facet->Get_center_ref() - nodes[ind]->GetX0().GetPos();
+        xjnd_xc = facet->Get_center_ref() - nodes[jnd]->GetX0().GetPos();
+    } else {
+        // For large deflection, use the current position of the nodes and facet centers
+        xind_xc = facet->Get_center() - nodes[ind]->GetPos();
+        xjnd_xc = facet->Get_center() - nodes[jnd]->GetPos();
     }
 }
 
@@ -407,8 +399,8 @@ void ChElementLDPM::ComputeInternalForces(ChVectorDynamic<>& Fi) {
 
         double area = facet->Get_area();
         double length = facet->Get_Length();
-                                        
-        ChMatrix33<double> nmL=facet->Get_facetFrame();
+
+        ChMatrix33<double> nmL = facet->Get_facetFrame();
         if(ChElementLDPM::LargeDeflection) { // TODO JBC: If the facet orientation were made to coincide with the quaternion, we could save a lot and move this to Update() instead of rotating the initial frame at every step
             ChQuaternion<> q_delta = facet->Get_abs_rot() *  facet->Get_ref_rot().GetConjugate();
             for (int id=0; id<3; id++){
@@ -424,36 +416,25 @@ void ChElementLDPM::ComputeInternalForces(ChVectorDynamic<>& Fi) {
         ChVectorDynamic<> statev;
         ChVectorDynamic<> displ_facet_nodes(12);
         this->GetLatticeStateBlock(ind, jnd, displ_facet_nodes);	
-        this->ComputeStrain(facet, ind, jnd, displ_facet_nodes, dmstrain);
-        //std::cout<<"strain_INC: "<<dmstrain(0)<<"\t"<<dmstrain(1)<<"\t"<<dmstrain(2)<<"\t";
+        this->ComputeStrainIncrement(facet, ind, jnd, displ_facet_nodes, dmstrain);
         statev=facet->Get_StateVar();	
 
         // TODO JBC: not sure why 2 lines below were kept commented. If not used, get rid of them
         //if (this->macro_strain)
         //	facet->ComputeEigenStrain(this->macro_strain);
         ChVector3d nonMechanicalStrain=facet->Get_nonMechanicStrain();
-        facet->Get_material()->ComputeStress( dmstrain, nonMechanicalStrain, length,  epsV, statev, mstress, area);
+        facet->Get_material()->ComputeStress(dmstrain, nonMechanicalStrain, length,  epsV, statev, mstress, area);
         facet->Set_StateVar(statev);	
 
         ChVector3d force = area * (nmL_tr * mstress);
-        ChVector3d xc_xi;
-        ChVector3d xc_xj;
-        // For small deflection, use the initial position of the nodes and facet centers
-        // to determine the displacement induced by the node rotation
-        if (!ChElementLDPM::LargeDeflection) {
-            xc_xi = facet->Get_center() - this->nodes[ind]->GetX0().GetPos();
-            xc_xj = facet->Get_center() - this->nodes[jnd]->GetX0().GetPos();
-        }
-        else { // TODO: Find out how to evolve position of the center for large displacement
-               //       Erol's implementation computed the initial A matrix from Get_center and GetX0 as well, so code below does not change the behavior
-            xc_xi = facet->Get_center() - this->nodes[ind]->GetX0().GetPos(); // TEMPORARY
-            xc_xj = facet->Get_center() - this->nodes[jnd]->GetX0().GetPos(); // TEMPORARY
-        }
+
+        ChVector3d xi_xc, xj_xc;
+        ComputeBranchVectors(facet, ind, jnd, xi_xc, xj_xc); // TODO JBC : branch vectors computed internally by this->ComputeStrainIncrement() so done twice. Clean way to re-use it would be to also compute moments directly in ComputeStress()
 
         Fi.segment(ind*6+0,3) +=  force.eigen();
-        Fi.segment(ind*6+3,3) +=  xc_xi.Cross(force).eigen();
+        Fi.segment(ind*6+3,3) +=  xi_xc.Cross(force).eigen();
         Fi.segment(jnd*6+0,3) += -force.eigen();
-        Fi.segment(jnd*6+3,3) += -xc_xj.Cross(force).eigen();
+        Fi.segment(jnd*6+3,3) += -xj_xc.Cross(force).eigen();
     }
 }
 

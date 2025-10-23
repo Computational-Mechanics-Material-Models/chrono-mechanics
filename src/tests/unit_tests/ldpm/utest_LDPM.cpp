@@ -289,7 +289,7 @@ TEST_F(LDPMTest, internal_forces) {
     // Strain only on facets 1-4, 2-4, 3-4
     for (int i : {4, 5, 8, 9, 10, 11}) {
         auto section = my_LDPM_tet->GetSection()[i];
-        auto center = section->Get_center();
+        auto center = section->Get_center_ref();
         auto facetFrame = section->Get_facetFrame();
         auto area = section->Get_area();
         auto length = section->Get_Length();
@@ -349,7 +349,7 @@ TEST_F(LDPMTest, elastic_stiffness_matrix) {
         auto section = my_LDPM_tet->GetSection()[i];
         double facet_area = section->Get_area();
         double length = section->Get_Length();
-        auto center = section->Get_center();
+        auto center = section->Get_center_ref();
         ChMatrix33<> Rf = section->Get_facetFrame().transpose();
 
         ChMatrix33<> stiff_local;
@@ -399,7 +399,7 @@ TEST_F(LDPMTest, compute_strain) {
     unsigned int ind = nodeIind[0];
     unsigned int jnd = nodeJind[0];
     double length = section->Get_Length();
-    ChVector3<> center = section->Get_center();
+    ChVector3<> center = section->Get_center_ref();
     ChMatrix33<> nmL = section->Get_facetFrame();
     ChMatrix33<> nmL_tr = nmL.transpose();
     std::vector<ChVector3<>> NML = {nmL_tr.GetAxisX(), nmL_tr.GetAxisY(), nmL_tr.GetAxisZ()};
@@ -415,7 +415,7 @@ TEST_F(LDPMTest, compute_strain) {
     // Translation of node A
     for (int i = 0; i<3 ; i++) {
         displ_incr.segment(0,3) = disp * NML[i].eigen(); // N, M, L displacement
-        my_LDPM_tet->ComputeStrain(section, ind, jnd, displ_incr, strain);
+        my_LDPM_tet->ComputeStrainIncrement(section, ind, jnd, displ_incr, strain);
         ASSERT_NEAR(strain[i], -disp / length, eps);
         ASSERT_NEAR(strain[(i+1)%3], 0.0, eps);
         ASSERT_NEAR(strain[(i+2)%3], 0.0, eps);
@@ -423,7 +423,7 @@ TEST_F(LDPMTest, compute_strain) {
     }
         // NML displacements
         displ_incr.segment(0,3) = disp * (NML[0]+NML[1]+NML[2]).eigen();
-        my_LDPM_tet->ComputeStrain(section, ind, jnd, displ_incr, strain);
+        my_LDPM_tet->ComputeStrainIncrement(section, ind, jnd, displ_incr, strain);
         ASSERT_NEAR(strain[0], -disp / length, eps);
         ASSERT_NEAR(strain[1], -disp / length, eps);
         ASSERT_NEAR(strain[2], -disp / length, eps);
@@ -433,7 +433,7 @@ TEST_F(LDPMTest, compute_strain) {
     for (int i = 0; i<3 ; i++) {
         displ_incr(3+i) = rot; // X, Y, Z rotation
         ChVector3<> rot_vector(rot*(i==0), rot*(i==1), rot*(i==2));
-        my_LDPM_tet->ComputeStrain(section, ind, jnd, displ_incr, strain);
+        my_LDPM_tet->ComputeStrainIncrement(section, ind, jnd, displ_incr, strain);
         ChVector3<> strain_analytical = -nmL * rot_vector.Cross(center - nodes[ind]->GetPos()).eigen();
         ASSERT_NEAR(strain[0], strain_analytical[0], eps);
         ASSERT_NEAR(strain[1], strain_analytical[1], eps);
@@ -444,7 +444,7 @@ TEST_F(LDPMTest, compute_strain) {
     // Translation of node B
     for (int i = 0; i<3 ; i++) {
         displ_incr.segment(6, 3) = disp * NML[i].eigen(); // N, M, L displacement
-        my_LDPM_tet->ComputeStrain(section, ind, jnd, displ_incr, strain);
+        my_LDPM_tet->ComputeStrainIncrement(section, ind, jnd, displ_incr, strain);
         ASSERT_NEAR(strain[i], disp / length, eps);
         ASSERT_NEAR(strain[(i+1)%3], 0.0, eps);
         ASSERT_NEAR(strain[(i+2)%3], 0.0, eps);
@@ -452,7 +452,7 @@ TEST_F(LDPMTest, compute_strain) {
     }
         // NML displacements
         displ_incr.segment(6,3) = disp * (NML[0]+NML[1]+NML[2]).eigen();
-        my_LDPM_tet->ComputeStrain(section, ind, jnd, displ_incr, strain);
+        my_LDPM_tet->ComputeStrainIncrement(section, ind, jnd, displ_incr, strain);
         ASSERT_NEAR(strain[0], disp / length, eps);
         ASSERT_NEAR(strain[1], disp / length, eps);
         ASSERT_NEAR(strain[2], disp / length, eps);
@@ -462,7 +462,7 @@ TEST_F(LDPMTest, compute_strain) {
     for (int i = 0; i<3 ; i++) {
         displ_incr(9+i) = rot; // X, Y, Z rotation
         ChVector3<> rot_vector(rot*(i==0), rot*(i==1), rot*(i==2));
-        my_LDPM_tet->ComputeStrain(section, ind, jnd, displ_incr, strain);
+        my_LDPM_tet->ComputeStrainIncrement(section, ind, jnd, displ_incr, strain);
         ChVector3<> strain_analytical = nmL * rot_vector.Cross(center - nodes[jnd]->GetPos());
         ASSERT_NEAR(strain[0], strain_analytical[0], eps);
         ASSERT_NEAR(strain[1], strain_analytical[1], eps);

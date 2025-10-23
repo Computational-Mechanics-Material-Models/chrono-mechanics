@@ -119,9 +119,9 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     double ComputeVolume(); // Volume of the LDPM tetrahedron
 
     ///
-    /// Compute strain at a LDPM facet
+    /// Compute strain increment at a LDPM facet
     ///
-    void ComputeStrain(std::shared_ptr<ChSectionLDPM> facet, unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& displ, ChVector3d& mStrain);
+    void ComputeStrainIncrement(std::shared_ptr<ChSectionLDPM> facet, unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& displ, ChVector3d& mStrain);
     ///
     ///
 
@@ -130,6 +130,9 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
 
     /// compute large rotation of element for corotational approach
     virtual void UpdateRotation() override;
+
+    /// Compute the vectors connecting the nodes to the centroid of the section
+    void ComputeBranchVectors(std::shared_ptr<ChSectionLDPM> facet, unsigned int ind, unsigned int jnd, ChVector3d& xind_xc, ChVector3d& xjnd_xc);
 
     /// Sets H as the global stiffness matrix K, scaled  by Kfactor. Optionally, also
     /// superimposes global damping matrix R, scaled by Rfactor, and global mass matrix M multiplied by Mfactor.
