@@ -287,7 +287,8 @@ void ChElementLDPM::SetupInitial(ChSystem* system) {
 	    ChVector3d myele =
 		(nodes[ind]->GetX0().GetRotMat().GetAxisY() + nodes[jnd]->GetX0().GetRotMat().GetAxisY()).GetNormalized();
 	    A0.SetFromAxisX(mXele, myele); // If the Y-axes are aligned with the node-to-node direction, , or cancel out, Gram-Schmidt will fail and use an arbitrary direction
-	    facet->Set_ref_rot( A0.GetQuaternion() );
+	    facet->Set_ref_rot(A0.GetQuaternion());
+        facet->Set_abs_rot(facet->Get_ref_rot()); // Initialize the current quaternion as the reference quaternion
 	    ///
 		///		
 		double length = (this->GetTetrahedronNode(ind)->GetX0().GetPos() - this->GetTetrahedronNode(jnd)->GetX0().GetPos()).Length();		
@@ -323,7 +324,6 @@ void ChElementLDPM::UpdateRotation() {
         unsigned int ind = facetNodeNums(iface,0);
         unsigned int jnd = facetNodeNums(iface,1);   
 
-        ChMatrix33<> A0(facet->Get_ref_rot());
         ChMatrix33<> Aabs;
         ChQuaternion<> q_lattice_abs_rot;
 
@@ -395,6 +395,22 @@ void ChElementLDPM::ComputeInternalForces(ChVectorDynamic<>& Fi) {
     this->GetStateBlock(displ);
     DUn_1=displ-Un_1;
     Un_1=displ;
+
+    // TODO JBC: rotations are not additive. Something like the code below would have to be done to get correct results
+    //           Come back to this when implementing the correct update at the end of step
+    // DUn_1.setZero(24);
+    // for (int i=0 ; i<4 ; i++) {
+    //     DUn_1.segment(i*6,3) = displ.segment(i*6,3)-Un_1.segment(i*6,3);
+    //     // Rotations not additive
+    //     ChQuaterniond q_curr, q_prev, dq;
+    //     q_curr.SetFromRotVec(displ.segment(i*6 + 3,3));
+    //     q_prev.SetFromRotVec(Un_1.segment(i*6 + 3,3));
+    //     dq = q_curr * q_prev.GetConjugate();
+    //     ChVector3d delta_rot_dir;
+    //     double delta_rot_angle;
+    //     dq.GetAngleAxis(delta_rot_angle, delta_rot_dir);
+    //     DUn_1.segment(i*6+3, 3) = (delta_rot_angle * delta_rot_dir).eigen();
+    // }
 
     Fi.setZero();
     //
