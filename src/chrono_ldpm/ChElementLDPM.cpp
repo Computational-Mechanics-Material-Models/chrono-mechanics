@@ -65,7 +65,7 @@ void ChElementLDPM::Update() {
     // TODO JBC: Because we inherit from a corotational element, we might consider using
     //           the `disable_corotational` in addition to/instead of the `LargeDeflection` flag we defined here
     if (ChElementLDPM::LargeDeflection) {
-        UpdateRotation();
+        UpdateRotation(); // Updates facet quaternion and centroid
 
         // Update lengths and areas of facets
         for (int iface = 0 ; iface < my_section.size() ; iface++) {
@@ -75,7 +75,7 @@ void ChElementLDPM::Update() {
             double new_length = (nodes[ind]->GetPos() - nodes[jnd]->GetPos()).Length();
 
             double stretch_increment = new_length / facet->Get_Length();
-            double new_area = facet->Get_area() * (stretch_increment * stretch_increment); // Infer area stretch increment from 1D stretch increment assuming small isotropic deformation
+            double new_area = facet->Get_area() * (stretch_increment * stretch_increment); // Infer area stretch increment from 1D stretch increment, assumes small isotropic deformation
 
             facet->Set_Length(new_length);
             facet->Set_area(new_area);
@@ -340,12 +340,19 @@ void ChElementLDPM::UpdateRotation() {
         q_lattice_abs_rot = Aabs.GetQuaternion();
         facet->Set_abs_rot(q_lattice_abs_rot);
 
+        // New center position
+        // 1. Projection `P` of center `C` on the edge should remain in the same relative position along the edge
+        ChVector3d edge0 = nodes[jnd]->GetX0().GetPos() - nodes[ind]->GetX0().GetPos();
+        double length0sq = edge0.Length2();
+        ChVector3d xi_xc0 = facet->Get_center_ref() - nodes[ind]->GetX0().GetPos();
+        double relpos_xi_xp = xi_xc0.Dot(edge0) / length0sq;
+        // 2. Vector `PC` keeps the same length but rotates with the edge
         ChQuaternion<> q_delta = q_lattice_abs_rot * facet->Get_ref_rot().GetConjugate();
-        // New center position and node-center vectors must be computed
-        // Average of center positions obtained from rigid body motion of node A and B
-        ChVector3d center_i = this->nodes[ind]->GetPos() + q_delta.Rotate(facet->Get_center_ref() - nodes[ind]->GetX0().GetPos());
-        ChVector3d center_j = this->nodes[jnd]->GetPos() + q_delta.Rotate(facet->Get_center_ref() - nodes[jnd]->GetX0().GetPos());
-        facet->Set_center(0.5 * (center_i + center_j));
+        ChVector3d xi_xp0 = relpos_xi_xp * edge0;
+        ChVector3d xp_xc0 = xi_xc0 - xi_xp0;
+        ChVector3d edge = nodes[jnd]->GetPos() - nodes[ind]->GetPos();
+        ChVector3d center = nodes[ind]->GetPos() + relpos_xi_xp * edge + q_delta.Rotate(xp_xc0);
+        facet->Set_center(center);
     }
 }
 
