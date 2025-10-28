@@ -94,6 +94,10 @@ class ChApi ChElementGeneric : public ChElementBase {
     /// Update the state variables of the constitutive model at the end of the step
     virtual void EleUpdateStateVar() override;
 
+    /// Get state variables of element
+    const ChVectorDynamic<> GetStateVarOld() const { return statevar_old;}
+    const ChVectorDynamic<> GetStateVar() const { return statevar;}
+
   protected:
     ChKRMBlock Kmatr;
     ChVectorDynamic<> statevar_old;

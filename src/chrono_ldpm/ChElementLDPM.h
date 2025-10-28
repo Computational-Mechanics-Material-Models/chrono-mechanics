@@ -63,13 +63,13 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     virtual unsigned int GetNumNodes() override { return 4; }
     virtual unsigned int GetNumCoordsPosLevel() override { return 4 * 6; }
     virtual unsigned int GetNodeNumCoordsPosLevel(unsigned int n) override { return 6; }
-    virtual unsigned int GetNumStateVar() override { return 12 * my_section[0]->Get_material()->GetNumberOfStateVariables() + GetNumCoordsPosLevel(); } // TODO: the +24 is designed to store the old DOFs in order to compute strain increment.
-                                                                                                                                                        //       This is not great, because it duplicates nodal information multiple times in each element that shares a node.
-                                                                                                                                                        //       Until the new FEA developments by Alessandro Tasora where nodal information is accessible, we use this hack.
-                                                                                                                                                        //       Alternatively, CBL connectors are expected to experience small strains
-                                                                                                                                                        //       (i.e., they will only be used with a certain type of constitutive model that does not allow very large strain)
-                                                                                                                                                        //       and the Chrono-style co-rotational total strain formulation (see ChElementBeamEuler::GetStateBlock) could be used, but Gianluca opposed it.
-
+    virtual unsigned int GetNumStateVar() override { return 12 * my_section[0]->Get_material()->GetNumberOfStateVariables() + 4 * 7; } // TODO: the + 4*7 is designed to store the old DOFs (position (3) + quaternion (4)) in order to compute strain increment.
+                                                                                                                                       //       This is not great, because it duplicates nodal information multiple times in each element that shares a node.
+                                                                                                                                       //       Until the new FEA developments by Alessandro Tasora where nodal information is accessible, we use this hack.
+                                                                                                                                       //       Alternatively, CBL connectors are expected to experience small strains
+                                                                                                                                       //       (i.e., they will only be used with a certain type of constitutive model that does not allow very large strain)
+                                                                                                                                       //       and the Chrono-style co-rotational total strain formulation (see ChElementBeamEuler::GetStateBlock) could be used, but Gianluca opposed it.
+    unsigned int GetDOFOffset() {return 12 * my_section[0]->Get_material()->GetNumberOfStateVariables();} // Index at which the DOFs in statevar begin
     double GetInitialVolume() { return V0; }
     void SetInitialVolume(double vol) {V0 = vol;}
 
@@ -113,10 +113,8 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     /// it stores only the n1 n2 n3 n4 values in a 1 row, 4 columns matrix.
     void ShapeFunctions(ShapeVector& N, double r, double s, double t);
 
-    /// Fills the D vector (displacement) with the currentfield values at the nodes of the element, with proper
-    /// ordering. If the D vector has not the size of this->GetNdofs(), it will be resized.For corotational elements,
-    /// field is assumed in local reference!
-    virtual void GetStateBlock(ChVectorDynamic<>& mD) override;
+    /// Fills the last 28 entries of the state variable with the DOFs (position, quaternion) of the nodes
+    virtual void GetStateBlock(ChVectorDynamic<>& state_var) override;
 
     void GetLatticeStateBlock(unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& mD);
 
@@ -127,7 +125,7 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     ///
     /// Compute strain increment at a LDPM facet
     ///
-    void ComputeStrainIncrement(std::shared_ptr<ChSectionLDPM> facet, unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& displ, ChVector3d& mStrain);
+    void ComputeStrainIncrement(std::shared_ptr<ChSectionLDPM> facet, unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& dofs_increment, ChVector3d& mStrain);
     ///
     ///
 

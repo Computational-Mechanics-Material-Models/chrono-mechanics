@@ -104,56 +104,22 @@ void ChElementLDPM::ShapeFunctions(ShapeVector& N, double r, double s, double t)
 }
 
 
-void ChElementLDPM::GetStateBlock(ChVectorDynamic<>& mD) {
-    mD.setZero(this->GetNumCoordsPosLevel());
-
-    // Node displacement in global frame
-    auto getDisplacement = [&] (std::shared_ptr<fea::ChNodeFEAxyzrot> node) {
-        return node->Frame().GetPos() - node->GetX0().GetPos();
-    };
-
-    // Node rotation in global frame
-    auto getRotation = [&] (std::shared_ptr<fea::ChNodeFEAxyzrot> node) {
-        ChQuaternion<> global_dq = node->Frame().GetRot() * node->GetX0().GetRot().GetConjugate();
-        ChVector3d delta_rot_dir;
-        double delta_rot_angle;
-        global_dq.GetAngleAxis(delta_rot_angle, delta_rot_dir);
-        // TODO: We may want to use GetRotVec directly, but the angle is not within [-PI .. PI]
-        // TODO: Consider changing GetRotVec() to return within [-PI .. PI]
-        return delta_rot_angle * delta_rot_dir;
-    };
-
+void ChElementLDPM::GetStateBlock(ChVectorDynamic<>& statevar) {
+    // Copy paste of ChElementLDPM::LoadableGetStateBlockPosLevel because this function
+    // takes ChVectorDynamic as an argument, not a ChState
+    unsigned index_start = GetDOFOffset(); // 4*7 is the total number of DOFs, stored at the end of statevar vector
+    statevar.segment(index_start + 0, 3) = nodes[0]->GetPos().eigen();
+    statevar.segment(index_start + 3, 4) = nodes[0]->GetRot().eigen();
     //
-    // First node
+    statevar.segment(index_start + 7, 3) = nodes[1]->GetPos().eigen();
+    statevar.segment(index_start + 10, 4) = nodes[1]->GetRot().eigen();
     //
-    mD.segment(0, 3) = getDisplacement(nodes[0]).eigen();
-    mD.segment(3, 3) = getRotation(nodes[0]).eigen();
+    statevar.segment(index_start + 14, 3) = nodes[2]->GetPos().eigen();
+    statevar.segment(index_start + 17, 4) = nodes[2]->GetRot().eigen();
     //
-    // Second node
-    //
-    mD.segment(6, 3) = getDisplacement(nodes[1]).eigen();
-    mD.segment(9, 3) = getRotation(nodes[1]).eigen();
-    //
-    // third node
-    //
-    mD.segment(12, 3) = getDisplacement(nodes[2]).eigen();
-    mD.segment(15, 3) = getRotation(nodes[2]).eigen();
-    //
-    // fourth node
-    //
-    mD.segment(18, 3) = getDisplacement(nodes[3]).eigen();
-    mD.segment(21, 3) = getRotation(nodes[3]).eigen();
+    statevar.segment(index_start + 21, 3) = nodes[3]->GetPos().eigen();
+    statevar.segment(index_start + 24, 4) = nodes[3]->GetRot().eigen();
 }
-
-
-
-
-void ChElementLDPM::GetLatticeStateBlock(unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& mD) {
-    mD.setZero(12);
-	mD.segment(0, 6)=DUn_1.segment(ind*6,6);
-	mD.segment(6, 6)=DUn_1.segment(jnd*6,6);
-}
-
 
 
 void ChElementLDPM::GetLatticeField_dt(unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& mD) {
@@ -178,11 +144,11 @@ void ChElementLDPM::GetLatticeField_dt(unsigned int& ind, unsigned int& jnd, ChV
 
 
 
-void ChElementLDPM::ComputeStrainIncrement(std::shared_ptr<ChSectionLDPM> section, unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& displ, ChVector3d& mstrain) {
-    ChVector3d ui = displ.segment(0,3);
-    ChVector3d ri = displ.segment(3,3);
-    ChVector3d uj = displ.segment(6,3);
-    ChVector3d rj = displ.segment(9,3);
+void ChElementLDPM::ComputeStrainIncrement(std::shared_ptr<ChSectionLDPM> section, unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& dofs_increment, ChVector3d& mstrain) {
+    ChVector3d dui = dofs_increment.segment(ind*6, 3);
+    ChVector3d dri = dofs_increment.segment(ind*6+3, 3);
+    ChVector3d duj = dofs_increment.segment(jnd*6, 3);
+    ChVector3d drj = dofs_increment.segment(jnd*6+3, 3);
 
     double linv = 1.0 / section->Get_Length();
     ChMatrix33<double> nmL = section->Get_facetFrame();
@@ -197,7 +163,7 @@ void ChElementLDPM::ComputeStrainIncrement(std::shared_ptr<ChSectionLDPM> sectio
     ComputeBranchVectors(section, ind, jnd, xi_xc, xj_xc);
 
     // Strain
-    ChVector3d strain_increment = (uj + rj.Cross(xj_xc) - (ui + ri.Cross(xi_xc))) * linv;
+    ChVector3d strain_increment = (duj + drj.Cross(xj_xc) - (dui + dri.Cross(xi_xc))) * linv;
     mstrain = nmL * strain_increment.eigen();
 }
 
@@ -311,11 +277,8 @@ void ChElementLDPM::SetupInitial(ChSystem* system) {
     // Initilize state variables:
     //
     statevar_old.setZero(GetNumStateVar());
-    statevar.setZero(GetNumStateVar());
-
-	ChVectorDynamic<> displ(24);
-    this->GetStateBlock(displ);
-	Un_1=displ;
+    GetStateBlock(statevar_old); // Store DOFs at the end of state variables vector (temporary, to do updated Lagrangian until these are stored at the nodes in Tasora's new design)
+    statevar = statevar_old;
 
     this->SetInitialVolume(ComputeVolume());
 }
@@ -398,29 +361,27 @@ void ChElementLDPM::ComputeKRMmatricesGlobal(ChMatrixRef H, double Kfactor, doub
 
 void ChElementLDPM::ComputeInternalForces(ChVectorDynamic<>& Fi) {
     assert(Fi.size() == 24);
-    //assert(section);
 
-    ChVectorDynamic<> displ(24);
-    this->GetStateBlock(displ);
-    DUn_1=displ-Un_1;
-    Un_1=displ;
+    // Compute increment of DOFs in global frame
+    this->GetStateBlock(statevar); // Store current DOFs at the end of state variables vector (temporary, to do updated Lagrangian until these are stored at the nodes in Tasora's new design)
+    ChVectorDynamic<> dofs_increment(24);
+    for (int inode = 0 ; inode < 4 ; inode++) {
+        unsigned int index_start = GetDOFOffset();
+        // Displacement in global frame
+        dofs_increment.segment(inode*6,3) = statevar.segment(index_start + inode*7,3) - statevar_old.segment(index_start + inode*7,3);
 
-    // TODO JBC: rotations are not additive. Something like the code below would have to be done to get correct results
-    //           Come back to this when implementing the correct update at the end of step
-    // DUn_1.setZero(24);
-    // for (int i=0 ; i<4 ; i++) {
-    //     DUn_1.segment(i*6,3) = displ.segment(i*6,3)-Un_1.segment(i*6,3);
-    //     // Rotations not additive
-    //     ChQuaterniond q_curr, q_prev, dq;
-    //     q_curr.SetFromRotVec(displ.segment(i*6 + 3,3));
-    //     q_prev.SetFromRotVec(Un_1.segment(i*6 + 3,3));
-    //     dq = q_curr * q_prev.GetConjugate();
-    //     ChVector3d delta_rot_dir;
-    //     double delta_rot_angle;
-    //     dq.GetAngleAxis(delta_rot_angle, delta_rot_dir);
-    //     DUn_1.segment(i*6+3, 3) = (delta_rot_angle * delta_rot_dir).eigen();
-    // }
-
+        // Rotation in global frame
+        ChQuaterniond q_curr(statevar.segment(index_start + inode*7 + 3,4));
+        ChQuaterniond q_prev(statevar_old.segment(index_start + inode*7 + 3,4));
+        ChQuaterniond dq = q_curr * q_prev.GetConjugate();
+        ChVector3d delta_rot_dir;
+        double delta_rot_angle;
+        dq.GetAngleAxis(delta_rot_angle, delta_rot_dir);
+        // TODO: We may want to use GetRotVec directly, but the angle is not within [-PI .. PI]
+        // TODO: Consider changing GetRotVec() to return within [-PI .. PI]
+        dofs_increment.segment(inode*6+3, 3) = (delta_rot_angle * delta_rot_dir).eigen();
+    }
+    // std::cout<<dofs_increment<<"\n\n"<<statevar.segment(12*15, 28)<<"\n\n"<<statevar_old.segment(12*15, 28)<<"\n\n\n\n";
     Fi.setZero();
     //
     // compute volumetric strain
@@ -447,11 +408,9 @@ void ChElementLDPM::ComputeInternalForces(ChVectorDynamic<>& Fi) {
         //
         // Get Stress values at facet center
         //
-        ChVector3d mstress;
+
         ChVector3d dmstrain;
-        ChVectorDynamic<> displ_facet_nodes(12);
-        this->GetLatticeStateBlock(ind, jnd, displ_facet_nodes);	
-        this->ComputeStrainIncrement(facet, ind, jnd, displ_facet_nodes, dmstrain);
+        ComputeStrainIncrement(facet, ind, jnd, dofs_increment, dmstrain);
 
         // TODO JBC: not sure why 2 lines below were kept commented. If not used, get rid of them
         //if (this->macro_strain)
@@ -460,6 +419,7 @@ void ChElementLDPM::ComputeInternalForces(ChVectorDynamic<>& Fi) {
 
         int numsv = facet->Get_material()->GetNumberOfStateVariables();
         ChVectorDynamic<> statev_new(numsv);
+        ChVector3d mstress;
         facet->Get_material()->ComputeStress(dmstrain, nonMechanicalStrain, length,  epsV, statevar_old.segment(iface * numsv, numsv), statev_new, mstress, area);
         statevar.segment(iface * numsv, numsv) = statev_new; // TODO JBC: this copy might be expensive, alternative would be to pass `statevar` and the index `iface` to the `ComputeStress` function, which would fill `statevar` in place
         ChVector3d force = area * (nmL_tr * mstress);
