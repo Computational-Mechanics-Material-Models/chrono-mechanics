@@ -114,7 +114,7 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     void ShapeFunctions(ShapeVector& N, double r, double s, double t);
 
     /// Fills the last 28 entries of the state variable with the DOFs (position, quaternion) of the nodes
-    virtual void GetStateBlock(ChVectorDynamic<>& state_var) override;
+    virtual void GetStateBlock(ChVectorDynamic<>& statev) override;
 
     void GetLatticeStateBlock(unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& mD);
 

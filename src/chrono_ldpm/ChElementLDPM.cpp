@@ -104,21 +104,21 @@ void ChElementLDPM::ShapeFunctions(ShapeVector& N, double r, double s, double t)
 }
 
 
-void ChElementLDPM::GetStateBlock(ChVectorDynamic<>& statevar) {
+void ChElementLDPM::GetStateBlock(ChVectorDynamic<>& statev) {
     // Copy paste of ChElementLDPM::LoadableGetStateBlockPosLevel because this function
     // takes ChVectorDynamic as an argument, not a ChState
-    unsigned index_start = GetDOFOffset(); // 4*7 is the total number of DOFs, stored at the end of statevar vector
-    statevar.segment(index_start + 0, 3) = nodes[0]->GetPos().eigen();
-    statevar.segment(index_start + 3, 4) = nodes[0]->GetRot().eigen();
+    unsigned index_start = GetDOFOffset();
+    statev.segment(index_start + 0, 3) = nodes[0]->GetPos().eigen();
+    statev.segment(index_start + 3, 4) = nodes[0]->GetRot().eigen();
     //
-    statevar.segment(index_start + 7, 3) = nodes[1]->GetPos().eigen();
-    statevar.segment(index_start + 10, 4) = nodes[1]->GetRot().eigen();
+    statev.segment(index_start + 7, 3) = nodes[1]->GetPos().eigen();
+    statev.segment(index_start + 10, 4) = nodes[1]->GetRot().eigen();
     //
-    statevar.segment(index_start + 14, 3) = nodes[2]->GetPos().eigen();
-    statevar.segment(index_start + 17, 4) = nodes[2]->GetRot().eigen();
+    statev.segment(index_start + 14, 3) = nodes[2]->GetPos().eigen();
+    statev.segment(index_start + 17, 4) = nodes[2]->GetRot().eigen();
     //
-    statevar.segment(index_start + 21, 3) = nodes[3]->GetPos().eigen();
-    statevar.segment(index_start + 24, 4) = nodes[3]->GetRot().eigen();
+    statev.segment(index_start + 21, 3) = nodes[3]->GetPos().eigen();
+    statev.segment(index_start + 24, 4) = nodes[3]->GetRot().eigen();
 }
 
 
