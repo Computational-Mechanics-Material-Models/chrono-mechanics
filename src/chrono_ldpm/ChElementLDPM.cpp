@@ -73,11 +73,12 @@ void ChElementLDPM::Update() {
             unsigned int ind = facetNodeNums(iface, 0);
             unsigned int jnd = facetNodeNums(iface, 1);
             double new_length = (nodes[ind]->GetPos() - nodes[jnd]->GetPos()).Length();
+            facet->Set_Length(new_length);
 
+            // The new area calculation below is temporary
+            // "We will need to do work on this anyway to recreate past work at the very minimum. At that time, we will check" (Gianluca)
             double stretch_increment = new_length / facet->Get_Length();
             double new_area = facet->Get_area() * (stretch_increment * stretch_increment); // Infer area stretch increment from 1D stretch increment, assumes small isotropic deformation
-
-            facet->Set_Length(new_length);
             facet->Set_area(new_area);
         }
 
