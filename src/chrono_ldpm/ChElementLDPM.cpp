@@ -296,11 +296,6 @@ void ChElementLDPM::SetupInitial(ChSystem* system) {
 		facet->Set_Length(length);
 
         facet->Set_center(facet->Get_center_ref());
-
-	    auto statev= facet->Get_StateVar();
-	    statev.resize(16); // TODO JBC: this is sized to 16 but the highest it is ever accessed in (15) inside ChMaterialVECT
-	    statev.setZero();
-	    facet->Set_StateVar(statev); 
 		///
 		///
 		if(this->macro_strain){
@@ -311,6 +306,12 @@ void ChElementLDPM::SetupInitial(ChSystem* system) {
         }
 	    iface++;
      }
+
+    //
+    // Initilize state variables:
+    //
+    statevar_old.setZero(GetNumStateVar());
+    statevar.setZero(GetNumStateVar());
 
 	ChVectorDynamic<> displ(24);
     this->GetStateBlock(displ);
@@ -448,19 +449,19 @@ void ChElementLDPM::ComputeInternalForces(ChVectorDynamic<>& Fi) {
         //
         ChVector3d mstress;
         ChVector3d dmstrain;
-        ChVectorDynamic<> statev;
         ChVectorDynamic<> displ_facet_nodes(12);
         this->GetLatticeStateBlock(ind, jnd, displ_facet_nodes);	
         this->ComputeStrainIncrement(facet, ind, jnd, displ_facet_nodes, dmstrain);
-        statev=facet->Get_StateVar();	
 
         // TODO JBC: not sure why 2 lines below were kept commented. If not used, get rid of them
         //if (this->macro_strain)
         //	facet->ComputeEigenStrain(this->macro_strain);
         ChVector3d nonMechanicalStrain=facet->Get_nonMechanicStrain();
-        facet->Get_material()->ComputeStress(dmstrain, nonMechanicalStrain, length,  epsV, statev, mstress, area);
-        facet->Set_StateVar(statev);	
 
+        int numsv = facet->Get_material()->GetNumberOfStateVariables();
+        ChVectorDynamic<> statev_new(numsv);
+        facet->Get_material()->ComputeStress(dmstrain, nonMechanicalStrain, length,  epsV, statevar_old.segment(iface * numsv, numsv), statev_new, mstress, area);
+        statevar.segment(iface * numsv, numsv) = statev_new; // TODO JBC: this copy might be expensive, alternative would be to pass `statevar` and the index `iface` to the `ComputeStress` function, which would fill `statevar` in place
         ChVector3d force = area * (nmL_tr * mstress);
 
         ChVector3d xi_xc, xj_xc;
@@ -691,15 +692,17 @@ void ChElementLDPM::EleIntLoadLumpedMass_Md(ChVectorDynamic<>& Md, double& error
 
 
 ChMatrixNM<double, 1, 9> ChElementLDPM::ComputeMacroStressContribution(){
-	ChMatrixNM<double, 1, 9> macro_stress;	  
+    ChMatrixNM<double, 1, 9> macro_stress;	  
     macro_stress.setZero();	
-	for (auto facet:this->GetSection()){		
-		double length=facet->Get_Length();		 	
-		double area =facet->Get_area();	
-		auto statev= facet->Get_StateVar();		
-		macro_stress +=(facet->GetProjectionMatrix()).transpose()*statev.segment(3,3)*area*length;		
-	}
-	return macro_stress;
+    for (int iface = 0 ; iface < my_section.size() ; iface++) {
+        std::shared_ptr<ChSectionLDPM> facet = my_section[iface];		
+        double length = facet->Get_Length();		 	
+        double area = facet->Get_area();
+        int numsv = facet->Get_material()->GetNumberOfStateVariables();
+        ChVectorDynamic<> statev = statevar.segment(iface * numsv + 3, 3);
+        macro_stress += (facet->GetProjectionMatrix()).transpose() * statev * area * length;		
+    }
+    return macro_stress;
 }
 
 

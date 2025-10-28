@@ -89,10 +89,7 @@ class ChLdpmApi ChSectionLDPM  : public chrono::fea::ChBeamSection {
     //
     ChMatrix33<double> Get_facetFrame() const { return m_facetFrame; }
     void Set_facetFrame( ChMatrix33<double> facetFrame) { m_facetFrame=facetFrame; }
-    // Setter & Getter for facet state variables
-    ChVectorDynamic<>  Get_StateVar() const { return m_state; };
-    void Set_StateVar(ChVectorDynamic<>  state) { m_state=state; }  
-	// Setter & Getter for facet state variables
+	// Setter & Getter for facet state eigenstrains
     ChVector3d  Get_nonMechanicStrain() const { return m_nonMechanicStrain; };
     void Set_nonMechanicStrain(ChVector3d  nonMechanicStrain) { m_nonMechanicStrain=nonMechanicStrain; }
     // Setter & Getter for rotation of the lattice
@@ -114,7 +111,6 @@ class ChLdpmApi ChSectionLDPM  : public chrono::fea::ChBeamSection {
     ChVector3d m_center;
     ChVector3d m_center_ref; // Initial position of facet center
     ChMatrix33<double> m_facetFrame;
-    ChVectorDynamic<>  m_state;
     ChVector3d m_nonMechanicStrain;
 	 
     ChQuaternion<> mq_lattice_abs_rot;

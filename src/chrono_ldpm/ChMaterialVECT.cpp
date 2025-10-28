@@ -69,16 +69,16 @@ ChMaterialVECT::~ChMaterialVECT()	{};
 // statec(10): internal work
 // statec(11): crack opening
 
-void ChMaterialVECT::ComputeStress(ChVector3d& dmstrain, ChVector3d& eigenstrain, double &len, double &epsV, ChVectorDynamic<>& statev, ChVector3d& mstress, double& area) {  	
+void ChMaterialVECT::ComputeStress(ChVector3d& dmstrain, ChVector3d& eigenstrain, double &len, double &epsV, const ChVectorDynamic<>& statev_old, ChVectorDynamic<>& statev_new, ChVector3d& mstress, double& area) {  	
     double E0 = this->Get_E0();
     double alpha = this->Get_alpha();
     // 
     ChVector3d mstrain;
-    mstrain = statev.segment(0,3) + dmstrain.eigen();
+    mstrain = statev_old.segment(0,3) + dmstrain.eigen();
     //	
     //
 	ChVector3d netstrain = mstrain - eigenstrain;
-	ChVector3d netdmstrain = netstrain - statev.segment(12,3);
+	ChVector3d netdmstrain = netstrain - statev_old.segment(12,3);
 	//std::cout<<"eigenstrain: "<<eigenstrain.x()<<"\t"<<eigenstrain.y()<<"\t"<<eigenstrain.z()<<"\t"	;
 	//std::cout<<"mstrain: "<<mstrain.x()<<"\t"<<mstrain.y()<<"\t"<<mstrain.z()<<"\t"	;
 	///std::cout<<"dmstrain: "<<dmstrain.x()<<"\t"<<dmstrain.y()<<"\t"<<dmstrain.z()<<"\t"	;
@@ -88,23 +88,29 @@ void ChMaterialVECT::ComputeStress(ChVector3d& dmstrain, ChVector3d& eigenstrain
 	double epsT = std::sqrt(netstrain[1] * netstrain[1] + netstrain[2] * netstrain[2]);
 	//std::cout<<"epsQ: "<<epsQ<<"\n";
 	
-	if (statev(6) < netstrain[0]) {
-		statev(6) = netstrain[0];
-	}
-	if (statev(7) < epsT) {
-		statev(7) = epsT;
-	}
-	
+	if (statev_old(6) < netstrain[0]) {
+		statev_new(6) = netstrain[0];
+	} else {
+        statev_new(6) = statev_old(6);
+    }
+	if (statev_old(7) < epsT) {
+		statev_new(7) = epsT;
+	} else {
+        statev_new(7) = statev_old(7);
+    }
+
+    double eps_max = std::sqrt(statev_new(6) * statev_new(6) + alpha * statev_new(7) * statev_new(7));
+
 	if (epsQ != 0) {
 		if (netstrain[0] > 10e-16) {     // fracture behaivor
-			double strsQ = FractureBC(netstrain, len, statev);
+			double strsQ = FractureBC(netstrain, len, statev_old, eps_max);
 			mstress[0] = strsQ * netstrain[0] / epsQ;
 			mstress[1] = alpha * strsQ * netstrain[1] / epsQ;
 			mstress[2] = alpha * strsQ * netstrain[2] / epsQ;
 		}
 		else {
-			double sigmaN = CompressBC(netstrain, netdmstrain, epsV, statev);
-			std::pair<double, double> sigmaT = ShearBC(netstrain, netdmstrain, statev);
+			double sigmaN = CompressBC(netstrain, netdmstrain, epsV, statev_old);
+			std::pair<double, double> sigmaT = ShearBC(netstrain, netdmstrain, statev_old);
 			double sigmaM = sigmaT.first;
 			double sigmaL = sigmaT.second;
 			//double sigmaTpre = pow(statev(4) * statev(4) + statev(5) * statev(5), 0.5);
@@ -116,7 +122,7 @@ void ChMaterialVECT::ComputeStress(ChVector3d& dmstrain, ChVector3d& eigenstrain
 			mstress[2] = sigmaL;
 			
 		}
-		double Wint = len * area * ((mstress[0]+ statev(3))/2 * netdmstrain[0] + (mstress[1]+statev(4)) / 2 * netdmstrain[1] +( mstress[2] + statev(5))/2 * netdmstrain[2]);
+		double Wint = len * area * ((mstress[0]+ statev_old(3))/2 * netdmstrain[0] + (mstress[1]+statev_old(4)) / 2 * netdmstrain[1] +( mstress[2] + statev_old(5))/2 * netdmstrain[2]);
 		double w_N = len * (netstrain[0] - mstress[0] / E0);
 		double w_M = len * (netstrain[1] - mstress[1] / (E0*alpha));
 		double w_L = len * (netstrain[2] - mstress[2] / (E0 * alpha));
@@ -124,26 +130,26 @@ void ChMaterialVECT::ComputeStress(ChVector3d& dmstrain, ChVector3d& eigenstrain
 
 		double w = std::sqrt(w_N * w_N + w_M * w_M + w_L * w_L);
 
-		statev(0) = mstrain[0];
-		statev(1) = mstrain[1];
-		statev(2) = mstrain[2];
-		statev(3) = mstress[0];
-		statev(4) = mstress[1];
-		statev(5) = mstress[2];
-		statev(8) = std::sqrt(netstrain[0] * netstrain[0] + alpha * (netstrain[1] * netstrain[1] + netstrain[2] * netstrain[2]));
-		statev(9) = std::sqrt(mstress[0] * mstress[0] + (mstress[1] * mstress[1] + mstress[2] * mstress[2]) / alpha);
-		statev(10) = Wint + statev(10);
-		statev(11) = w;
-		statev(12) = netstrain[0];
-		statev(13) = netstrain[1];
-		statev(14) = netstrain[2];
+		statev_new(0) = mstrain[0];
+		statev_new(1) = mstrain[1];
+		statev_new(2) = mstrain[2];
+		statev_new(3) = mstress[0];
+		statev_new(4) = mstress[1];
+		statev_new(5) = mstress[2];
+		statev_new(8) = std::sqrt(netstrain[0] * netstrain[0] + alpha * (netstrain[1] * netstrain[1] + netstrain[2] * netstrain[2]));
+		statev_new(9) = std::sqrt(mstress[0] * mstress[0] + (mstress[1] * mstress[1] + mstress[2] * mstress[2]) / alpha);
+		statev_new(10) = Wint + statev_old(10);
+		statev_new(11) = w;
+		statev_new(12) = netstrain[0];
+		statev_new(13) = netstrain[1];
+		statev_new(14) = netstrain[2];
 	}
 	else {
 		mstress.Set(0.0);
 	}
 }
 
-double ChMaterialVECT::FractureBC(ChVector3d& mstrain, double& len, ChVectorDynamic<>& statev) {
+double ChMaterialVECT::FractureBC(ChVector3d& mstrain, double& len, const ChVectorDynamic<>& statev_old, double eps_max) {
 	//
 	double E0 = this->Get_E0();
 	double alpha = this->Get_alpha();
@@ -184,7 +190,6 @@ double ChMaterialVECT::FractureBC(ChVector3d& mstrain, double& len, ChVectorDyna
 	//double H0 = Ht * pow(2 * omega / CH_PI, nt);
 	double H0 = Hs/alpha + ( Ht- Hs/alpha )* pow(2 * omega / CH_PI, nt);
 
-	double eps_max = std::sqrt(statev(6) * statev(6) + alpha * statev(7) * statev(7));
 	double sigma_bt = sigma0 * exp(-H0 * std::max((eps_max - eps0), 0.0) / sigma0);
 
 	
@@ -195,13 +200,13 @@ double ChMaterialVECT::FractureBC(ChVector3d& mstrain, double& len, ChVectorDyna
 	
 	
 
-	double strs_ela = E0 * (epsQ - statev(8)) + statev(9);
+	double strs_ela = E0 * (epsQ - statev_old(8)) + statev_old(9);
 	double sigma_fr = std::min(std::max(strs_ela, 0.0), sigma_bt);
 	
 	return sigma_fr;
 }
 
-double ChMaterialVECT::CompressBC(ChVector3d& mstrain, ChVector3d& dmstrain, double& epsV, ChVectorDynamic<>& statev) {
+double ChMaterialVECT::CompressBC(ChVector3d& mstrain, ChVector3d& dmstrain, double& epsV, const ChVectorDynamic<>& statev_old) {
 	double E0 = this->Get_E0();
 	double Ed = this->Get_Ed();
 	double sigmac0 = this->Get_sigmac0();
@@ -250,19 +255,19 @@ double ChMaterialVECT::CompressBC(ChVector3d& mstrain, ChVector3d& dmstrain, dou
 	//std::cout << "epsc1 " << epsc1 << std::endl;
 
 	double ENc;
-	if (-statev(3) < sigmac0) {
+	if (-statev_old(3) < sigmac0) {
 		ENc = E0;
 	}
 	else {
 		ENc = Ed;
 	}
 
-	double sigma_ela = statev(3) + ENc * (dmstrain[0]);
+	double sigma_ela = statev_old(3) + ENc * (dmstrain[0]);
 	double sigma_com = std::min(std::max(sigma_ela, -sigma_bc), 0.0);
 	return sigma_com;
 }
 
-std::pair<double, double> ChMaterialVECT::ShearBC(ChVector3d& mstrain, ChVector3d& dmstrain, ChVectorDynamic<>& statev) {
+std::pair<double, double> ChMaterialVECT::ShearBC(ChVector3d& mstrain, ChVector3d& dmstrain, const ChVectorDynamic<>& statev_old) {
 	double E0 = this->Get_E0();
 	double alpha = this->Get_alpha();
 	double mu0 = this->Get_mu0();
@@ -270,11 +275,11 @@ std::pair<double, double> ChMaterialVECT::ShearBC(ChVector3d& mstrain, ChVector3
 	double sigmas = this->Get_sigmas();
 	double sigmaN0 = this->Get_sigmaN0();
 
-	double sigmabs = sigmas + (mu0 - muinf) * sigmaN0 - muinf * statev(3) - (mu0 - muinf) * sigmaN0 * exp(statev(3) / sigmaN0);
+	double sigmabs = sigmas + (mu0 - muinf) * sigmaN0 - muinf * statev_old(3) - (mu0 - muinf) * sigmaN0 * exp(statev_old(3) / sigmaN0);
 
 	double ET = alpha * E0;
-	double sigmaM_ela = statev(4) + (dmstrain[1] ) * ET;
-	double sigmaL_ela = statev(5) + (dmstrain[2] ) * ET;
+	double sigmaM_ela = statev_old(4) + (dmstrain[1] ) * ET;
+	double sigmaL_ela = statev_old(5) + (dmstrain[2] ) * ET;
 	double sigmaT_ela = std::sqrt(sigmaM_ela * sigmaM_ela + sigmaL_ela * sigmaL_ela);
 
 	double sigmaT = std::min(std::max(sigmaT_ela, 0.0), sigmabs);

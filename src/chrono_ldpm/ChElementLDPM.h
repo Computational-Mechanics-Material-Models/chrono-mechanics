@@ -63,6 +63,12 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     virtual unsigned int GetNumNodes() override { return 4; }
     virtual unsigned int GetNumCoordsPosLevel() override { return 4 * 6; }
     virtual unsigned int GetNodeNumCoordsPosLevel(unsigned int n) override { return 6; }
+    virtual unsigned int GetNumStateVar() override { return 12 * my_section[0]->Get_material()->GetNumberOfStateVariables() + GetNumCoordsPosLevel(); } // TODO: the +24 is designed to store the old DOFs in order to compute strain increment.
+                                                                                                                                                        //       This is not great, because it duplicates nodal information multiple times in each element that shares a node.
+                                                                                                                                                        //       Until the new FEA developments by Alessandro Tasora where nodal information is accessible, we use this hack.
+                                                                                                                                                        //       Alternatively, CBL connectors are expected to experience small strains
+                                                                                                                                                        //       (i.e., they will only be used with a certain type of constitutive model that does not allow very large strain)
+                                                                                                                                                        //       and the Chrono-style co-rotational total strain formulation (see ChElementBeamEuler::GetStateBlock) could be used, but Gianluca opposed it.
 
     double GetInitialVolume() { return V0; }
     void SetInitialVolume(double vol) {V0 = vol;}
@@ -262,10 +268,8 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
 	
 	//template <typename T>
 	//friend class ChElementRVE;
-  public:	
-    ChVectorDynamic<> DUn_1;
-    ChVectorDynamic<> Un_1;
-	std::shared_ptr<ChMatrixNM<double,1,9>> macro_strain;
+  public:
+	std::shared_ptr<ChMatrixNM<double,1,9>> macro_strain; // TODO JBC: why is this public?!
   public:    
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
