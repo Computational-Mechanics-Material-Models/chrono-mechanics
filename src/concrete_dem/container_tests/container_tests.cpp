@@ -17,16 +17,15 @@
 //  and hydrostatic confinement test.
 
 // comment the line below two switch off irrlicht visualisation
-//#define IRR
+#define IRR
 
 #include <vector>
 #include "chrono_multicore/physics/ChSystemMulticore.h"
-#include "chrono/collision/ChCollisionSystemBullet.h"
+#include "chrono_multicore/collision/ChContactContainerMulticore.h"
 #include "chrono/assets/ChVisualSystem.h"
 #include "chrono/utils/ChUtilsCreators.h"
 #include "chrono/particlefactory/ChParticleRemover.h"
 #include "chrono/particlefactory/ChParticleEmitter.h"
-#include "chrono/core/ChDistribution.h"
 #include "MyContactReport.h"
 #include "chrono/core/ChMathematics.h"
 #include "chrono_thirdparty/rapidjson/prettywriter.h"
@@ -36,6 +35,7 @@
 #include "chrono/physics/ChLinkMotorLinearForce.h"
 #include "chrono/physics/ChLoadContainer.h"
 #include "chrono/physics/ChLoadsBody.h"
+//#include "chrono/utils/ChRandom.h"
 
 using namespace chrono;
 using namespace chrono::particlefactory;
@@ -50,9 +50,11 @@ double calc_aggVolFrac(std::vector<std::shared_ptr<ChBody>> &bodylist,
 		       double hlayer, double specimenVol){
   double avfrac = 0;
   for (auto body : bodylist) {
-    if (body->GetBodyFixed() || body->GetCollisionModel()->GetShape(0)->GetType() != 0)
+    if (body->IsFixed() || body->GetCollisionModel()->GetShapeInstance(0).first->GetType() != 0)
       continue;
-    double radius = body->GetCollisionModel()->GetShapeDimensions(0)[0] - hlayer;
+    auto shape=body->GetCollisionModel()->GetShapeInstance(0).first;
+    auto shape_sphere = std::static_pointer_cast<ChCollisionShapeSphere>(shape);             	
+    double radius = shape_sphere->GetRadius() - hlayer;
     avfrac += 1.33333333333333333333333 * CH_C_PI * radius * radius * radius;
   }
   return avfrac / specimenVol;
@@ -60,10 +62,10 @@ double calc_aggVolFrac(std::vector<std::shared_ptr<ChBody>> &bodylist,
 
 void delete_particle(ChSystemMulticoreSMC& sys, double limit) {
   std::list<std::shared_ptr<ChBody>> to_delete;
-  for (auto body : sys.Get_bodylist()) {
-    if (body->GetCollisionModel()->GetShape(0)->GetType() != 0)
+  for (auto body : sys.GetBodies()) {
+    if (body->GetCollisionModel()->GetShapeInstance(0).first->GetType() != 0)
       continue;
-    ChVector<> pos = body->GetPos();
+    ChVector3d pos = body->GetPos();
     if (pos.z() > limit || pos.z() < 0.0 || abs(pos.x()) > limit/2 || abs(pos.y()) > limit/2){
       to_delete.push_back(body);
     }
@@ -78,10 +80,10 @@ void delete_particle(ChSystemMulticoreSMC& sys, double limit) {
 std::vector<std::shared_ptr<ChBody>> list_particle_for_removal(ChSystemMulticoreSMC& sys, 
 							      double limit) {
   std::vector<std::shared_ptr<ChBody>> to_delete;
-  for (auto body : sys.Get_bodylist()) {
-    if (body->GetCollisionModel()->GetShape(0)->GetType() != 0)
+  for (auto body : sys.GetBodies()) {
+    if (body->GetCollisionModel()->GetShapeInstance(0).first->GetType() != 0)
       continue;
-    ChVector<> pos = body->GetPos();
+    ChVector3d pos = body->GetPos();
     if (pos.z() > limit || pos.z() < 0.0 || abs(pos.x()) > limit/2 || abs(pos.y()) > limit/2){
       to_delete.push_back(body);
     }
@@ -90,13 +92,15 @@ std::vector<std::shared_ptr<ChBody>> list_particle_for_removal(ChSystemMulticore
 }
 
 // define a class for concrete particle distribution
+/*
 class DFCParticleDistr : public ChDistribution {
 public:
   DFCParticleDistr(double min_size, double max_size, double mortar_layer, double mq)
     : d_0(min_size), d_a(max_size), h(mortar_layer), q(mq) {
   }
   virtual double GetRandom() override {
-    double P = ChRandom();
+    static chrono::utils::Chrandom rng;
+    double P = rng.GetNormal(0.0, 1.0);
     double aggregate_D = d_0 * pow((1 - P * (1 - pow(d_0, q)/pow(d_a, q))), (-1/q));
     return aggregate_D + 2 * h;
   }
@@ -107,19 +111,22 @@ private:
   double d_a;
   double h;
   double q;
-};
+  };*/
 
 void AddSphereLayers(int layer_number, int box_number, double start_height,
-		     ChSystemMulticoreSMC& sys, DFCParticleDistr d_param) {
-  auto material = chrono_types::make_shared<ChMaterialSurfaceSMC>();
+                     ChSystemMulticoreSMC& sys, double radius,
+    #ifdef IRR
+                     std::shared_ptr<ChVisualSystemIrrlicht> vis
+    #endif
+    ) {
+  auto material = chrono_types::make_shared<ChContactMaterialSMC>();
   material->SetYoungModulus(2.05e11);
   material->SetPoissonRatio(0.3);
   material->SetRestitution(0.5);
   material->SetFriction(0.2);
-  double radius = 0;  0.5 * d_param.GetRandom();
-  double box_size = d_param.GetMaxSize() + 0.001;  // max aggregate size + 1 mm for safety
+  double box_size = radius + 0.001;  // max aggregate size + 1 mm for safety
   double density = 0.5* 797 * (1 + 0.4 + 2.25);
-  double h = d_param.GetHLayer();
+  double h = 2;
   double mass = 0;
   double shift_x[4] = {box_size/2, 0, -box_size/2, 0};
   double shift_y[4] = {0, box_size/2, 0, -box_size/2};
@@ -134,45 +141,44 @@ void AddSphereLayers(int layer_number, int box_number, double start_height,
     }
     for (int j = 0; j < box_number; ++j) {
       for (int i = 0; i < box_number; ++i) {
-	auto ball = std::shared_ptr<chrono::ChBody>(sys.NewBody());
-	radius = 0.5 * d_param.GetRandom();
+	auto ball = chrono_types::make_shared<ChBody>();
 	double mass = ((4.0 / 3.0) * 3.1415 * pow(radius, 3)) * density;
 	total_mass += mass;
-	ball->SetInertiaXX((2.0 / 5.0) * mass * pow(radius, 3) * chrono::ChVector<>(1, 1, 1));
+	ball->SetInertiaXX((2.0 / 5.0) * mass * pow(radius, 3) * chrono::ChVector3d(1, 1, 1));
 	ball->SetMass(mass);
-	ball->SetPos(ChVector<>(i * box_size +  0.5 * box_size - 0.5 * box_size * box_number
+	ball->SetPos(ChVector3d(i * box_size +  0.5 * box_size - 0.5 * box_size * box_number
 				+ shift_x[l],
 				j * box_size + 0.5 * box_size - 0.5 * box_size * box_number
 				+ shift_y[l],
 				start_height + k * box_size));
-	ball->SetPos_dt(ChVector<>(0, 0, 0));
-	ball->SetWvel_par(ChVector<>(0, 0, 0));
-	ball->GetCollisionModel()->ClearModel();
+    std::cout << ball->GetPos() << "\n";
+	ball->SetPosDt(ChVector3d(0, 0, 0));
+	ball->SetAngVelLocal(ChVector3d(0, 0, 0));
+//	ball->GetCollisionModel()->ClearModel();
 	utils::AddSphereGeometry(ball.get(), material, radius);
-	ball->SetBodyFixed(false);
-	ball->SetCollide(true);
-	ball->GetCollisionModel()->BuildModel();
+	ball->SetFixed(false);
+	ball->EnableCollision(true);
+//	ball->GetCollisionModel()->BuildModel();
 	#ifdef IRR
-	auto sphere1 = chrono_types::make_shared<ChSphereShape>(radius);
-	sphere1->SetTexture(GetChronoDataFile("textures/bluewhite.png"));
-	sphere1->SetOpacity(0.4f);
-	auto sphere2 = chrono_types::make_shared<ChSphereShape>(radius - h);
-	sphere2->SetTexture(GetChronoDataFile("textures/rock.jpg"));
-	auto ball_vis = chrono_types::make_shared<ChVisualModel>();
-	ball_vis->AddShape(sphere1);
-	ball_vis->AddShape(sphere2);
-	ball->AddVisualModel(ball_vis);
+	auto sphereMor = chrono_types::make_shared<ChVisualShapeSphere>(radius);
+    sphereMor->SetColor(ChColor(128.f/255, 128.f/255, 128.f/255));
+    sphereMor->SetOpacity(0.25f);
+    ball->AddVisualShape(sphereMor);
+    auto sphereAgg = chrono_types::make_shared<ChVisualShapeSphere>(radius-h);
+    sphereAgg->SetColor(ChColor(5.f/255, 48.f/255, 173.f/255));	
+    ball->AddVisualShape(sphereAgg);
+    vis->BindItem(ball);
 	#endif
 	sys.AddBody(ball);
       }
     }
   }
-  GetLog() << "Total particle mass generated: " << total_mass << "\n";
+  std::cout << "Total particle mass generated: " << total_mass << "\n";
   return;
 }
 
-std::shared_ptr<ChBody> AddSphere(ChSystemMulticore& sys, ChVector<> pos, ChVector<> vel, int id){
-  auto material = chrono_types::make_shared<ChMaterialSurfaceSMC>();
+std::shared_ptr<ChBody> AddSphere(ChSystemMulticore& sys, ChVector3d pos, ChVector3d vel, int id){
+  auto material = chrono_types::make_shared<ChContactMaterialSMC>();
   material->SetYoungModulus(2.05e11);
   material->SetPoissonRatio(0.3);
   material->SetRestitution(0.5);
@@ -181,23 +187,23 @@ std::shared_ptr<ChBody> AddSphere(ChSystemMulticore& sys, ChVector<> pos, ChVect
   double h = 4e-3;
   double density = 797 * (1 + 0.4 + 2.25);
   double mass = ((4.0 / 3.0) * 3.1415 * pow(radius, 3)) * density;
-  auto ball = std::shared_ptr<chrono::ChBody>(sys.NewBody());
-  ball->SetInertiaXX((2.0 / 5.0) * mass * pow(radius, 3) * chrono::ChVector<>(1, 1, 1));
+  auto ball = chrono_types::make_shared<ChBody>();
+  ball->SetInertiaXX((2.0 / 5.0) * mass * pow(radius, 3) * chrono::ChVector3d(1, 1, 1));
   ball->SetMass(mass);
-  ball->SetIdentifier(id);
+//  ball->SetIdentifier(id);
   ball->SetPos(pos);
-  ball->SetPos_dt(vel);
-  ball->SetWvel_par(ChVector<>(0, 0, 0));
-  ball->GetCollisionModel()->ClearModel();
+  ball->SetPosDt(vel);
+  ball->SetAngVelLocal(ChVector3d(0, 0, 0));
+//  ball->GetCollisionModel()->ClearModel();
   utils::AddSphereGeometry(ball.get(), material, radius);
-  ball->SetBodyFixed(false);
-  ball->SetCollide(true);
-  ball->GetCollisionModel()->BuildModel();
+  ball->SetFixed(false);
+  ball->EnableCollision(true);
+//  ball->GetCollisionModel()->BuildModel();
   #ifdef IRR
-  auto sphere1 = chrono_types::make_shared<ChSphereShape>(radius);
+  auto sphere1 = chrono_types::make_shared<ChVisualShapeSphere>(radius);
   sphere1->SetTexture(GetChronoDataFile("textures/bluewhite.png"));
   sphere1->SetOpacity(0.4f);
-  auto sphere2 = chrono_types::make_shared<ChSphereShape>(radius - h);
+  auto sphere2 = chrono_types::make_shared<ChVisualShapeSphere>(radius - h);
   sphere2->SetTexture(GetChronoDataFile("textures/rock.jpg"));
   auto ball_vis = chrono_types::make_shared<ChVisualModel>();
   ball_vis->AddShape(sphere1);
@@ -215,71 +221,71 @@ std::vector<std::shared_ptr<ChBody>> create_container(ChSystemMulticoreSMC* sys,
   // returned vector stores created objects 
   double thickness = 0.01;  // wall thickness (container will be build from boxes)
   double density = 1000;
-  auto mat = chrono_types::make_shared<chrono::ChMaterialSurfaceSMC>();
+  auto mat = chrono_types::make_shared<chrono::ChContactMaterialSMC>();
   mat->SetYoungModulus(2.05e11);
   mat->SetPoissonRatio(0.3);
   mat->SetRestitution(0.5);
   mat->SetFriction(0.2);
   
-  auto bottom_wall = std::shared_ptr<ChBody>(sys->NewBody());
+  auto bottom_wall = chrono_types::make_shared<ChBody>();
   bottom_wall->SetMass(1);
-  bottom_wall->SetIdentifier(-1);
-  bottom_wall->SetInertiaXX(ChVector<>(1, 1, 1));
-  bottom_wall->SetPos(ChVector<>(0, 0, -thickness/2));
-  bottom_wall->SetBodyFixed(true);
-  bottom_wall->SetCollide(true);
-  bottom_wall->GetCollisionModel()->ClearModel();
+//  bottom_wall->SetIdentifier(-1);
+  bottom_wall->SetInertiaXX(ChVector3d(1, 1, 1));
+  bottom_wall->SetPos(ChVector3d(0, 0, -thickness/2));
+  bottom_wall->SetFixed(true);
+  bottom_wall->EnableCollision(true);
+//  bottom_wall->GetCollisionModel()->ClearModel();
   utils::AddBoxGeometry(bottom_wall.get(), mat,
-			ChVector<>(container_size, container_size, thickness));
-  bottom_wall->GetCollisionModel()->BuildModel();
+			ChVector3d(container_size, container_size, thickness));
+//  bottom_wall->GetCollisionModel()->BuildModel();
 
-  auto side_wall_1 = std::shared_ptr<ChBody>(sys->NewBody());
+  auto side_wall_1 = chrono_types::make_shared<ChBody>();
   side_wall_1->SetMass(1);
-  side_wall_1->SetIdentifier(-2);
-  side_wall_1->SetInertiaXX(ChVector<>(1, 1, 1));
-  side_wall_1->SetPos(ChVector<>(container_size/2 + thickness/2, 0, container_size/2));
-  side_wall_1->SetBodyFixed(true);
-  side_wall_1->SetCollide(true);
-  side_wall_1->GetCollisionModel()->ClearModel();
+//  side_wall_1->SetIdentifier(-2);
+  side_wall_1->SetInertiaXX(ChVector3d(1, 1, 1));
+  side_wall_1->SetPos(ChVector3d(container_size/2 + thickness/2, 0, container_size/2));
+  side_wall_1->SetFixed(true);
+  side_wall_1->EnableCollision(true);
+//  side_wall_1->GetCollisionModel()->ClearModel();
   utils::AddBoxGeometry(side_wall_1.get(), mat,
-			ChVector<>(thickness, container_size, container_size));
-  side_wall_1->GetCollisionModel()->BuildModel();
+			ChVector3d(thickness, container_size, container_size));
+//  side_wall_1->GetCollisionModel()->BuildModel();
 
-  auto side_wall_2 = std::shared_ptr<ChBody>(sys->NewBody());
+  auto side_wall_2 = chrono_types::make_shared<ChBody>();
   side_wall_2->SetMass(1);
-  side_wall_2->SetIdentifier(-3);
-  side_wall_2->SetInertiaXX(ChVector<>(1, 1, 1));
-  side_wall_2->SetPos(ChVector<>(-container_size/2 - thickness/2, 0, container_size/2));
-  side_wall_2->SetBodyFixed(true);
-  side_wall_2->SetCollide(true);
-  side_wall_2->GetCollisionModel()->ClearModel();
+//  side_wall_2->SetIdentifier(-3);
+  side_wall_2->SetInertiaXX(ChVector3d(1, 1, 1));
+  side_wall_2->SetPos(ChVector3d(-container_size/2 - thickness/2, 0, container_size/2));
+  side_wall_2->SetFixed(true);
+  side_wall_2->EnableCollision(true);
+//  side_wall_2->GetCollisionModel()->ClearModel();
   utils::AddBoxGeometry(side_wall_2.get(), mat,
-			ChVector<>(thickness, container_size, container_size));
-  side_wall_2->GetCollisionModel()->BuildModel();
+			ChVector3d(thickness, container_size, container_size));
+//  side_wall_2->GetCollisionModel()->BuildModel();
 
-  auto side_wall_3 = std::shared_ptr<ChBody>(sys->NewBody());
+  auto side_wall_3 = chrono_types::make_shared<ChBody>();
   side_wall_3->SetMass(1);
-  side_wall_3->SetIdentifier(-4);
-  side_wall_3->SetInertiaXX(ChVector<>(1, 1, 1));
-  side_wall_3->SetPos(ChVector<>(0, -container_size/2 - thickness/2, container_size/2));
-  side_wall_3->SetBodyFixed(true);
-  side_wall_3->SetCollide(true);
-  side_wall_3->GetCollisionModel()->ClearModel();
+//  side_wall_3->SetIdentifier(-4);
+  side_wall_3->SetInertiaXX(ChVector3d(1, 1, 1));
+  side_wall_3->SetPos(ChVector3d(0, -container_size/2 - thickness/2, container_size/2));
+  side_wall_3->SetFixed(true);
+  side_wall_3->EnableCollision(true);
+//  side_wall_3->GetCollisionModel()->ClearModel();
   utils::AddBoxGeometry(side_wall_3.get(), mat,
-			ChVector<>(container_size, thickness, container_size));
-  side_wall_3->GetCollisionModel()->BuildModel();
+			ChVector3d(container_size, thickness, container_size));
+//  side_wall_3->GetCollisionModel()->BuildModel();
 
-  auto side_wall_4 = std::shared_ptr<ChBody>(sys->NewBody());
+  auto side_wall_4 = chrono_types::make_shared<ChBody>();
   side_wall_4->SetMass(1);
-  side_wall_4->SetIdentifier(-5);
-  side_wall_4->SetInertiaXX(ChVector<>(1, 1, 1));
-  side_wall_4->SetPos(ChVector<>(0, container_size/2 + thickness/2, container_size/2));
-  side_wall_4->SetBodyFixed(true);
-  side_wall_4->SetCollide(true);
-  side_wall_4->GetCollisionModel()->ClearModel();
+//  side_wall_4->SetIdentifier(-5);
+  side_wall_4->SetInertiaXX(ChVector3d(1, 1, 1));
+  side_wall_4->SetPos(ChVector3d(0, container_size/2 + thickness/2, container_size/2));
+  side_wall_4->SetFixed(true);
+  side_wall_4->EnableCollision(true);
+//  side_wall_4->GetCollisionModel()->ClearModel();
   utils::AddBoxGeometry(side_wall_4.get(), mat,
-			ChVector<>(container_size, thickness, container_size));
-  side_wall_4->GetCollisionModel()->BuildModel();
+			ChVector3d(container_size, thickness, container_size));
+//  side_wall_4->GetCollisionModel()->BuildModel();
   
   sys->AddBody(bottom_wall);
   sys->AddBody(side_wall_1);
@@ -304,7 +310,7 @@ void write_wall_forces(std::vector<std::shared_ptr<ChBody>> walls, std::string f
   file_to_write.open(file_name, std::ios_base::app);
   file_to_write << "Current time step: " << time << "\n";
   for (int i = 0; i < 5; ++i) {
-    ChVector<> temp_force = walls[i]->GetContactForce();
+    ChVector3d temp_force = walls[i]->GetContactForce();
     file_to_write << wall_names[i] << "x: " << temp_force.x() << " y: " << temp_force.y()
 		  << " z: " << temp_force.z() << "\n";
   }
@@ -315,11 +321,31 @@ void write_wall_forces(std::vector<std::shared_ptr<ChBody>> walls, std::string f
 // function to export all contact forces acting on given container wall
 void write_wall_contacts(ChSystemMulticore& sys, std::shared_ptr<ChBody> wall,
 			 std::string file_name, double time){
-  std::ofstream file_to_write;
+// 1) Pobierz i zcastuj kontener:
+    auto c_generic = sys.GetContactContainer();
+    if (!c_generic) return;
+    auto c = std::dynamic_pointer_cast<chrono::ChContactContainerMulticore>(c_generic);
+    if (!c) return;
+
+    // 2) NIE wołaj ReportAllContacts, jeśli nie ma kontaktów:
+    const auto n = c->GetNumContacts();
+    if (n == 0) {
+        std::ofstream(file_name, std::ios::app)
+            << "Current time step: " << time
+            << "\nNo contacts to report. Empty vector with contacts.\n\n";
+        return;
+    }
+    std::ofstream file_to_write;
   file_to_write.open(file_name, std::ios_base::app);
   file_to_write << "Current time step: " << time << "\n";
+  std::cout << "Current time steo::" ;
   std::shared_ptr<MyContactReport> contact_data_ptr = std::make_shared<MyContactReport>();
+  std::cout << contact_data_ptr;
+  std::cout << sys.GetContactContainer();
+  if (!sys.GetContactContainer()) return;
   sys.GetContactContainer()->ReportAllContacts(contact_data_ptr);
+  if (!contact_data_ptr) return;
+  std::cout << contact_data_ptr;
   if (!contact_data_ptr->VectorOfCollisionData.empty()) {
     for (auto e : contact_data_ptr->VectorOfCollisionData){
       if (e.contactobjA == wall->GetCollisionModel()->GetContactable()) {
@@ -358,19 +384,19 @@ void write_cover_data(std::shared_ptr<ChBody> cover, std::string file_name,
   std::ofstream file_to_write;
   file_to_write.open(file_name, std::ios_base::app);
   file_to_write << "Current time step for cover data: " << time << "\n";
-  ChVector<> temp_vector = cover->GetAppliedForce();
+  ChVector3d temp_vector = cover->GetAppliedForce();
   file_to_write << "Force applied to cover " << "x= " << temp_vector.x() << " y= " << temp_vector.y()
 		<< " z= " << temp_vector.z() << "\n";
-  temp_vector = cover->Get_accumulated_force();
+  temp_vector = cover->GetAccumulatedForce();
   file_to_write << "Accumulated force " << "x= " << temp_vector.x() << " y= " << temp_vector.y()
 		<< " z= " << temp_vector.z() << "\n";
   temp_vector = cover->GetPos();
   file_to_write << "Position of cover " << "x= " << temp_vector.x() << " y= " << temp_vector.y()
 		<< " z= " << temp_vector.z() << "\n";
-  temp_vector = cover->GetPos_dt();
+  temp_vector = cover->GetPosDt();
   file_to_write << "Velocity of cover " << "x= " << temp_vector.x() << " y= " << temp_vector.y()
 		<< " z= " << temp_vector.z() << "\n";
-  auto force_list = cover->GetForceList();
+  auto force_list = cover->GetForces();
   file_to_write << "Size of force list is: " << force_list.size() << "\n";
   for (auto force : force_list){
     file_to_write << force << "\n";
@@ -382,7 +408,7 @@ void write_cover_data(std::shared_ptr<ChBody> cover, std::string file_name,
 
 // function checking, if particles are inside the box
 bool any_particle_inside(ChSystemMulticore& sys){
-  auto body_list = sys.Get_bodylist();
+  auto body_list = sys.GetBodies();
   int particles_inside = 0;
   for (auto body : body_list) {
     if ((body->GetPos()).Length() < 0.15)
@@ -397,12 +423,15 @@ bool any_particle_inside(ChSystemMulticore& sys){
 unsigned int find_particle_highest_z(ChSystemMulticoreSMC& sys) {
   double current_z_max = 0;
   unsigned int index = 0;
-  auto body_list = sys.Get_bodylist();
+  auto body_list = sys.GetBodies();
   for (auto body : body_list) {
-    if (body->GetIdentifier() > 0) {
-      if (body->GetPos().z() + body->GetCollisionModel()->GetShapeDimensions(0)[0] > current_z_max ) {
-	current_z_max = body->GetPos().z() + body->GetCollisionModel()->GetShapeDimensions(0)[0];
-	index = body->GetId();
+    auto shape=body->GetCollisionModel()->GetShapeInstance(0).first;
+    auto shape_sphere = std::static_pointer_cast<ChCollisionShapeSphere>(shape);             	
+    double radius = shape_sphere->GetRadius();
+      if (body->GetCollisionModel()->GetShapeInstance(0).first->GetType() == 0) {
+        if (body->GetPos().z() + radius > current_z_max ) {
+            current_z_max = body->GetPos().z() + radius;
+            index = body->GetIndex();
       }
     }
   }
@@ -410,28 +439,28 @@ unsigned int find_particle_highest_z(ChSystemMulticoreSMC& sys) {
 }
 
 // function printing current energy status
-ChVector<> print_energy_status(ChSystemMulticore& sys){
+ChVector3d print_energy_status(ChSystemMulticore& sys){
   float total_trans_kin_e = 0;
   float total_rot_kin_e = 0;
-  auto body_list = sys.Get_bodylist();
+  auto body_list = sys.GetBodies();
   for (auto body : body_list) {
-    if (body->GetBodyFixed() || body->GetCollisionModel()->GetShape(0)->GetType() != 0)
+    if (body->IsFixed() || body->GetCollisionModel()->GetShapeInstance(0).first->GetType() != 0)
       continue;
     auto mass = body->GetMass();
     auto inertia = body->GetInertiaXX();
     float trans_kin_e = 0;  // transnational kinetic energy
     float rot_kin_e = 0;  // rotational kinetic energy
-    ChVector<float> vel_t = body->GetPos_dt();
-    ChVector<float> vel_r = body->GetWvel_par();
+    ChVector3d vel_t = body->GetPosDt();
+    ChVector3d vel_r = body->GetAngVelLocal();
     trans_kin_e = 0.5 * mass * (pow(vel_t.x(), 2) + pow(vel_t.y(), 2) + pow(vel_t.z(), 2));
     rot_kin_e = 0.5 * (inertia.x()*pow(vel_r.x(), 2) + inertia.y()*pow(vel_r.y(), 2)
 		       + inertia.z()*pow(vel_r.z(), 2));
     total_trans_kin_e += trans_kin_e;
     total_rot_kin_e += rot_kin_e;
   }
-  GetLog() << "Total transnational kinetic energy: " << total_trans_kin_e;
-  GetLog() << " Total rotational kinetic energy: " << total_rot_kin_e << "\n";
-  return ChVector<>(total_trans_kin_e, total_rot_kin_e, 0);
+  std::cout << "Total transnational kinetic energy: " << total_trans_kin_e;
+  std::cout << " Total rotational kinetic energy: " << total_rot_kin_e << "\n";
+  return ChVector3d(total_trans_kin_e, total_rot_kin_e, 0);
 }
 
 // function adding cover and 0.1 kPa pressure for formwork pressure
@@ -439,45 +468,45 @@ std::shared_ptr<ChBody> add_cover_formwork_pressure(ChSystemMulticore& sys, doub
   // create ChBody for cover
   double thickness = 0.01;  // wall thickness (same as for container walls)
   double density = 10; // it may impact the concrete load due to gravity, keep it low for now 
-  auto mat = chrono_types::make_shared<chrono::ChMaterialSurfaceSMC>();
+  auto mat = chrono_types::make_shared<chrono::ChContactMaterialSMC>();
   mat->SetYoungModulus(2.05e11);  // material parameters are not relevant, overloaded by DFC model
   mat->SetPoissonRatio(0.3);
   mat->SetRestitution(0.5);
   mat->SetFriction(0.2);
  
-  auto cover = std::shared_ptr<ChBody>(sys.NewBody());
+  auto cover = chrono_types::make_shared<ChBody>();
   cover->SetMass(2.25/9.81);  // use gravity load as pressure 
-  cover->SetIdentifier(-6);
-  cover->SetInertiaXX(ChVector<>(0.01, 0.01, 0.01));
-  cover->SetPos(ChVector<>(0, 0, container_size + 1.32*thickness));
-  cover->SetBodyFixed(false);
-  cover->SetCollide(true);
-  cover->GetCollisionModel()->ClearModel();
+//  cover->SetIdentifier(-6);
+  cover->SetInertiaXX(ChVector3d(0.01, 0.01, 0.01));
+  cover->SetPos(ChVector3d(0, 0, container_size + 1.32*thickness));
+  cover->SetFixed(false);
+  cover->EnableCollision(true);
+//  cover->GetCollisionModel()->ClearModel();
   utils::AddBoxGeometry(cover.get(), mat,
-			ChVector<>(container_size, container_size, thickness));
-  cover->GetCollisionModel()->BuildModel();
+			ChVector3d(container_size, container_size, thickness));
+//  cover->GetCollisionModel()->BuildModel();
   sys.AddBody(cover);
 
   // Create basement (copied from Bahar code, not sure if it is necessary, may use bottom plate)    
   auto mtruss = chrono_types::make_shared<ChBody>();
-  mtruss->SetBodyFixed(true);
-  mtruss->SetIdentifier(-7);
+  mtruss->SetFixed(true);
+//  mtruss->SetIdentifier(-7);
   sys.AddBody(mtruss);
   
   // constrain the cover (only movement in z axis is allowed)
   auto constr_cover = chrono_types::make_shared<ChLinkMateGeneric>(true, true, false,
   								   true, true, true);
-  constr_cover->Initialize(cover, mtruss, false, cover->GetFrame_REF_to_abs(),
-  			   mtruss->GetFrame_REF_to_abs());
+  constr_cover->Initialize(cover, mtruss, false, cover->GetFrameRefToAbs(),
+  			   mtruss->GetFrameRefToAbs());
   sys.Add(constr_cover);
   double pressure = 0.1 * 1000;  // 0.1 kPa expressed in Pa
   double pres_load = 0.15*0.15*pressure;
   // add force to compensate weight of cover
   //  auto load_container = chrono_types::make_shared<ChLoadContainer>();
-  //  auto weight_compensation = chrono_types::make_shared<ChLoadBodyForce>(cover, ChVector<>(0, 0, 9.81),
-  //									false, ChVector<>(0, 0, 0));
-  //  auto pressure_load = chrono_types::make_shared<ChLoadBodyForce>(cover, ChVector<>(0, 0, -pres_load),
-  //									false, ChVector<>(0, 0, 0));
+  //  auto weight_compensation = chrono_types::make_shared<ChLoadBodyForce>(cover, ChVector3d(0, 0, 9.81),
+  //									false, ChVector3d(0, 0, 0));
+  //  auto pressure_load = chrono_types::make_shared<ChLoadBodyForce>(cover, ChVector3d(0, 0, -pres_load),
+  //									false, ChVector3d(0, 0, 0));
   //  load_container->Add(weight_compensation);
   //  load_container->Add(pressure_load);
   //  sys.Add(load_container);
@@ -492,11 +521,11 @@ std::shared_ptr<ChBody> add_cover_formwork_pressure(ChSystemMulticore& sys, doub
 }
 
 int main(int argc, char* argv[]) {
-  GetLog() << "Test application for implementation of DFC model in chrono::multicore\n";
-  GetLog() << "Based on open source library projectchrono.org Chrono version: "
+  std::cout << "Test application for implementation of DFC model in chrono::multicore\n";
+  std::cout << "Based on open source library projectchrono.org Chrono version: "
 	   << CHRONO_VERSION << "\n";
   chrono::SetChronoDataPath(CHRONO_DATA_DIR);
-  std::string out_dir = "OUT_VTK_AGV_Set_0_but_sigma_t_0_half_ro";
+  std::string out_dir = "Test_after_change_to_9_0";
   if (!filesystem::create_directory(filesystem::path(out_dir))) {
     std::cerr << "Error creating directory" << out_dir << std::endl;
     return 1;
@@ -509,8 +538,20 @@ int main(int argc, char* argv[]) {
 
   ChSystemMulticoreSMC sys;
   //sys.SetCollisionSystemType(collision_type);
-  sys.Set_G_acc(ChVector<>(0, 0, -9.81));
+  sys.SetGravitationalAcceleration(ChVector3d(0, 0, -9.81));
+  sys.SetNumThreads(1);
 
+  #ifdef IRR
+  auto vis = chrono_types::make_shared<ChVisualSystemIrrlicht>();
+  vis->SetWindowSize(800, 600);
+  vis->SetWindowTitle("SMC callbacks");
+  vis->Initialize();
+  vis->AddLogo();
+  vis->AddSkyBox();
+  vis->AddCamera(ChVector3d(0.5, 0.5, 1));
+  vis->AddTypicalLights();
+  #endif
+  
   // concrete and DFC parameters (SI units)
   double containerVol = 0.15 * 0.15 * 0.15;
   double Vol = containerVol * 2;
@@ -555,22 +596,27 @@ int main(int argc, char* argv[]) {
   //uint max_iteration = 100;
   //sys.GetSettings()->solver.max_iteration_bilateral = max_iteration;
   //sys.GetSettings()->solver.tolerance = tolerance;
-  sys.GetSettings()->collision.narrowphase_algorithm = collision::ChNarrowphase::Algorithm::HYBRID;
-  sys.GetSettings()->collision.bins_per_axis = vec3(10, 10, 10);
+//  sys.GetSettings()->collision.narrowphase_algorithm = collision::ChNarrowphase::Algorithm::HYBRID;
+//  sys.GetSettings()->collision.bins_per_axis = vec3(10, 10, 10);
   std::vector<std::shared_ptr<ChBody>> container_walls = create_container(&sys, 0.15);
 
   std::shared_ptr<ChBody> cover;
   //cover = add_cover_formwork_pressure(sys, 0.15);
 
-  AddSphereLayers(36, 11, 0.007, sys, DFCParticleDistr(5e-3, 10e-3, h_layer, 2.5));
-  AddSphereLayers(4, 15, 0.405, sys, DFCParticleDistr(5e-3, 10e-3, h_layer, 2.5));
+  AddSphereLayers(1, 1, 0.007, sys, 0.01,
+      #ifdef IRR
+      vis
+      #endif
+      );
+                  for (auto body : sys.GetBodies()) std::cout << body << "\n";
+  //AddSphereLayers(4, 15, 0.405, sys, 0.01);
   //  read_particles_VTK(sys, "OUT_VTK_AGV_Set_3/particle_time_steps_01000.vtk");
   //  read_particles_VTK_inside(sys, "OUT_VTK_DeComp_Set_0_Bahar_start/particle_time_steps_00500.vtk", 0.15);
   //  read_particles_VTK_Bahar_files(sys, "Bahar_start_system/particle_S1_coords.dat",
   //				 "Bahar_start_system/particle_S1_radius.dat", true, 1);
   //std::shared_ptr<ChBody> sphere_1, sphere_2;
-  //sphere_1 = AddSphere(sys, ChVector<>(0, 0, 0.15), ChVector<>(0, 0, 0), 10);
-  //sphere_2 = AddSphere(sys, ChVector<>(0.010, 0, 0.15), ChVector<>(0, 0, 0), 11);
+  //sphere_1 = AddSphere(sys, ChVector3d(0, 0, 0.15), ChVector3d(0, 0, 0), 10);
+  //sphere_2 = AddSphere(sys, ChVector3d(0.010, 0, 0.15), ChVector3d(0, 0, 0), 11);
 
   double simulation_time = 0;
   double time_step = 1e-06;
@@ -589,38 +635,27 @@ int main(int argc, char* argv[]) {
   //list_of_particles_to_delete = list_particle_for_removal(sys, 0.15);
 
   //  for (auto i : list_of_particles_to_delete){
-  //GetLog() << "Before step dynamics" << "\n";
+  //std::cout << "Before step dynamics" << "\n";
   //sys.DoStepDynamics(time_step);  // init system for correct delete
-  //GetLog() << "Before energy calculation" << "\n";
-  //ChVector<> temp_energy(print_energy_status(sys));
+  //std::cout << "Before energy calculation" << "\n";
+  //ChVector3d temp_energy(print_energy_status(sys));
   //terminal_file << "Total transnational kinetic energy: " << temp_energy.x();
   //terminal_file << " Total rotational kinetic energy: " << temp_energy.y() << "\n";
-  //GetLog() << "Particle for removal: " << i->GetId() << "\n"; 
+  //std::cout << "Particle for removal: " << i->GetId() << "\n"; 
   //sys.Remove(i);
   //sys.Update();
-  //GetLog() << "Iteratively deleted particle: " << i->GetId() << "\n";
+  //std::cout << "Iteratively deleted particle: " << i->GetId() << "\n";
   // }
   //std::vector<vec2> pair_to_debug;
   //pair_to_debug.push_back(vec2(sphere_1->GetId(), sphere_2->GetId()));
   //sys.GetSettings()->dfc_contact_param.debug_contact_pairs = pair_to_debug;
-  #ifdef IRR
-  std::shared_ptr<ChVisualSystem> vis;
-  auto vis_irr = chrono_types::make_shared<ChVisualSystemIrrlicht>();
-  vis_irr->AttachSystem(&sys);
-  vis_irr->SetWindowSize(800, 600);
-  vis_irr->SetWindowTitle("SMC callbacks");
-  vis_irr->Initialize();
-  vis_irr->AddLogo();
-  vis_irr->AddSkyBox();
-  vis_irr->AddCamera(ChVector<>(0.5, 0.5, 1));
-  vis_irr->AddTypicalLights();
-  vis = vis_irr;
-  #endif
+  
 #ifdef IRR
+  vis->AttachSystem(&sys);
   while (vis->Run()) {
     vis->BeginScene();
     vis->Render();
-    vis->RenderGrid(ChFrame<>(VNULL, Q_from_AngX(CH_C_PI_2)), 12, 0.5);
+//    vis->RenderGrid(ChFrame<>(VNULL, Q_from_AngX(CH_C_PI_2)), 12, 0.5);
     vis->EndScene();
 #else
     while (continue_simulation) {
@@ -641,18 +676,18 @@ int main(int argc, char* argv[]) {
 	write_wall_forces(container_walls, reaction_forces_file, simulation_time);
 	if (cover)
 	  write_cover_data(cover, reaction_forces_file, simulation_time);
-	GetLog() << "Simulation is running. Current time step: " << simulation_time << "\n";
+	std::cout << "Simulation is running. Current time step: " << simulation_time << "\n";
 	terminal_file << "Simulation is running. Current time step: " << simulation_time << "\n";
       }
     }
-    if (std::fmod(step_num, 1000) == 0){
+    if (step_num > 2 && std::fmod(step_num, 1000) == 0){
       write_wall_contacts(sys, container_walls[1], contact_forces_file, simulation_time);
-      ChVector<> temp_energy(print_energy_status(sys));
+      ChVector3d temp_energy(print_energy_status(sys));
       terminal_file << "Total transnational kinetic energy: " << temp_energy.x();
       terminal_file << " Total rotational kinetic energy: " << temp_energy.y() << "\n";      
       if (!any_particle_inside(sys) && simulation_time > 0.35){
 	continue_simulation = false;
-	GetLog() << "Simulation stopped. No particles in container.";
+	std::cout << "Simulation stopped. No particles in container.";
 	terminal_file << "Simulation stopped. No particles in container.";
       }
       if (simulation_time > 0.5)
@@ -665,9 +700,9 @@ int main(int argc, char* argv[]) {
     ++step_num;
   }
 
-  std::vector<std::shared_ptr<ChBody>> body_list = sys.Get_bodylist();
+  std::vector<std::shared_ptr<ChBody>> body_list = sys.GetBodies();
   double aggVolFrac = calc_aggVolFrac(body_list, h_layer, containerVol);
-  GetLog() << "Aggregate volume fraction is equal: " << aggVolFrac << "\n";
+  std::cout << "Aggregate volume fraction is equal: " << aggVolFrac << "\n";
   terminal_file << "Aggregate volume fraction is equal: " << aggVolFrac << "\n";
   terminal_file.close();
   return 0;

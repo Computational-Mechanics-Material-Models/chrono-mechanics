@@ -14,7 +14,7 @@
 
 using namespace chrono;
 
-class MyContactReport : public chrono::ChContactContainer::ReportContactCallback {
+class MyContactReport : public chrono::ChContactContainerMulticore::ReportContactCallback {
   struct CollisionData {
     ChVector3d pA; ///< contact pA
     ChVector3d pB; ///< contact pB
