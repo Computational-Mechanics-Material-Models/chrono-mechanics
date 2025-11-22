@@ -49,11 +49,14 @@ public:
             ChVector3d force = (*iter)->GetContactForce();
             double contact_penetration = (*iter)->GetContactPenetration();
             ChVector3d contact_normal = (*iter)->GetContactNormal();
+            ChContactable* objA = (*iter)->GetObjA();
+            ChContactable* objB = (*iter)->GetObjB();
             std::cout << "Coordinates of contact point P1, in absolute coordinates: " << p1 << "\n";
             std::cout << "Coordinates of contact point P2, in absolute coordinates: " << p2 << "\n";
             std::cout << "Contact force, in contact coordinate system: " << force << "\n";
             std::cout << "Contact penetration, positive if there is overlap: " << contact_penetration << "\n";
-            std::cout << "Contact normal, in absolute coordinates: " << contact_normal << "\n\n";
+            std::cout << "Contact normal, in absolute coordinates: " << contact_normal << "\n";
+            std::cout << "Contactable objects A and B: " << objA << "  " << objB << "\n\n";
             ++iter;
         }
     }
@@ -100,6 +103,14 @@ int main(int argc, char* argv[]) {
     sphere->AddCollisionShape(sphere_shape);    
     sphere->EnableCollision(true);
     sys.AddBody(sphere);
+    auto sphere2 = chrono_types::make_shared<ChBody>();
+    sphere2->SetInertiaXX((2.0 / 5.0) * mass * pow(radius, 2) * ChVector3d(1, 1, 1));
+    sphere2->SetMass(mass);
+    sphere2->SetPos(ChVector3d(9, 0, 4.9));
+    sphere2->SetPosDt(ChVector3d(0, 0, 0));
+    sphere2->AddCollisionShape(sphere_shape);
+    sphere2->EnableCollision(true);
+    sys.AddBody(sphere2);
     sys.SetContactForceModel(ChSystemSMC::ContactForceModel::Hooke);
     sys.SetAdhesionForceModel(ChSystemSMC::AdhesionForceModel::Constant);
     auto container = chrono_types::make_shared<ContactContainerPrint>();
