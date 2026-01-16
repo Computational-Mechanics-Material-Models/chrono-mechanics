@@ -20,6 +20,7 @@
 
 #include <string>
 #include <cstring>
+#include <filesystem>
 #include "chrono/collision/ChCollisionSystem.h"
 #include "chrono/collision/bullet/ChCollisionSystemBullet.h"
 #include "chrono_irrlicht/ChVisualSystemIrrlicht.h"
@@ -38,6 +39,7 @@
 // Use the main namespace of Chrono, and other chrono namespaces
 using namespace chrono;
 using namespace chrono::irrlicht;
+using namespace std::filesystem;
 
 // Argument parser (run with or without visualization
 struct AppOptions {
@@ -230,7 +232,7 @@ std::vector<std::shared_ptr<ChBody>> create_sphere_layers(ChSystemSMC& sys,
             for (int k = 0; k < layer_size_in_spheres; ++k) {
                 float x = k * (2 * radius - h) + layer_shift;
                 float y = j * (2 * radius - h) + layer_shift;
-                float z = i * (2 * radius - h) + radius;
+                float z = i * (2 * radius - h) + 2*radius;
                 std::shared_ptr<ChBody> temp_sphere = create_sphere(sys, material, ChVector3d(x, y, z), vel, radius, density);
                 created_spheres.push_back(temp_sphere);
             }
@@ -257,6 +259,18 @@ int main(int argc, char* argv[]) {
 	SetChronoDataPath(CHRONO_DATA_DIR);
     // parse arguments
     const auto opt = parse_args(argc, argv);
+    
+    float simulation_time = 1.0;
+    float sphere_radius = 5;
+    int number_of_paricles_in_layer = 5;
+    float initial_velocity = -50.0;
+    path out_dir = current_path();
+    out_dir += "/experiment_test_CPU";
+    out_dir += "/simulation_time_" + std::to_string(int(simulation_time)) + "s";
+    out_dir += "/box_size_in_spheres_" + std::to_string(number_of_paricles_in_layer);
+    out_dir += "/initial_velocity_" + std::to_string(int(initial_velocity));
+    std::cout << out_dir;
+    create_directories(out_dir);
 
 // Create a Chrono system
     ChSystemSMC sys;
@@ -270,8 +284,6 @@ int main(int argc, char* argv[]) {
     //
     auto container = chrono_types::make_shared<MyContactContainer>();
     sys.SetContactContainer(container);
-    float sphere_radius = 5;
-    int number_of_paricles_in_layer = 10;
     std::vector<std::shared_ptr<ChBody>> container_walls = create_container(sys, materialFCM, number_of_paricles_in_layer, sphere_radius);
     std::shared_ptr<ChVisualSystemIrrlicht>  vis = nullptr;
     if (opt.visualization) {
@@ -284,14 +296,28 @@ int main(int argc, char* argv[]) {
         vis->AddCamera(ChVector3d(250, 250, 500));
         vis->AddTypicalLights();
     }
-    std::vector<std::shared_ptr<ChBody>> my_spheres = create_sphere_layers(sys, materialFCM, ChVector3d(0, 0, -1), sphere_radius, 1.4858e-9, number_of_paricles_in_layer);
-    write_sphere_file(std::string("test.csv"), my_spheres);
+    std::vector<std::shared_ptr<ChBody>> my_spheres = create_sphere_layers(sys, materialFCM, ChVector3d(0, 0, initial_velocity), sphere_radius, 1.4858e-9, number_of_paricles_in_layer);
     bool closed_window = false;
     if (opt.visualization) {
         vis->AttachSystem(&sys);
     }
-    while (sys.GetChTime() < 1 && !closed_window) {		
-        sys.DoStepDynamics(2.0E-5);
+    float time_step = 2.0E-5;
+    int number_of_files_to_save = 100;
+    int save_dt_in_steps = static_cast<int>(simulation_time / time_step / number_of_files_to_save);
+    int simulation_steps = 0;
+    int total_save_counter = 0;
+    
+    while (sys.GetChTime() < simulation_time && !closed_window) {		
+
+        if (simulation_steps % save_dt_in_steps == 0) {
+            char file_name[200];
+            ++total_save_counter;
+            sprintf(file_name, "%s/Case_%04d.csv", out_dir.c_str(), total_save_counter);
+            write_sphere_file(std::string(file_name), my_spheres);
+            std::cout << "Current simulation time: " << sys.GetChTime() << " " << total_save_counter-1  << " % of simulation has been completed.\n";
+        }
+        
+        sys.DoStepDynamics(time_step);
         if (opt.visualization) {
             vis->BeginScene();
             vis->Render();
@@ -300,6 +326,7 @@ int main(int argc, char* argv[]) {
                 closed_window = true;
             }
         }
+        simulation_steps += 1;
     }
     return 0;
 }
