@@ -85,9 +85,13 @@ public:
     }
 };
 
-std::vector<std::shared_ptr<ChBody>> create_container(ChSystemSMC& sys, float size) {
+std::vector<std::shared_ptr<ChBody>> create_container(ChSystemSMC& sys,
+                                                      const std::shared_ptr<ChMaterialFCM>& DFC_material,
+                                                      int size_in_particles,
+                                                      float sphere_radius) {
     // container size given in mm, wall thickness is fixed in function code
-    // bottom surface corner point is positioned at point (0, 0, 0)
+    // box is positioned is such way, that first particle in first layer has coordinates (0, 0, 0)
+    // that ensures the same position of particles as in GPU simulation
     
     // dummy material, only to create the bodies, it is not used in contact force calculation
     float density = 1.0;  // not relevant as container is fixed
@@ -96,14 +100,15 @@ std::vector<std::shared_ptr<ChBody>> create_container(ChSystemSMC& sys, float si
     container_wall_material->SetYoungModulus(1e2);
     container_wall_material->SetFriction(0.5);
     container_wall_material->SetRestitution(0.2);
-    container_wall_material->SetAdhesion(0.0);
+    float h = DFC_material->Get_mortar_h();
+    float size = (size_in_particles - 1) * (2 * sphere_radius - h) + 2*sphere_radius;
 
     std::shared_ptr<ChBodyEasyBox> bottom_wall = chrono_types::make_shared<ChBodyEasyBox>(size, size, wall_thickness, // x, y, z size
                                                                                           density, // density
                                                                                           true, // visualise
                                                                                           true, // collide
                                                                                           container_wall_material); // material
-    bottom_wall->SetPos(ChVector3d(0, 0, -wall_thickness/2));
+    bottom_wall->SetPos(ChVector3d(size/2 - sphere_radius, size/2 - sphere_radius, -wall_thickness/2));
     bottom_wall->SetFixed(true);
     bottom_wall->GetVisualShape(0)->SetOpacity(0.25);
     bottom_wall->EnableCollision(true);
@@ -114,7 +119,7 @@ std::vector<std::shared_ptr<ChBody>> create_container(ChSystemSMC& sys, float si
                                                                                           true, // visualise
                                                                                           true, // collide
                                                                                           container_wall_material); // material
-    side_wall_1->SetPos(ChVector3d(0, size/2 + wall_thickness/2, size/2));
+    side_wall_1->SetPos(ChVector3d(size/2 - sphere_radius, size - sphere_radius + wall_thickness/2, size/2));
     side_wall_1->SetFixed(true);
     side_wall_1->GetVisualShape(0)->SetOpacity(0.25);
     side_wall_1->EnableCollision(true);
@@ -125,7 +130,7 @@ std::vector<std::shared_ptr<ChBody>> create_container(ChSystemSMC& sys, float si
                                                                                           true, // visualise
                                                                                           true, // collide
                                                                                           container_wall_material); // material
-    side_wall_2->SetPos(ChVector3d(0, -(size/2 + wall_thickness/2), size/2));
+    side_wall_2->SetPos(ChVector3d(size/2 - sphere_radius, -(sphere_radius + wall_thickness/2), size/2));
     side_wall_2->SetFixed(true);
     side_wall_2->GetVisualShape(0)->SetOpacity(0.25);
     side_wall_2->EnableCollision(true);
@@ -136,7 +141,7 @@ std::vector<std::shared_ptr<ChBody>> create_container(ChSystemSMC& sys, float si
                                                                                           true, // visualise
                                                                                           true, // collide
                                                                                           container_wall_material); // material
-    side_wall_3->SetPos(ChVector3d(-(size/2 + wall_thickness/2), 0, size/2));
+    side_wall_3->SetPos(ChVector3d(-(sphere_radius + wall_thickness/2), size/2 - sphere_radius, size/2));
     side_wall_3->SetFixed(true);
     side_wall_3->GetVisualShape(0)->SetOpacity(0.25);
     side_wall_3->EnableCollision(true);
@@ -147,7 +152,7 @@ std::vector<std::shared_ptr<ChBody>> create_container(ChSystemSMC& sys, float si
                                                                                           true, // visualise
                                                                                           true, // collide
                                                                                           container_wall_material); // material
-    side_wall_4->SetPos(ChVector3d((size/2 + wall_thickness/2), 0, size/2));
+    side_wall_4->SetPos(ChVector3d((size - sphere_radius + wall_thickness/2), size/2 - sphere_radius, size/2));
     side_wall_4->SetFixed(true);
     side_wall_4->GetVisualShape(0)->SetOpacity(0.25);
     side_wall_4->EnableCollision(true);
@@ -219,13 +224,12 @@ std::vector<std::shared_ptr<ChBody>> create_sphere_layers(ChSystemSMC& sys,
                                                           int layer_size_in_spheres){
     std::vector<std::shared_ptr<ChBody>> created_spheres;
     float h = material->Get_mortar_h();
-    float box_size = (layer_size_in_spheres - 1) * (2 * radius - h) + 2*radius;
     for (int i = 0; i < layer_size_in_spheres; ++i) {
         float layer_shift = (i % 2 == 0) ? 0 : radius / 2;
         for (int j = 0; j < layer_size_in_spheres; ++j) {
             for (int k = 0; k < layer_size_in_spheres; ++k) {
-                float x = k * (2 * radius - h) + layer_shift - (box_size/2 - radius);
-                float y = j * (2 * radius - h) + layer_shift - (box_size/2 - radius);
+                float x = k * (2 * radius - h) + layer_shift;
+                float y = j * (2 * radius - h) + layer_shift;
                 float z = i * (2 * radius - h) + radius;
                 std::shared_ptr<ChBody> temp_sphere = create_sphere(sys, material, ChVector3d(x, y, z), vel, radius, density);
                 created_spheres.push_back(temp_sphere);
@@ -244,7 +248,7 @@ void write_sphere_file(const std::string& file_name, std::vector<std::shared_ptr
         float abs_vel = vel.Length();
         std::shared_ptr<ChCollisionShape> contact_shape = body->GetCollisionModel()->GetShapeInstance(0).first;
         std::shared_ptr<ChCollisionShapeSphere> contact_sphere = std::static_pointer_cast<ChCollisionShapeSphere>(contact_shape);
-        csv_file << pos.x() << "," << pos.y() << "," << pos.z() << "," << contact_sphere->GetRadius() << "," << abs_vel << "\n";
+        csv_file << pos.x() << "," << pos.y() << "," << pos.z() << "," << contact_sphere-> GetRadius() << "," << abs_vel << "\n";
     }
 }
 
@@ -268,8 +272,7 @@ int main(int argc, char* argv[]) {
     sys.SetContactContainer(container);
     float sphere_radius = 5;
     int number_of_paricles_in_layer = 10;
-    float box_size = (number_of_paricles_in_layer - 1) * (2 * sphere_radius - materialFCM->Get_mortar_h()) + 2*sphere_radius;
-    std::vector<std::shared_ptr<ChBody>> container_walls = create_container(sys, box_size);
+    std::vector<std::shared_ptr<ChBody>> container_walls = create_container(sys, materialFCM, number_of_paricles_in_layer, sphere_radius);
     std::shared_ptr<ChVisualSystemIrrlicht>  vis = nullptr;
     if (opt.visualization) {
         vis = chrono_types::make_shared<ChVisualSystemIrrlicht>();
