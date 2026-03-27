@@ -178,7 +178,7 @@ void ChElementFrictionalInterface::ComputeInternalForces(ChVectorDynamic<>& Fi) 
 			double vn = Vdot(v_rel, n);
 			double vt1 = Vdot(v_rel, t1);
 			double vt2 = Vdot(v_rel, t2);	
-			slip_t += pow(vt1*vt1+vt2*vt2,0.5);
+			slip_t += std::sqrt(vt1*vt1+vt2*vt2);
 			//std::cout<<"N1: "<<N1<<"\tN2: "<<N2<<"\tN3: "<<N3<<std::endl;
 			//std::cout<<"n: "<<n<<"\tt1: "<<t1<<"\tt2: "<<t2<<std::endl;
 			//std::cout<<"vP: "<<vP<<"\tvABC: "<<vABC<<"\tv_rel: "<<v_rel<<std::endl;
@@ -192,7 +192,7 @@ void ChElementFrictionalInterface::ComputeInternalForces(ChVectorDynamic<>& Fi) 
 			//
 			double mu = GetCurrentFrictionCoefficient(slip_t);	
 			//Length of tangential forces
-			double ft = pow(F_t1*F_t1+F_t2*F_t2, 0.5);
+			double ft = std::sqrt(F_t1*F_t1+F_t2*F_t2);
 			// Allowed maximum tangential force
 			double ft_max = mu * std::max(0.,-F_normal);			
 			//
@@ -501,7 +501,7 @@ void ChElementFrictionalInterfaceRot::ComputeInternalForces(ChVectorDynamic<>& F
 		double vn = Vdot(v_rel, n);
         double vt1 = Vdot(v_rel, t1);
         double vt2 = Vdot(v_rel, t2);
-		slip_t += pow(vt1*vt1+vt2*vt2,0.5);		
+		slip_t += std::sqrt(vt1*vt1+vt2*vt2);
 		// Normal force estimation 
         double F_normal = std::min(0.0,Vdot(Force, n) + spring_k * vn );
 		//ChVector3d reaction=mconstraint-> GetReaction1().force;
@@ -511,7 +511,7 @@ void ChElementFrictionalInterfaceRot::ComputeInternalForces(ChVectorDynamic<>& F
 		
 		double mu = GetCurrentFrictionCoefficient(slip_t);
 		//Length of tangential forces
-        double ft = pow(F_t1*F_t1+F_t2*F_t2, 0.5);
+        double ft = std::sqrt(F_t1*F_t1+F_t2*F_t2);
         double ft_max = mu * std::max(0.,-F_normal); // allowed maximum tangential force
 		//
         // Apply Coulomb's Law for friction

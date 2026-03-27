@@ -9,8 +9,7 @@
 // http://projectchrono.org/license-chrono.txt.
 //
 // =============================================================================
-// Authors: Erol Lale
-//          Ke Yu
+// Authors: Erol Lale, Ke Yu, Jibril B. Coulibaly
 // =============================================================================
 // Material class for LDPM and CSL elements 
 //
@@ -20,6 +19,8 @@
 #ifndef CHMATERIALVECT_H
 #define CHMATERIALVECT_H
 
+#include "chrono/core/ChMatrix.h"
+#include "chrono/core/ChVector3.h"
 #include "chrono_ldpm/ChLdpmApi.h"
 #include "chrono/core/ChMatrix33.h"
 #include <vector>
@@ -154,19 +155,16 @@ class ChLdpmApi ChMaterialVECT {
     double GetRayleighDampingM() const { return RayleighDampingM; }
     void SetRayleighDampingM(double myRayleighDampingM) { RayleighDampingM = myRayleighDampingM; }
 
+    /// Return the number of state variable required by this constitutive model
+    int GetNumberOfStateVariables() { return m_num_state_var; }
+
     /// Compute stresses from given strains and state variables.
-    void ComputeStress(ChVectorDynamic<>& mstrain, double &len, double& epsV, ChVectorDynamic<>& statev,ChVectorDynamic<>& mstress, double& area);
-    void ComputeStress(ChVectorDynamic<>& mstrain, ChVectorDynamic<>& eigenstrain, double &len, double& epsV, ChVectorDynamic<>& statev,ChVectorDynamic<>& mstress, double& area);
+    void ComputeStress(ChVector3d& mstrain, ChVector3d& eigenstrain, double &len, double& epsV, const ChVectorDynamic<>& statev_old, ChVectorDynamic<>& statev_new, ChVector3d& mstress, double& area);
 
-    double FractureBC(ChVectorDynamic<>& mstrain, double& len, ChVectorDynamic<>& statev);
+    double FractureBC(ChVector3d& mstrain, double& len, const ChVectorDynamic<>& statev_old, double eps_max);
+    double CompressBC(ChVector3d& mstrain, ChVector3d& dmstrain, double& epsV, const ChVectorDynamic<>& statev_old);
+    std::pair<double, double> ShearBC(ChVector3d& mstrain, ChVector3d& dmstrain, const ChVectorDynamic<>& statev_old);
 
-    double CompressBC(ChVectorDynamic<>& mstrain, double& epsV, ChVectorDynamic<>& statev);
-
-    std::pair<double, double> ShearBC(ChVectorDynamic<>& mstrain, ChVectorDynamic<>& statev);
-    
-    double CompressBC(ChVectorDynamic<>& mstrain, ChVectorDynamic<>& dmstrain, double& epsV, ChVectorDynamic<>& statev);
-    std::pair<double, double> ShearBC(ChVectorDynamic<>& mstrain, ChVectorDynamic<>& dmstrain, ChVectorDynamic<>& statev);
-    
   private:
     
     double m_rho;               ///< density
@@ -193,6 +191,7 @@ class ChLdpmApi ChMaterialVECT {
 	double m_rs=0;              ///< Shear softening modulus ratio
     double RayleighDampingK=0;
     double RayleighDampingM=0;
+    const int m_num_state_var = 15;
   //public:
   //EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };

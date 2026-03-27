@@ -30,6 +30,7 @@
 #include <string>
 #include <cmath>
 
+#include "chrono/core/ChVector3.h"
 #include "chrono_ldpm/ChLdpmApi.h"
 #include "chrono_ldpm/ChMaterialVECT.h"
 #include "chrono/fea/ChBeamSection.h"
@@ -82,15 +83,15 @@ class ChLdpmApi ChSectionLDPM  : public chrono::fea::ChBeamSection {
     // Setter & Getter for centroid of facet
     ChVector3d Get_center() const { return m_center; }
     void Set_center( ChVector3d center) { m_center=center; }
+    // Setter & Getter for initial (reference configuration) centroid of facet
+    ChVector3d Get_center_ref() const { return m_center_ref; }
+    void Set_center_ref( ChVector3d center) { m_center_ref=center; }
     //
     ChMatrix33<double> Get_facetFrame() const { return m_facetFrame; }
     void Set_facetFrame( ChMatrix33<double> facetFrame) { m_facetFrame=facetFrame; }
-    // Setter & Getter for facet state variables
-    ChVectorDynamic<>  Get_StateVar() const { return m_state; };
-    void Set_StateVar(ChVectorDynamic<>  state) { m_state=state; }  
-	// Setter & Getter for facet state variables
-    ChVectorDynamic<>  Get_nonMechanicStrain() const { return m_nonMechanicStrain; };
-    void Set_nonMechanicStrain(ChVectorDynamic<>  nonMechanicStrain) { m_nonMechanicStrain=nonMechanicStrain; } 
+	// Setter & Getter for facet state eigenstrains
+    ChVector3d  Get_nonMechanicStrain() const { return m_nonMechanicStrain; };
+    void Set_nonMechanicStrain(ChVector3d  nonMechanicStrain) { m_nonMechanicStrain=nonMechanicStrain; }
     // Setter & Getter for rotation of the lattice
     ChQuaternion<> Get_ref_rot() const { return mq_lattice_ref_rot; }
     void Set_ref_rot(ChQuaternion<> q_element_ref_rot) { mq_lattice_ref_rot=q_element_ref_rot; }
@@ -108,12 +109,12 @@ class ChLdpmApi ChSectionLDPM  : public chrono::fea::ChBeamSection {
   protected:
     std::shared_ptr<ChMaterialVECT> m_material;
     ChVector3d m_center;
+    ChVector3d m_center_ref; // Initial position of facet center
     ChMatrix33<double> m_facetFrame;
-    ChVectorDynamic<>  m_state;
-    ChVectorDynamic<>  m_nonMechanicStrain;
+    ChVector3d m_nonMechanicStrain;
 	 
     ChQuaternion<> mq_lattice_abs_rot;
-    ChQuaternion<> mq_lattice_ref_rot; 
+    ChQuaternion<> mq_lattice_ref_rot; // TODO JBC: this quaternion seems to hold the same information as m_facetFrame. Consider simplifying
     
     //std::shared_ptr<ChInternalDataCSL> m_state;    
     double m_area=1.0; 

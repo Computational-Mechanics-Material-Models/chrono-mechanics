@@ -24,6 +24,7 @@
 #include <chrono/solver/ChDirectSolverLS.h>
 #include <chrono/timestepper/ChTimestepper.h>
 #include <chrono/timestepper/ChTimestepperHHT.h>
+#include "chrono/core/ChMatrix.h"
 #include "chrono_pardisomkl/ChSolverPardisoMKL.h"
 #include "chrono/solver/ChSolverADMM.h"
 // #include "chrono_ldpm/ChApiLDPM.h"
@@ -484,9 +485,9 @@ void WriteFrame1(std::shared_ptr<ChMesh> mesh, const std::string& mesh_filename,
 
         for (int j = 0; j < 12; j++) {
             auto vertices = elem->GetVertNodeVec(j);
-            auto pC = vertices[0]->GetX0().GetPos();
-            auto pA = vertices[1]->GetX0().GetPos();
-            auto pB = vertices[2]->GetX0().GetPos();
+            auto pC = vertices[0];
+            auto pA = vertices[1];
+            auto pB = vertices[2];
             out_stream << pC << "\n";
             out_stream << pA << "\n";
             out_stream << pB << "\n";
@@ -528,10 +529,11 @@ void WriteFrame1(std::shared_ptr<ChMesh> mesh, const std::string& mesh_filename,
     for (unsigned int iele = 0; iele < mesh->GetNumElements(); iele++) {
         auto elem = std::dynamic_pointer_cast<ChElementLDPM>(mesh->GetElement(iele));
 
-        for (auto facet : elem->GetSection()) {
-            auto statev = facet->Get_StateVar();
-
-            out_stream << statev(11) << "\n";
+        for (int iface = 0 ; iface < 12 ; iface++) {
+            std::shared_ptr<ChSectionLDPM> facet = elem->GetSection()[iface];
+            ChVectorDynamic<> sv = elem->GetStateVar();
+            int numsv_mat = facet->Get_material()->GetNumberOfStateVariables();
+            out_stream << sv(iface * numsv_mat + 11) << "\n";
         }
     }
 
@@ -837,6 +839,10 @@ int main(int argc, char** argv) {
 
         std::vector<int> N_iter;
 
+        ChElementLDPM::LargeDeflection = false;
+        // Uncomment below to test LUMPED mass matrix
+        // ChElementLDPM::Mmatrix_type = ChElementLDPM::MassMatrixType::LUMPED;
+
         while (sys.GetChTime() <= 0.01) {
             sys.DoStepDynamics(timestep);
 
@@ -856,9 +862,11 @@ int main(int argc, char** argv) {
                 for (int i = 0; i < my_mesh->GetNumElements(); ++i) {
                     auto elem = std::dynamic_pointer_cast<ChElementLDPM>(my_mesh->GetElement(i));
 
-                    for (auto facet : elem->GetSection()) {
-                        auto statev = facet->Get_StateVar();
-                        Wint = Wint + statev(10);
+                    for (int iface = 0 ; iface < 12 ; iface++) {
+                        std::shared_ptr<ChSectionLDPM> facet = elem->GetSection()[iface];
+                        ChVectorDynamic<> sv = elem->GetStateVar();
+                        int numsv_mat = facet->Get_material()->GetNumberOfStateVariables();
+                        Wint = Wint + sv(iface * numsv_mat + 10);
                     }
                 }
 

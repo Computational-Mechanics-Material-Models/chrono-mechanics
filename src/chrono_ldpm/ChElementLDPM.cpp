@@ -9,7 +9,7 @@
 // http://projectchrono.org/license-chrono.txt.
 //
 // =============================================================================
-// Authors: Erol Lale
+// Authors: Erol Lale, Jibril B. Coulibaly
 // =============================================================================
 // Class for LDPM elements:  
 //
@@ -22,17 +22,21 @@
 // =============================================================================
 
 #include "chrono_ldpm/ChElementLDPM.h"
+#include <memory>
+#include "chrono/core/ChMatrix.h"
+#include "chrono/core/ChVector3.h"
+#include "chrono/utils/ChConstants.h"
+#include "chrono_ldpm/ChSectionLDPM.h"
 
 
 namespace chrono {
 namespace ldpm {
 
+bool ChElementLDPM::LargeDeflection = false;
+ChElementLDPM::MassMatrixType ChElementLDPM::Mmatrix_type = ChElementLDPM::MassMatrixType::CONSISTENT;
 
-
-ChElementLDPM::ChElementLDPM() : Volume(0) {
+ChElementLDPM::ChElementLDPM() : V0(0) {
     nodes.resize(4);
-    this->MatrB.setZero(6, 24);
-    this->StiffnessMatrix.setZero(24, 24);    
 }
 
 ChElementLDPM::~ChElementLDPM() {}
@@ -58,28 +62,38 @@ void ChElementLDPM::Update() {
     // parent class update:
     ChElementGeneric::Update();
     // always keep updated the rotation matrix A:
-    this->UpdateRotation();
-    //this->ComputeStiffnessMatrix();
-	//
-	// update projection matrix
-	if (LargeDeflection && macro_strain){
-		for( auto facet:this->GetSection()){ 
-			facet->ComputeProjectionMatrix();		
-		}
-	}
-	
-	if(this->macro_strain){
-		for( auto facet:this->GetSection()){ 
-			facet->ComputeEigenStrain(this->macro_strain);				
-		}
-	}
-	//		
-	/*
-    ChVectorDynamic<> displ(24);
-    this->GetStateBlock(displ);
-    DUn_1=displ-Un_1;
-    Un_1=displ;
-    */
+    // TODO JBC: Because we inherit from a corotational element, we might consider using
+    //           the `disable_corotational` in addition to/instead of the `LargeDeflection` flag we defined here
+    if (ChElementLDPM::LargeDeflection) {
+        UpdateRotation(); // Updates facet quaternion and centroid
+
+        // Update lengths and areas of facets
+        for (int iface = 0 ; iface < my_section.size() ; iface++) {
+            std::shared_ptr<ChSectionLDPM> facet = my_section[iface];
+            unsigned int ind = facetNodeNums(iface, 0);
+            unsigned int jnd = facetNodeNums(iface, 1);
+            double new_length = (nodes[ind]->GetPos() - nodes[jnd]->GetPos()).Length();
+            facet->Set_Length(new_length);
+
+            // The new area calculation below is temporary
+            // "We will need to do work on this anyway to recreate past work at the very minimum. At that time, we will check" (Gianluca)
+            double stretch_increment = new_length / facet->Get_Length();
+            double new_area = facet->Get_area() * (stretch_increment * stretch_increment); // Infer area stretch increment from 1D stretch increment, assumes small isotropic deformation
+            facet->Set_area(new_area);
+        }
+
+        // TODO JBC: ChSectionLDPM::ComputeProjectionMatrix() uses the initial facet frame, so the projection matrix is actually never updated
+        //           and eigenstrain do not currently work under large deformation
+        if (macro_strain) {
+            for(std::shared_ptr<ChSectionLDPM> facet : GetSection())
+                facet->ComputeProjectionMatrix();
+        }
+    }
+
+    if (macro_strain) {
+        for(std::shared_ptr<ChSectionLDPM> facet : GetSection())
+            facet->ComputeEigenStrain(this->macro_strain);
+    }
 }
 
 void ChElementLDPM::ShapeFunctions(ShapeVector& N, double r, double s, double t) {
@@ -90,152 +104,22 @@ void ChElementLDPM::ShapeFunctions(ShapeVector& N, double r, double s, double t)
 }
 
 
-void ChElementLDPM:: ComputeAmatrix( Amatrix& Amat, chrono::ChVector3d X , chrono::ChVector3d XI ){
-		
-		Amat.setZero();
-		Amat(0,0)=1.0;
-		Amat(1,1)=1.0;
-		Amat(2,2)=1.0;
-		//
-		Amat(0,4)=X[2]-XI[2];
-		Amat(0,5)=XI[1]-X[1];
-		//
-		Amat(1,3)=XI[2]-X[2];
-		Amat(1,5)=X[0]-XI[0];
-		//
-		Amat(2,3)=X[1]-XI[1];
-		Amat(2,4)=XI[0]-X[0];
-		
+void ChElementLDPM::GetStateBlock(ChVectorDynamic<>& statev) {
+    // Copy paste of ChElementLDPM::LoadableGetStateBlockPosLevel because this function
+    // takes ChVectorDynamic as an argument, not a ChState
+    unsigned index_start = GetDOFOffset();
+    statev.segment(index_start + 0, 3) = nodes[0]->GetPos().eigen();
+    statev.segment(index_start + 3, 4) = nodes[0]->GetRot().eigen();
+    //
+    statev.segment(index_start + 7, 3) = nodes[1]->GetPos().eigen();
+    statev.segment(index_start + 10, 4) = nodes[1]->GetRot().eigen();
+    //
+    statev.segment(index_start + 14, 3) = nodes[2]->GetPos().eigen();
+    statev.segment(index_start + 17, 4) = nodes[2]->GetRot().eigen();
+    //
+    statev.segment(index_start + 21, 3) = nodes[3]->GetPos().eigen();
+    statev.segment(index_start + 24, 4) = nodes[3]->GetRot().eigen();
 }
-
-
-void ChElementLDPM::GetStateBlock(ChVectorDynamic<>& mD) {
-    mD.setZero(this->GetNumCoordsPosLevel());
-    
-    //
-    ChVector3d delta_rot_dir;
-    double delta_rot_angle;
-    ChQuaternion<> q_delta;
-    //
-    // First node
-    //
-    // displacement dofs:
-    mD.segment(0, 3) = (nodes[0]->Frame().GetPos() - nodes[0]->GetX0().GetPos()).eigen();
-    // rotational dofs:
-    q_delta =  nodes[0]->Frame().GetRot() ;    
-    q_delta.GetAngleAxis(delta_rot_angle, delta_rot_dir);	
-    if (delta_rot_angle > CH_PI) 
-        delta_rot_angle -= CH_2PI;  // no 0..360 range, use -180..+180	
-    mD.segment(3, 3) = delta_rot_angle * delta_rot_dir.eigen();
-    //
-    // Second node
-    //
-    // displacement dofs:
-    mD.segment(6, 3) = ( nodes[1]->Frame().GetPos() - nodes[1]->GetX0().GetPos()).eigen();    
-    // rotational dofs:
-    q_delta =  nodes[1]->Frame().GetRot() ;    
-    q_delta.GetAngleAxis(delta_rot_angle, delta_rot_dir);	
-    if (delta_rot_angle > CH_PI) 
-        delta_rot_angle -= CH_2PI;  // no 0..360 range, use -180..+180	
-    mD.segment(9, 3) = delta_rot_angle * delta_rot_dir.eigen();
-    //
-    // third node
-    //
-    // displacement dofs:
-    //
-    mD.segment(12, 3) = ( nodes[2]->Frame().GetPos() - nodes[2]->GetX0().GetPos()).eigen();
-    // rotational dofs:
-    q_delta =  nodes[2]->Frame().GetRot() ;    
-    q_delta.GetAngleAxis(delta_rot_angle, delta_rot_dir);	
-    if (delta_rot_angle > CH_PI) 
-        delta_rot_angle -= CH_2PI;  // no 0..360 range, use -180..+180	
-    mD.segment(15, 3) = delta_rot_angle * delta_rot_dir.eigen();
-    //
-    // fourth node
-    //
-    // displacement dofs:
-    //
-    mD.segment(18, 3) = ( nodes[3]->Frame().GetPos() - nodes[3]->GetX0().GetPos()).eigen();
-    // rotational dofs:
-    q_delta =  nodes[3]->Frame().GetRot() ;    
-    q_delta.GetAngleAxis(delta_rot_angle, delta_rot_dir);	
-    if (delta_rot_angle > CH_PI) 
-        delta_rot_angle -= CH_2PI;  // no 0..360 range, use -180..+180	
-    mD.segment(21, 3) = delta_rot_angle * delta_rot_dir.eigen();
-    
-    
-}
-
-
-
-
-void ChElementLDPM::GetLatticeStateBlock(unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& mD) {
-    mD.setZero(12);
-	mD.segment(0, 6)=DUn_1.segment(ind*6,6); 
-	mD.segment(6, 6)=DUn_1.segment(jnd*6,6);
-    /*
-    //
-    ChVector3d delta_rot_dir;
-    double delta_rot_angle;
-    ChQuaternion<> q_delta;
-    //
-    // First node
-    //
-    // displacement dofs:
-    mD.segment(0, 3) = (nodes[ind]->Frame().GetPos() - nodes[ind]->GetX0().GetPos()).eigen();
-    // rotational dofs:
-    q_delta =  nodes[ind]->Frame().GetRot() ;    
-    q_delta.GetAngleAxis(delta_rot_angle, delta_rot_dir);	
-    if (delta_rot_angle > CH_PI) 
-        delta_rot_angle -= CH_2PI;  // no 0..360 range, use -180..+180	
-    mD.segment(3, 3) = delta_rot_angle * delta_rot_dir.eigen();
-    //
-    // Second node
-    //
-    // displacement dofs:
-    mD.segment(6, 3) = ( nodes[jnd]->Frame().GetPos() - nodes[jnd]->GetX0().GetPos()).eigen();    
-    // rotational dofs:
-    q_delta =  nodes[jnd]->Frame().GetRot() ;    
-    q_delta.GetAngleAxis(delta_rot_angle, delta_rot_dir);	
-    if (delta_rot_angle > CH_PI) 
-        delta_rot_angle -= CH_2PI;  // no 0..360 range, use -180..+180	
-    mD.segment(9, 3) = delta_rot_angle * delta_rot_dir.eigen();
-    */
-    
-}
-
-
-
-/*
-void ChElementLDPM::GetField_dt(ChVectorDynamic<>& mD_dt) {
-    mD_dt.resize(12);
-
-    // Node 0, velocity (in local element frame, corotated back by A' )
-    mD_dt.segment(0, 3) = (nodes[0]->Frame().GetPosDt()).eigen();
-
-    // Node 0, x,y,z ang.velocity (in local element frame, corotated back by A' )
-    mD_dt.segment(3, 3) = (nodes[0]->Frame().GetAngVelParent()).eigen();
-
-    // Node 1, velocity (in local element frame, corotated back by A' )
-    mD_dt.segment(6, 3) = (nodes[1]->Frame().GetPosDt()).eigen();
-
-    // Node 1, x,y,z ang.velocity (in local element frame, corotated back by A' )
-    mD_dt.segment(9, 3) = (nodes[1]->Frame().GetAngVelParent()).eigen();
-    
-     // Node 2, velocity (in local element frame, corotated back by A' )
-    mD_dt.segment(12, 3) = (nodes[2]->Frame().GetPosDt()).eigen();
-
-    // Node 2, x,y,z ang.velocity (in local element frame, corotated back by A' )
-    mD_dt.segment(15, 3) = (nodes[2]->Frame().GetAngVelParent()).eigen();
-
-    // Node 3, velocity (in local element frame, corotated back by A' )
-    mD_dt.segment(18, 3) = (nodes[3]->Frame().GetPosDt()).eigen();
-
-    // Node 3, x,y,z ang.velocity (in local element frame, corotated back by A' )
-    mD_dt.segment(21, 3) = (nodes[3]->Frame().GetAngVelParent()).eigen();
-}
-*/
-
 
 
 void ChElementLDPM::GetLatticeField_dt(unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& mD) {
@@ -258,178 +142,100 @@ void ChElementLDPM::GetLatticeField_dt(unsigned int& ind, unsigned int& jnd, ChV
         
 }
 
-/*
-void ChElementLDPM::GetLatticeStateBlock(unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& mD) {
-    mD.setZero(12);    
-    double dT=this->GetCurrentTimeIncrement(this->mysystem);
-    std::cout<<"Step time: "<<	 this->mysystem->GetChTime()<<"  dT: "<<dT<<"\t";
-    this->GetLatticeField_dt(ind, jnd, mD);
-	printf("mD-1: %f %f %f %f %f %f %f %f %f %f %f %f\n", mD(0), mD(1), mD(2), mD(3), mD(4), mD(5),mD(6), mD(7), mD(8), mD(9), mD(10), mD(11));
-    mD*=dT;	
-	printf("mD-2: %f %f %f %f %f %f %f %f %f %f %f %f\n", mD(0), mD(1), mD(2), mD(3), mD(4), mD(5),mD(6), mD(7), mD(8), mD(9), mD(10), mD(11));
+
+
+void ChElementLDPM::ComputeStrainIncrement(std::shared_ptr<ChSectionLDPM> section, unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& dofs_increment, ChVector3d& mstrain) {
+    ChVector3d dui = dofs_increment.segment(ind*6, 3);
+    ChVector3d dri = dofs_increment.segment(ind*6+3, 3);
+    ChVector3d duj = dofs_increment.segment(jnd*6, 3);
+    ChVector3d drj = dofs_increment.segment(jnd*6+3, 3);
+
+    double linv = 1.0 / section->Get_Length();
+    ChMatrix33<double> nmL = section->Get_facetFrame();
+    if (ChElementLDPM::LargeDeflection) { // TODO JBC: If the facet orientation were made to coincide with the quaternion, we could save a lot and move this to Update() instead of rotating the initial frame at every step
+        ChQuaternion<> q_delta = section->Get_abs_rot() *  section->Get_ref_rot().GetConjugate();
+        for (int id=0; id<3; id++){
+            nmL.block<1,3>(id, 0) = q_delta.Rotate(nmL.block<1,3>(id, 0)).eigen();
+        }
+    }
+
+    ChVector3d xi_xc, xj_xc;
+    ComputeBranchVectors(section, ind, jnd, xi_xc, xj_xc);
+
+    // Strain
+    ChVector3d strain_increment = (duj + drj.Cross(xj_xc) - (dui + dri.Cross(xi_xc))) * linv;
+    mstrain = nmL * strain_increment.eigen();
 }
-*/
-
-
-
-void ChElementLDPM::ComputeStrain(std::shared_ptr<ChSectionLDPM> section, unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& mstrain) {
-    mstrain.resize(3);    	
-	// 
-	// Displacement of nodes:
-	ChVectorDynamic<> displ(12);
-	this->GetLatticeStateBlock(ind, jnd, displ);	
-	auto dispN1=displ.segment(0,6);
-	auto dispN2=displ.segment(6,6);
-	//std::cout<<"dispN1:\n"<<dispN1<<std::endl;
-	//std::cout<<"dispN2:\n"<<dispN2<<std::endl;
-	//std::cout<<"TotaldispN1:\n"<<(this->nodes[ind]->Frame().GetPos() - this->nodes[ind]->GetX0().GetPos())<<std::endl;
-	//std::cout<<"TotaldispN2:\n"<<(this->nodes[jnd]->Frame().GetPos() - this->nodes[jnd]->GetX0().GetPos())<<std::endl;
-	//
-	double length=section->Get_Length();	
-	Amatrix AI; 	Amatrix AJ;
-	// A matrix is calculated based on initial coordinates
-	this->ComputeAmatrix(AI, section->Get_center(), this->nodes[ind]->GetX0().GetPos());
-									
-	this->ComputeAmatrix( AJ, section->Get_center(), this->nodes[jnd]->GetX0().GetPos());
-									
-	ChMatrix33<double> nmL=section->Get_facetFrame();
-	ChQuaternion<> q_delta=(section->Get_abs_rot() * section->Get_ref_rot().GetConjugate()) ;
-		
-	ChVectorN<double,3> n; //
-	for (int id=0;id<3;id++) {			
-			//
-			// NodeA
-			//
-			ChVector3d nn{nmL(id,0), nmL(id,1), nmL(id,2)};	
-			nn=q_delta.Rotate(nn);
-			//nn=chrono::ChTransform<>::TransformParentToLocal(nn, ChVector3d(0, 0, 0) ,  q_delta);
-			n<< nn[0], nn[1], nn[2];
-			ChMatrixNM<double,1,6> BI= n.transpose()*AI/length;				
-			//
-			// NodeB
-			//		
-			ChMatrixNM<double,1,6> BJ= n.transpose()*AJ/length;
-			//
-			mstrain(id)=double (BJ*dispN2)+ double (-BI*dispN1); 
-
-		}	
-	
-}
-
-
-
-
-void ChElementLDPM::ComputeStress(std::shared_ptr<ChSectionLDPM> section, unsigned int& ind, unsigned int& jnd, ChVectorDynamic<>& mstress) {
-    mstress.resize(3);
-	ChVectorDynamic<> mstrain;
-	this->ComputeStrain(section, ind, jnd, mstrain);
-	//std::cout<<"\nmstrain:\n"<<mstrain<<std::endl;	
-	//
-	double E0=section-> Get_material()->Get_E0();
-	double alpha=section-> Get_material()->Get_alpha();	
-	//
-	double epsQ=pow(mstrain(0)*mstrain(0)+alpha*(mstrain(1)*mstrain(1)+mstrain(2)*mstrain(2)), 0.5);
-	double strsQ=E0*epsQ;	
-	//
-	if (epsQ!=0) {
-		mstress(0)=strsQ*mstrain(0)/epsQ;
-		mstress(1)=alpha*strsQ*mstrain(1)/epsQ;
-		mstress(2)=alpha*strsQ*mstrain(2)/epsQ;
-	}else{
-		mstress<< 0.0, 0.0, 0.0;
-		//mstress.setZero();
-	}	
-}
-
-
-
-
 
 
 double ChElementLDPM::ComputeVolume() {
-    ChVector3d B1, C1, D1;
-    B1.Sub(nodes[1]->Frame().GetPos(), nodes[0]->Frame().GetPos());
-    C1.Sub(nodes[2]->Frame().GetPos(), nodes[0]->Frame().GetPos());
-    D1.Sub(nodes[3]->Frame().GetPos(), nodes[0]->Frame().GetPos());
-    ChMatrixDynamic<> M(3, 3);
-    M.col(0) = B1.eigen();
-    M.col(1) = C1.eigen();
-    M.col(2) = D1.eigen();
-    M.transposeInPlace();
-    double Volume = std::abs(M.determinant() / 6);
-    return Volume;
+    return ComputeTetVol(nodes[0]->GetPos(), nodes[1]->GetPos(), nodes[2]->GetPos(), nodes[3]->GetPos());
 }
 
-void ChElementLDPM::ComputeStiffnessMatrix() {
-    //assert(section);    
-    unsigned int iface=0; 
-    StiffnessMatrix.setZero();     
-    for (auto facet:this->GetSection()){
-    	//std::cout<< "face: "<<iface+1<<"-------------------------------\n";
-    	unsigned int ind=facetNodeNums(iface,0);
-    	unsigned int jnd=facetNodeNums(iface,1);    	
-    	double E0= facet->Get_material()->Get_E0();
-    	double alpha=facet-> Get_material()->Get_alpha(); 
-    	double ET=alpha*E0;
-    	//    	
-    	//
-    	// Get facet area and length of beam
-    	double area=facet->Get_area();
-    	double length=facet->Get_Length();	
-    	double aLE_N=area*length*E0;
-	double aLE_T=aLE_N*alpha;	
-    	// 
-    	Amatrix AI; 
-    	Amatrix AJ;
-    	// A matrix is calculated based on initial coordinates
-    	this->ComputeAmatrix(AI, facet->Get_center(),  this->nodes[ind]->GetX0().GetPos());
-    	this->ComputeAmatrix(AJ, facet->Get_center(), this->nodes[jnd]->GetX0().GetPos());    	
-        //
-    	ChMatrix33<double> nmL=facet->Get_facetFrame(); 
-    	ChQuaternion<> q_delta=(facet->Get_abs_rot() *  facet->Get_ref_rot().GetConjugate());
-    	//	
-    	ChMatrixNM<double,3,6> mBI;
-    	ChMatrixNM<double,3,6> mBJ;
-    	ChVectorN<double,3> n;
-    	for (int id=0;id<3;id++) {
-	    	ChVector3d nn{nmL(id,0), nmL(id,1), nmL(id,2)};		    	
-	    	nn=q_delta.Rotate(nn);
-	    	//nn=chrono::ChTransform<>::TransformParentToLocal(nn, ChVector3d(0, 0, 0) ,  q_delta);
-	    	n<< nn[0], nn[1], nn[2]; 
-	    	//
-	    	// NodeA
-	    	//
-	    	mBI.block<1,6>(id,0) = n.transpose()*AI/length;	
-	    	//
-	    	// NodeB
-	    	//
-	    	mBJ.block<1,6>(id,0) = n.transpose()*AJ/length;
-    	}
-	    //
-	    
-	    //std::cout<<"mBI:\n"<<mBI<<std::endl;
-	    //std::cout<<"mBJ:\n"<<mBJ<<std::endl;	    
-	    
-	    // Kii
-	    StiffnessMatrix.block<6,6>(ind*6,ind*6)+=( aLE_N*mBI.block<1,6>(0,0).transpose()*mBI.block<1,6>(0,0)+
-	    			aLE_T*(mBI.block<1,6>(1,0).transpose()*mBI.block<1,6>(1,0)+
-	    			mBI.block<1,6>(2,0).transpose()*mBI.block<1,6>(2,0) ) );
-	    // Kjj
-	    StiffnessMatrix.block<6,6>(jnd*6,jnd*6)+=( aLE_N*mBJ.block<1,6>(0,0).transpose()*mBJ.block<1,6>(0,0)+
-	    			aLE_T*(mBJ.block<1,6>(1,0).transpose()*mBJ.block<1,6>(1,0)+
-	    			mBJ.block<1,6>(2,0).transpose()*mBJ.block<1,6>(2,0) ) );
-	    // Kij
-	    StiffnessMatrix.block<6,6>(ind*6,jnd*6)+=( -aLE_N*mBI.block<1,6>(0,0).transpose()*mBJ.block<1,6>(0,0)-
-	    			aLE_T*(mBI.block<1,6>(1,0).transpose()*mBJ.block<1,6>(1,0)+
-	    			mBI.block<1,6>(2,0).transpose()*mBJ.block<1,6>(2,0) ) );
-	    // Kji
-	    StiffnessMatrix.block<6,6>(jnd*6,ind*6)+=( -aLE_N*mBJ.block<1,6>(0,0).transpose()*mBI.block<1,6>(0,0)-
-	    			aLE_T*(mBJ.block<1,6>(1,0).transpose()*mBI.block<1,6>(1,0)+
-	    			mBJ.block<1,6>(2,0).transpose()*mBI.block<1,6>(2,0) ) );
-	    //
-	    iface++;	    
-    }    
-    //    
+void ChElementLDPM::ComputeStiffnessMatrixGlobal(ChMatrixRef Km) {
+    // Assume Km is 24*24 and zero. Not checked here
+    for (int iface = 0 ; iface < my_section.size() ; iface++) {
+        std::shared_ptr<ChSectionLDPM> facet = my_section[iface];
+        unsigned int ind = facetNodeNums(iface, 0);
+        unsigned int jnd = facetNodeNums(iface, 1);
+
+        double normal_stiff = facet->Get_material()->Get_E0() * facet->Get_area() / facet->Get_Length();
+        double tangent_stiff = normal_stiff * facet->Get_material()->Get_alpha();
+        Eigen::DiagonalMatrix<double, 3> K_diag(normal_stiff, tangent_stiff, tangent_stiff);
+
+        ChMatrix33<double> nmL = facet->Get_facetFrame();
+        if(ChElementLDPM::LargeDeflection) { // TODO JBC: If the facet orientation were made to coincide with the quaternion, we could save a lot and move this to Update() instead of rotating the initial frame at every step
+            ChQuaternion<> q_delta = facet->Get_abs_rot() * facet->Get_ref_rot().GetConjugate();
+            for (int id=0; id<3; id++){
+                nmL.block<1,3>(id, 0) = q_delta.Rotate(nmL.block<1,3>(id, 0)).eigen();
+            }
+        }
+        ChMatrix33<double> nmL_tr = nmL.transpose();
+        ChMatrix33<> K_material = nmL_tr * K_diag * nmL;
+
+        ChVector3d xi_xc, xj_xc;
+        ComputeBranchVectors(facet, ind, jnd, xi_xc, xj_xc);
+        // 3x3 right sub-block of Ai matrix for skew-symmetric cross-product vector
+        ChMatrix33<> Ai_cross(0.0);
+        Ai_cross(0,1) =  xi_xc[2]; Ai_cross(1,0) = -xi_xc[2];
+        Ai_cross(0,2) = -xi_xc[1]; Ai_cross(2,0) =  xi_xc[1];
+        Ai_cross(1,2) =  xi_xc[0]; Ai_cross(2,1) = -xi_xc[0];
+        // 3x3 right sub-block of Aj matrix for skew-symmetric cross-product vector
+        ChMatrix33<> Aj_cross(0.0);
+        Aj_cross(0,1) =  xj_xc[2]; Aj_cross(1,0) = -xj_xc[2];
+        Aj_cross(0,2) = -xj_xc[1]; Aj_cross(2,0) =  xj_xc[1];
+        Aj_cross(1,2) =  xj_xc[0]; Aj_cross(2,1) = -xj_xc[0];
+
+        ChMatrix33<> K_material_Id_Ai = K_material * Ai_cross;
+        ChMatrix33<> K_material_Ai_Id = K_material_Id_Ai.transpose();
+        ChMatrix33<> K_material_Ai_Ai = K_material_Ai_Id * Ai_cross;
+        ChMatrix33<> K_material_Id_Aj = K_material * Aj_cross;
+        ChMatrix33<> K_material_Aj_Id = K_material_Id_Aj.transpose();
+        ChMatrix33<> K_material_Aj_Aj = K_material_Aj_Id * Aj_cross;
+        ChMatrix33<> K_material_Ai_Aj = K_material_Ai_Id * Aj_cross;
+        ChMatrix33<> K_material_Aj_Ai = K_material_Ai_Aj.transpose();
+
+        // dFi / dQi
+        Km.block<3,3>(ind*6  , ind*6)   +=  K_material;
+        Km.block<3,3>(ind*6  , ind*6+3) +=  K_material_Id_Ai;
+        Km.block<3,3>(ind*6+3, ind*6)   +=  K_material_Ai_Id;
+        Km.block<3,3>(ind*6+3, ind*6+3) +=  K_material_Ai_Ai;
+        // dFi / dQj
+        Km.block<3,3>(ind*6  , jnd*6)   += -K_material;
+        Km.block<3,3>(ind*6  , jnd*6+3) += -K_material_Id_Aj;
+        Km.block<3,3>(ind*6+3, jnd*6)   += -K_material_Ai_Id;
+        Km.block<3,3>(ind*6+3, jnd*6+3) += -K_material_Ai_Aj;
+        // dFj / dQi
+        Km.block<3,3>(jnd*6  , ind*6)   += -K_material;
+        Km.block<3,3>(jnd*6  , ind*6+3) += -K_material_Id_Ai;
+        Km.block<3,3>(jnd*6+3, ind*6)   += -K_material_Aj_Id;
+        Km.block<3,3>(jnd*6+3, ind*6+3) += -K_material_Aj_Ai;
+        // dFj / dQj
+        Km.block<3,3>(jnd*6  , jnd*6)   +=  K_material;
+        Km.block<3,3>(jnd*6  , jnd*6+3) +=  K_material_Id_Aj;
+        Km.block<3,3>(jnd*6+3, jnd*6)   +=  K_material_Aj_Id;
+        Km.block<3,3>(jnd*6+3, jnd*6+3) +=  K_material_Aj_Aj;
+    }
 }
 
 void ChElementLDPM::SetupInitial(ChSystem* system) {
@@ -441,234 +247,202 @@ void ChElementLDPM::SetupInitial(ChSystem* system) {
     	unsigned int ind=facetNodeNums(iface,0);
     	unsigned int jnd=facetNodeNums(iface,1);
 	    
+        // TODO JBC: the quaternion could be defined at the tetrahedron level, this would save a lot of compute and memory!
+        // TODO JBC: Alternatively, the quaternion could be made to coincide the initial nmL as discussed in other TODOs
 	    ChMatrix33<> A0;
 	    ChVector3d mXele = nodes[jnd]->GetX0().GetPos() - nodes[ind]->GetX0().GetPos();
 	    ChVector3d myele =
 		(nodes[ind]->GetX0().GetRotMat().GetAxisY() + nodes[jnd]->GetX0().GetRotMat().GetAxisY()).GetNormalized();
-	    A0.SetFromAxisX(mXele, myele);
-	    facet->Set_ref_rot( A0.GetQuaternion() );
+	    A0.SetFromAxisX(mXele, myele); // If the Y-axes are aligned with the node-to-node direction, , or cancel out, Gram-Schmidt will fail and use an arbitrary direction
+	    facet->Set_ref_rot(A0.GetQuaternion());
+        facet->Set_abs_rot(facet->Get_ref_rot()); // Initialize the current quaternion as the reference quaternion
 	    ///
 		///		
 		double length = (this->GetTetrahedronNode(ind)->GetX0().GetPos() - this->GetTetrahedronNode(jnd)->GetX0().GetPos()).Length();		
 		facet->Set_Length(length);
-	    ///
-	    ///
-	    auto statev= facet->Get_StateVar();
-	    statev.resize(16);
-	    statev.setZero();
-	    facet->Set_StateVar(statev); 
+
+        facet->Set_center(facet->Get_center_ref());
 		///
 		///
 		if(this->macro_strain){
 			facet->ComputeProjectionMatrix();			
 			facet->ComputeEigenStrain(this->macro_strain);
-		}
-		///
-		///
+		} else {
+            facet->Set_nonMechanicStrain(ChVector3d(0.0, 0.0, 0.0));
+        }
 	    iface++;
-     }	
-	 
-	
-    
-	ChVectorDynamic<> displ(24);
-    this->GetStateBlock(displ);
-	Un_1=displ;
-	
-    this->UpdateRotation();
+     }
+
     //
-    double vol=ComputeVolume();
-    this->SetVolume(vol);
+    // Initilize state variables:
     //
-    ComputeStiffnessMatrix();
+    statevar_old.setZero(GetNumStateVar());
+    GetStateBlock(statevar_old); // Store DOFs at the end of state variables vector (temporary, to do updated Lagrangian until these are stored at the nodes in Tasora's new design)
+    statevar = statevar_old;
+
+    this->SetInitialVolume(ComputeVolume());
 }
 
 void ChElementLDPM::UpdateRotation() {
-    //
-    //    
-    unsigned int iface=0;    
-    for( auto facet:this->GetSection()){
-    	    unsigned int ind=facetNodeNums(iface,0);
-    	    unsigned int jnd=facetNodeNums(iface,1);   
-    	          
-	    ChMatrix33<> A0(facet->Get_ref_rot());	
-	    ChMatrix33<> Aabs;
-	    ChQuaternion<> q_lattice_abs_rot;
-	    if (!LargeDeflection) {
-		Aabs = A0;
-		q_lattice_abs_rot =facet->Get_ref_rot();
-	    }else {
-	    			
-	    	ChVector3d mXele = nodes[jnd]->Frame().GetPos() - nodes[ind]->Frame().GetPos();
-	    	ChVector3d myele = (nodes[ind]->Frame().GetRotMat().GetAxisY() + nodes[jnd]->Frame().GetRotMat().GetAxisY()).GetNormalized();
-		
-	    	Aabs.SetFromAxisX(mXele, myele);        
-	    	q_lattice_abs_rot = Aabs.GetQuaternion();	    	
-	    	
-			double length = (this->GetTetrahedronNode(ind)->GetX0().GetPos() - this->GetTetrahedronNode(jnd)->GetX0().GetPos()).Length();		
-			facet->Set_Length(length);
-	    }
-		
-	    facet->Set_abs_rot(q_lattice_abs_rot);	    
-	    iface++;
-    
+    for (int iface = 0 ; iface < my_section.size() ; iface++) {
+        std::shared_ptr<ChSectionLDPM> facet = my_section[iface];
+        unsigned int ind = facetNodeNums(iface,0);
+        unsigned int jnd = facetNodeNums(iface,1);   
+
+        ChMatrix33<> Aabs;
+        ChQuaternion<> q_lattice_abs_rot;
+
+        ChVector3d mXele = nodes[jnd]->Frame().GetPos() - nodes[ind]->Frame().GetPos();
+        ChVector3d myele = (nodes[ind]->Frame().GetRotMat().GetAxisY() + nodes[jnd]->Frame().GetRotMat().GetAxisY()).GetNormalized();
+        // TODO JBC: This looks fragile and relies on assumptions and current behavior of other parts of the code
+        //           - If the Y-axes are aligned with the node-to-node direction, or cancel out, Gram-Schmidt will fail and use an arbitrary direction
+        //              This arbitrary direction is repeatable, that is the only thing that guarantee this works, otherwise, the initial quaternion determined in SetupInitial() might be different
+        //              Any change to the fallback behavior of ChMatrix33::SetFromAxisX() will break this code !
+        //           - We could compute the rigid body motion of the tegrahedron, rather than compute and store an individual quaternion for all 12 facet to facets.
+        //              This is what is done in `ChElementTetraCorot_4::UpdateRotation()` using polar decompositoin, which seems better suited
+        //              The difficulty is that the N-axis might not be aligned with the node-to-node direction because of the deformation, albeit small
+        Aabs.SetFromAxisX(mXele, myele);
+        q_lattice_abs_rot = Aabs.GetQuaternion();
+        facet->Set_abs_rot(q_lattice_abs_rot);
+
+        // New center position
+        // 1. Projection `P` of center `C` on the edge should remain in the same relative position along the edge
+        ChVector3d edge0 = nodes[jnd]->GetX0().GetPos() - nodes[ind]->GetX0().GetPos();
+        double length0sq = edge0.Length2();
+        ChVector3d xi_xc0 = facet->Get_center_ref() - nodes[ind]->GetX0().GetPos();
+        double relpos_xi_xp = xi_xc0.Dot(edge0) / length0sq;
+        // 2. Vector `PC` keeps the same length but rotates with the edge
+        ChQuaternion<> q_delta = q_lattice_abs_rot * facet->Get_ref_rot().GetConjugate();
+        ChVector3d xi_xp0 = relpos_xi_xp * edge0;
+        ChVector3d xp_xc0 = xi_xc0 - xi_xp0;
+        ChVector3d edge = nodes[jnd]->GetPos() - nodes[ind]->GetPos();
+        ChVector3d center = nodes[ind]->GetPos() + relpos_xi_xp * edge + q_delta.Rotate(xp_xc0);
+        facet->Set_center(center);
     }
-	
-	//DUn_1
-    
-   
+}
+
+
+void ChElementLDPM::ComputeBranchVectors(std::shared_ptr<ChSectionLDPM> facet, unsigned int ind, unsigned int jnd, ChVector3d& xind_xc, ChVector3d& xjnd_xc) {
+    if (!ChElementLDPM::LargeDeflection) {
+        // For small deflection, use the initial position of the nodes and facet centers
+        xind_xc = facet->Get_center_ref() - nodes[ind]->GetX0().GetPos();
+        xjnd_xc = facet->Get_center_ref() - nodes[jnd]->GetX0().GetPos();
+    } else {
+        // For large deflection, use the current position of the nodes and facet centers
+        xind_xc = facet->Get_center() - nodes[ind]->GetPos();
+        xjnd_xc = facet->Get_center() - nodes[jnd]->GetPos();
+    }
 }
 
 void ChElementLDPM::ComputeKRMmatricesGlobal(ChMatrixRef H, double Kfactor, double Rfactor, double Mfactor) {
     assert((H.rows() == 24) && (H.cols() == 24));    
-	//std::cout<<"Krm: "<<Kfactor<<" "<<Rfactor<<" "<<Mfactor<<"\t";
     // For K stiffness matrix and R damping matrix:
     double RayleighDampingK=this->GetFacetI(0)->Get_material()->GetRayleighDampingK();
     double RayleighDampingM=this->GetFacetI(0)->Get_material()->GetRayleighDampingM();
-	//std::cout<<RayleighDampingK<<" "<<RayleighDampingM<<std::endl;
-	//std::cout<<"node0: "<<this->nodes[0]->GetX0().GetPos()<<"\t";
-	//std::cout<<"node1: "<<this->nodes[1]->GetX0().GetPos()<<"\t";
-	//std::cout<<"node2: "<<this->nodes[2]->GetX0().GetPos()<<"\t";
-	//std::cout<<"node3: "<<this->nodes[3]->GetX0().GetPos()<<"\n";
-	
-    //
-    if (Kfactor || Rfactor) { 
-    double mkfactor = Kfactor + Rfactor * RayleighDampingK;
-    H.block(0, 0, 24, 24) = mkfactor*this->StiffnessMatrix;   
+
+    if (Kfactor || Rfactor) {
+        // LDPM currently uses the initial elastic stiffness matrix
+        ChMatrixNM<double, 24, 24> Km;
+        Km.setZero();
+        ComputeStiffnessMatrixGlobal(Km);
+        double mkfactor = Kfactor + Rfactor * RayleighDampingK;
+        H.block(0, 0, 24, 24) = mkfactor*Km;
     }
-    // For M mass matrix:
+
     if (Mfactor || Rfactor) {      	    
         ChMatrixDynamic<> Mloc(24, 24); 
 	this->ComputeMmatrixGlobal(Mloc);	
 	double amfactor = Mfactor + Rfactor * RayleighDampingM;
-	H.block(0, 0, 24, 24)+= amfactor*Mloc;        
+	H.block(0, 0, 24, 24)+= amfactor*Mloc;
     }
-     
-    //std::cout<<"H:\n"<<H<<std::endl;
-	//std::cout<<std::endl;
+
     //***TO DO*** better per-node lumping, or 12x12 consistent mass matrix.
 }
 
 void ChElementLDPM::ComputeInternalForces(ChVectorDynamic<>& Fi) {
     assert(Fi.size() == 24);
-    //assert(section);
-    // set up vector of nodal displacements (in local element system) u_l = R*p - p0
-    //ChVectorDynamic<> mD(24);
-    //this->GetStateBlock(mD);  // nodal displacements, local
-    ChVectorDynamic<> displ(24);
-    this->GetStateBlock(displ);
-    DUn_1=displ-Un_1;
-    Un_1=displ;
-    //
-    //ChVectorDynamic<> Fi(24);
+
+    // Compute increment of DOFs in global frame
+    this->GetStateBlock(statevar); // Store current DOFs at the end of state variables vector (temporary, to do updated Lagrangian until these are stored at the nodes in Tasora's new design)
+    ChVectorDynamic<> dofs_increment(24);
+    for (int inode = 0 ; inode < 4 ; inode++) {
+        unsigned int index_start = GetDOFOffset();
+        // Displacement in global frame
+        dofs_increment.segment(inode*6,3) = statevar.segment(index_start + inode*7,3) - statevar_old.segment(index_start + inode*7,3);
+
+        // Rotation in global frame
+        ChQuaterniond q_curr(statevar.segment(index_start + inode*7 + 3,4));
+        ChQuaterniond q_prev(statevar_old.segment(index_start + inode*7 + 3,4));
+        ChQuaterniond dq = q_curr * q_prev.GetConjugate();
+        ChVector3d delta_rot_dir;
+        double delta_rot_angle;
+        dq.GetAngleAxis(delta_rot_angle, delta_rot_dir);
+        // TODO: We may want to use GetRotVec directly, but the angle is not within [-PI .. PI]
+        // TODO: Consider changing GetRotVec() to return within [-PI .. PI]
+        dofs_increment.segment(inode*6+3, 3) = (delta_rot_angle * delta_rot_dir).eigen();
+    }
+    // std::cout<<dofs_increment<<"\n\n"<<statevar.segment(12*15, 28)<<"\n\n"<<statevar_old.segment(12*15, 28)<<"\n\n\n\n";
     Fi.setZero();
     //
     // compute volumetric strain
-    double V0=this->GetVolume();
-    double V=this->ComputeVolume();	
-    double epsV=(V-V0)/(3.0*V0);   
-    //
-    //
-    unsigned int iface=0;
-    for (auto facet:this->GetSection()){    
-    	//std::cout<<"iface: "<<iface<<"--------";
-    	unsigned int ind=facetNodeNums(iface,0);
-    	unsigned int jnd=facetNodeNums(iface,1);     	
-    	//
-	// Get facet area and length of beam
-	//
-	double area=facet->Get_area();
-	double length=facet->Get_Length();	
-    	
-	//std::cout<<" L: "<<length<<"\t";
-	// 
-	Amatrix AI; 	
-	Amatrix AJ;
-	// A matrix is calculated based on initial coordinates
-	this->ComputeAmatrix(AI, facet->Get_center(), this->nodes[ind]->GetX0().GetPos());
-									
-	this->ComputeAmatrix(AJ, facet->Get_center(), this->nodes[jnd]->GetX0().GetPos());
-									
-	ChMatrix33<double> nmL=facet->Get_facetFrame();
-	ChQuaternion<> q_delta=(facet->Get_abs_rot() *  facet->Get_ref_rot().GetConjugate());		
-	//	
-	ChMatrixNM<double,3,6> mBI;
-	ChMatrixNM<double,3,6> mBJ;
-	ChVectorN<double,3> n;	
-	for (int id=0;id<3;id++) {
-		ChVector3d nn{nmL(id,0), nmL(id,1), nmL(id,2)};	
-		nn=q_delta.Rotate(nn);
-		//nn=chrono::ChTransform<>::TransformParentToLocal(nn, ChVector3d(0, 0, 0) ,  q_delta);
-		n<< nn[0], nn[1], nn[2];				
-		//
-		// NodeA
-		//
-		mBI.block<1,6>(id,0) = n.transpose()*AI/length;	
-		//
-		// NodeB
-		//
-		mBJ.block<1,6>(id,0) = n.transpose()*AJ/length;
+    double V = this->ComputeVolume();	
+    double epsV = (V - V0) / V0 * CH_1_3; // This 1/3 factor is correct! Original paper (https://doi.org/10.1016/j.cemconcomp.2011.02.011) without the 1/3 is a typo
 
-	}	
-	//
-	// Get Stress values at facet center
-	//
-	/*
-	ChVectorDynamic<> mstress;
-	this->ComputeStress(facet, ind, jnd, mstress);
-	//std::cout<<"stress: \n"<<mstress<<std::endl;
-	*/
-	ChVectorDynamic<> mstress;	
-	ChVectorDynamic<> dmstrain;
-	ChVectorDynamic<> statev;
-	this->ComputeStrain(facet, ind, jnd, dmstrain);
-	//std::cout<<"strain_INC: "<<dmstrain(0)<<"\t"<<dmstrain(1)<<"\t"<<dmstrain(2)<<"\t";
-	statev=facet->Get_StateVar();	
-    	// 
-	//if (this->macro_strain)
-	//	facet->ComputeEigenStrain(this->macro_strain);
-	auto nonMechanicalStrain=facet->Get_nonMechanicStrain();
-    if (nonMechanicalStrain.size()){
-		facet->Get_material()->ComputeStress( dmstrain, nonMechanicalStrain, length,  epsV, statev, mstress, area);;
-	}else{
-		facet->Get_material()->ComputeStress( dmstrain, length,  epsV, statev, mstress, area);
-	}
-	facet->Set_StateVar(statev);	
-	
-	Fi.segment(ind*6,6)+= area*length*(mstress.transpose()*mBI);
-	Fi.segment(jnd*6,6)+= -area*length*(mstress.transpose()*mBJ);
-	//
-	//
-	//	
-	iface++;
-	
+    for (int iface = 0 ; iface < my_section.size() ; iface++) {
+        std::shared_ptr<ChSectionLDPM> facet = my_section[iface];
+        unsigned int ind = facetNodeNums(iface, 0);
+        unsigned int jnd = facetNodeNums(iface, 1);
+
+        // 
+        double area = facet->Get_area();
+        double length = facet->Get_Length();
+
+        ChMatrix33<double> nmL = facet->Get_facetFrame();
+        if(ChElementLDPM::LargeDeflection) { // TODO JBC: If the facet orientation were made to coincide with the quaternion, we could save a lot and move this to Update() instead of rotating the initial frame at every step
+            ChQuaternion<> q_delta = facet->Get_abs_rot() *  facet->Get_ref_rot().GetConjugate();
+            for (int id=0; id<3; id++){
+                nmL.block<1,3>(id, 0) = q_delta.Rotate(nmL.block<1,3>(id, 0)).eigen();
+            }
+        }
+        ChMatrix33<double> nmL_tr = nmL.transpose();
+        //
+        // Get Stress values at facet center
+        //
+
+        ChVector3d dmstrain;
+        ComputeStrainIncrement(facet, ind, jnd, dofs_increment, dmstrain);
+
+        // TODO JBC: not sure why 2 lines below were kept commented. If not used, get rid of them
+        //if (this->macro_strain)
+        //	facet->ComputeEigenStrain(this->macro_strain);
+        ChVector3d nonMechanicalStrain=facet->Get_nonMechanicStrain();
+
+        int numsv = facet->Get_material()->GetNumberOfStateVariables();
+        ChVectorDynamic<> statev_new(numsv);
+        ChVector3d mstress;
+        facet->Get_material()->ComputeStress(dmstrain, nonMechanicalStrain, length,  epsV, statevar_old.segment(iface * numsv, numsv), statev_new, mstress, area);
+        statevar.segment(iface * numsv, numsv) = statev_new; // TODO JBC: this copy might be expensive, alternative would be to pass `statevar` and the index `iface` to the `ComputeStress` function, which would fill `statevar` in place
+        ChVector3d force = area * (nmL_tr * mstress);
+
+        ChVector3d xi_xc, xj_xc;
+        ComputeBranchVectors(facet, ind, jnd, xi_xc, xj_xc); // TODO JBC : branch vectors computed internally by this->ComputeStrainIncrement() so done twice. Clean way to re-use it would be to also compute moments directly in ComputeStress()
+
+        Fi.segment(ind*6+0,3) +=  force.eigen();
+        Fi.segment(ind*6+3,3) +=  xi_xc.Cross(force).eigen();
+        Fi.segment(jnd*6+0,3) += -force.eigen();
+        Fi.segment(jnd*6+3,3) += -xj_xc.Cross(force).eigen();
     }
-    
-    // Fi = C * Fi_local  with C block-diagonal rotations A
-    //ChMatrixCorotation::ComputeCK(FiK_local, this->A, 4, Fi);
 }
 
-ChStrainTensor<> ChElementLDPM::GetStrain() {
-    // set up vector of nodal displacements (in local element system) u_l = R*p - p0
-    ChVectorDynamic<> displ(12);
-    this->GetStateBlock(displ);  // nodal displacements, local
-
-    ChStrainTensor<> mstrain = MatrB * displ;
-    return mstrain;
-}
-
-ChStressTensor<> ChElementLDPM::GetStress() {
-     ChMatrixDynamic<> StressStrainMatrix;
-     StressStrainMatrix.setZero(6, 6);
-     //StressStrainMatrix=this->Material->Get_StressStrainMatrix()
-    ChStressTensor<> mstress =  StressStrainMatrix * this->GetStrain();
-    return mstress;
-}
 
 void ChElementLDPM::ComputeNodalMass() {
-    nodes[0]->m_TotalMass += this->GetVolume() * this->Material->Get_density() / 4.0;
-    nodes[1]->m_TotalMass += this->GetVolume() * this->Material->Get_density() / 4.0;
-    nodes[2]->m_TotalMass += this->GetVolume() * this->Material->Get_density() / 4.0;
-    nodes[3]->m_TotalMass += this->GetVolume() * this->Material->Get_density() / 4.0;
+    // All sections materials have the same density, use first section
+    // Assign same mass to all nodes (I don't think this is used by FEA so this approximation is ok)
+    double nodal_mass = V0 * my_section[0]->Get_material()->Get_density() * 0.25;
+    nodes[0]->m_TotalMass += nodal_mass;
+    nodes[1]->m_TotalMass += nodal_mass;
+    nodes[2]->m_TotalMass += nodal_mass;
+    nodes[3]->m_TotalMass += nodal_mass;
 }
 
 void ChElementLDPM::LoadableGetStateBlockPosLevel(int block_offset, ChState& mD) {
@@ -729,7 +503,7 @@ void ChElementLDPM::ComputeNF(const double U,
     ShapeVector N;
     this->ShapeFunctions(N, U, V, W);
 
-    detJ = 6 * this->GetVolume();
+    detJ = 6 * V0;
 
     Qi(0) = N(0) * F(0);
     Qi(1) = N(0) * F(1);
@@ -748,88 +522,111 @@ void ChElementLDPM::ComputeNF(const double U,
 
 double ChElementLDPM::ComputeTetVol(ChVector3d p1, ChVector3d p2, ChVector3d p3, ChVector3d p4){
     double tetvol=0;
-    tetvol = p2[0]*(p3[1]*p4[2]-p4[1]*p3[2])-p3[0]*(p2[1]*p4[2]-p4[1]*p2[2])+p4[0]*(p2[1]*p3[2]-p3[1]*p2[2]);
-    tetvol = tetvol-(p3[0]*(p4[1]*p1[2]-p1[1]*p4[2])-p4[0]*(p3[1]*p1[2]-p1[1]*p3[2])+p1[0]*(p3[1]*p4[2]-p4[1]*p3[2]));
-    tetvol = tetvol+p4[0]*(p1[1]*p2[2]-p2[1]*p1[2])-p1[0]*(p4[1]*p2[2]-p2[1]*p4[2])+p2[0]*(p4[1]*p1[2]-p1[1]*p4[2]);
-    tetvol = tetvol-(p1[0]*(p2[1]*p3[2]-p3[1]*p2[2])-p2[0]*(p1[1]*p3[2]-p3[1]*p1[2])+p3[0]*(p1[1]*p2[2]-p2[1]*p1[2]));
-    tetvol = abs(tetvol)/6.0;
+    tetvol =  p2[0] * (p3[1] * p4[2] - p4[1] * p3[2]) - p3[0] * (p2[1] * p4[2] - p4[1] * p2[2]) + p4[0] * (p2[1] * p3[2] - p3[1] * p2[2]);
+    tetvol -= p3[0] * (p4[1] * p1[2] - p1[1] * p4[2]) - p4[0] * (p3[1] * p1[2] - p1[1] * p3[2]) + p1[0] * (p3[1] * p4[2] - p4[1] * p3[2]);
+    tetvol += p4[0] * (p1[1] * p2[2] - p2[1] * p1[2]) - p1[0] * (p4[1] * p2[2] - p2[1] * p4[2]) + p2[0] * (p4[1] * p1[2] - p1[1] * p4[2]);
+    tetvol -= p1[0] * (p2[1] * p3[2] - p3[1] * p2[2]) - p2[0] * (p1[1] * p3[2] - p3[1] * p1[2]) + p3[0] * (p1[1] * p2[2] - p2[1] * p1[2]);
+    tetvol = abs(tetvol) / 6.0;
 	return tetvol;
 }
 
-ChMatrixNM<double,6,6> ChElementLDPM::ComputeTetMassN(std::shared_ptr<ChSectionLDPM> section, ChVector3d pN, ChVector3d pC, ChVector3d pA, ChVector3d pB){
-	ChMatrixNM<double,6,6> MN;
-	MN.setZero();
-	double density=section->Get_material()->Get_density();
-	//
-	ChMatrix33<double> coef={{0.1, 0.05, 0.05},{0.05, 0.1, 0.05},{0.05, 0.05, 0.1}};
-	//
-	
-	double vol=this->ComputeTetVol(pN, pC, pA, pB);
-	double tetmass=vol*density;
-	ChVector3d  pG=(pN+pC+pA+pB)/4.0;
-	ChVectorN<double,3> X={pA[0]-pN[0], pB[0]-pN[0], pC[0]-pN[0]};
-	ChVectorN<double,3> Y={pA[1]-pN[1], pB[1]-pN[1], pC[1]-pN[1]};
-	ChVectorN<double,3> Z={pA[2]-pN[2], pB[2]-pN[2], pC[2]-pN[2]};
-	// first moment of area
-	double Sx=(pG[0]-pN[0])*tetmass;
-	double Sy=(pG[1]-pN[1])*tetmass;
-	double Sz=(pG[2]-pN[2])*tetmass;
-	// Moment of inertia
-	double Ixx=double (X.transpose()*(coef*X))*tetmass;
-	double Iyy=double(Y.transpose()*(coef*Y))*tetmass;
-	double Izz=double(Z.transpose()*(coef*Z))*tetmass;
-	double Ixy=double(X.transpose()*(coef*Y))*tetmass;
-	double Ixz=double(X.transpose()*(coef*Z))*tetmass;
-	double Iyz=double(Y.transpose()*(coef*Z))*tetmass;
-	//	
-	if (false){ //lumped mass
-		MN(0,0)=tetmass; 
-		MN(1,1)=tetmass; 
-		MN(2,2)=tetmass; 
-		MN(3,3)=Iyy+Izz;
-		MN(4,4)=Ixx+Izz; 
-		MN(5,5)=Ixx+Iyy; 
-	}else{ //consistent mass
-		MN(0,0)=tetmass; MN(0,4)=Sz; MN(0,5)=-Sy;
-		MN(1,1)=tetmass; MN(1,3)=-Sz; MN(1,5)=Sx;
-		MN(2,2)=tetmass; MN(2,3)=Sy; MN(2,4)=-Sx;
-		MN(3,1)=-Sz; MN(3,2)=Sy; MN(3,3)=Iyy+Izz; MN(3,4)=-Ixy; MN(3,5)=-Ixz;
-		MN(4,0)=Sz; MN(4,2)=-Sx; MN(4,3)=-Ixy; 	MN(4,4)=Ixx+Izz; MN(4,5)=-Iyz;
-		MN(5,0)=-Sy; MN(5,1)= Sx; MN(5,3)=-Ixz; MN(5,4)=-Iyz; MN(5,5)=Ixx+Iyy; 
-	}
-	//
-	
+ChMatrixNM<double,6,6> ChElementLDPM::ComputeSubTetMassMatrix(std::shared_ptr<ChSectionLDPM> section, ChVector3d pN, ChVector3d pC, ChVector3d pA, ChVector3d pB){
+    double tetmass = section->Get_material()->Get_density() * this->ComputeTetVol(pN, pC, pA, pB);
+    ChVector3d pG = 0.25 * (pN + pC + pA + pB);
+    ChVector3d X = {pA[0] - pN[0], pB[0] - pN[0], pC[0] - pN[0]};
+    ChVector3d Y = {pA[1] - pN[1], pB[1] - pN[1], pC[1] - pN[1]};
+    ChVector3d Z = {pA[2] - pN[2], pB[2] - pN[2], pC[2] - pN[2]};
+    // first moment of area
+    double Sx = (pG[0] - pN[0]) * tetmass;
+    double Sy = (pG[1] - pN[1]) * tetmass;
+    double Sz = (pG[2] - pN[2]) * tetmass;
+    // Moment of inertia
+    // Calculation in expanded bilinear form:
+    // coef = {{0.1, 0.05, 0.05},{0.05, 0.1, 0.05},{0.05, 0.05, 0.1}};
+    // I_XY = (X^T * coef * Y) * tetmass (for all "X" and "Y")
+    // Simplified form below to avoid the overhead of matrix calculations and conversions
+    ChVector3d coefX = {0.1 * X[0] + 0.05 * (X[1] + X[2]), 0.1 * X[1] + 0.05 * (X[0] + X[2]), 0.1 * X[2] + 0.05 * (X[0] + X[1])};
+    ChVector3d coefY = {0.1 * Y[0] + 0.05 * (Y[1] + Y[2]), 0.1 * Y[1] + 0.05 * (Y[0] + Y[2]), 0.1 * Y[2] + 0.05 * (Y[0] + Y[1])};
+    ChVector3d coefZ = {0.1 * Z[0] + 0.05 * (Z[1] + Z[2]), 0.1 * Z[1] + 0.05 * (Z[0] + Z[2]), 0.1 * Z[2] + 0.05 * (Z[0] + Z[1])};
+    double Ixx = X.Dot(coefX) * tetmass;
+    double Iyy = Y.Dot(coefY) * tetmass;
+    double Izz = Z.Dot(coefZ) * tetmass;
+    double Ixy = X.Dot(coefY) * tetmass;
+    double Ixz = X.Dot(coefZ) * tetmass;
+    double Iyz = Y.Dot(coefZ) * tetmass;
+    ChMatrixNM<double,6,6> MN;
+    MN.setZero();
+    MN(0,0) = tetmass; MN(0,4) =  Sz; MN(0,5) = -Sy;
+    MN(1,1) = tetmass; MN(1,3) = -Sz; MN(1,5) =  Sx;
+    MN(2,2) = tetmass; MN(2,3) =  Sy; MN(2,4) = -Sx;
+    MN(3,1) = -Sz; MN(3,2) =  Sy; MN(3,3) = Iyy+Izz; MN(3,4) =    -Ixy; MN(3,5) =    -Ixz;
+    MN(4,0) =  Sz; MN(4,2) = -Sx; MN(4,3) =    -Ixy; MN(4,4) = Ixx+Izz; MN(4,5) =    -Iyz;
+    MN(5,0) = -Sy; MN(5,1) =  Sx; MN(5,3) =    -Ixz; MN(5,4) =    -Iyz; MN(5,5) = Ixx+Iyy;
 	return MN;
 }
 
 
 void ChElementLDPM::ComputeMmatrixGlobal(ChMatrixRef M) {
     M.setZero();
-    // Mass Matrix 
-    
-	
-	
-	auto vertices=this->V_vert_nodes;
-	unsigned int iface=0;
-	for(auto verts: vertices){	
-		unsigned int ind=facetNodeNums(iface,0);
-    		unsigned int jnd=facetNodeNums(iface,1);
-    		//
-    		ChVector3d pNA=this->nodes[ind]->GetX0().GetPos();
-		ChVector3d pNB=this->nodes[jnd]->GetX0().GetPos();
-    		//
-		auto pC=verts[0]->GetX0().GetPos();
-		auto pA=verts[1]->GetX0().GetPos();
-		auto pB=verts[2]->GetX0().GetPos();		
-		//
-		ChMatrixNM<double,6,6> mA=this->ComputeTetMassN(this->GetFacetI(iface), pNA, pC, pA, pB);
-		ChMatrixNM<double,6,6> mB=this->ComputeTetMassN(this->GetFacetI(iface), pNB, pC, pA, pB);
-		M.block<6,6>(ind*6,ind*6)+=mA;
-		M.block<6,6>(jnd*6,jnd*6)+=mB;
-		//
-		iface++;
-	}
-	
+    if (Mmatrix_type == MassMatrixType::LUMPED) {
+        // This hydrostatic LUMPED mass matrix is invariant by rigid-body rotation of the tetrahedron
+        // It is very cheap to compute and is preferred over the CONSISTENT one for quasi-static analyses.
+
+        // Translational DOFs
+        // TODO JBC: same mass on each node: this could be refined based e.g., on volume fractions, but OK for now.
+        double nodal_mass = V0 * my_section[0]->Get_material()->Get_density() * 0.25; // All sections materials have the same density, use first section
+        M(0,0)   = M(1,1)   = M(2,2)   = nodal_mass; // Node 1
+        M(6,6)   = M(7,7)   = M(8,8)   = nodal_mass; // Node 2
+        M(12,12) = M(13,13) = M(14,14) = nodal_mass; // Node 3
+        M(18,18) = M(19,19) = M(20,20) = nodal_mass; // Node 4
+
+        // Rotational DOFs
+        // The moment of inertia computed from the lumped mass at the nodes alone is already larger than
+        // the true moment of inertia of the tetrahedron. Adding rotational lumped mass would make it worse.
+        // This is a know issue for beams (see e.g., for beams https://quickfem.com/wp-content/uploads/IFEM.Ch31.pdf)
+        // and a small value is taken so that the mass matrix is not singular, but not ill-defined either.
+        // For Euler-Bernoulli beams, (see ChBeamSectionEuler::JzzJyy_factor) Chrono uses a value of 1/500.
+        // We use the same value here.
+        double factor = 1.0 / 500;
+        M(3,3)   = M(4,4)   = M(5,5)   = nodal_mass * factor; // Node 1
+        M(9,9)   = M(10,10) = M(11,11) = nodal_mass * factor; // Node 2
+        M(15,15) = M(16,16) = M(17,17) = nodal_mass * factor; // Node 3
+        M(21,21) = M(22,22) = M(23,23) = nodal_mass * factor; // Node 4
+
+    } else if (Mmatrix_type == MassMatrixType::CONSISTENT) {
+        // This CONSISTENT mass matrix is very expensive to compute and is not preferred for performance.
+        // That is because the HHT timestepper currently computes the inertial term in residual using:
+        //      integrable2->LoadResidual_Mv(R, Anew, -1 / (1 + alpha));  // -1/(1+alpha)*M*a_new
+        // which requests recalculation of the mass matrix from every element (even for JacobianUpdate::NEVER).
+        // TODO JBC: Storing the sparse, system-wide mass matrix in HHT is the way to go, but that requires infrastructure changes to be discussed with Alessandro Tasora.
+        // Storing the 24x24 dense matrix at the element level would be too memory-intensive for tetrahedral meshes, where 1 vertex can be shared by more than 10 tetrahedra in 3D
+        // so for the time being, this matrix is re-computed everytime Chrono asks for it...
+        auto vertices=this->V_vert_nodes;
+        unsigned int iface=0;
+        for(auto verts: vertices){	
+            unsigned int ind=facetNodeNums(iface,0);
+            unsigned int jnd=facetNodeNums(iface,1);
+            //
+            ChVector3d pNA=this->nodes[ind]->GetX0().GetPos();
+            ChVector3d pNB=this->nodes[jnd]->GetX0().GetPos();
+            //
+            auto pC=verts[0];
+            auto pA=verts[1];
+            auto pB=verts[2];		
+            //
+            ChMatrixNM<double,6,6> mA=this->ComputeSubTetMassMatrix(this->GetFacetI(iface), pNA, pC, pA, pB);
+            ChMatrixNM<double,6,6> mB=this->ComputeSubTetMassMatrix(this->GetFacetI(iface), pNB, pC, pA, pB);
+            M.block<6,6>(ind*6,ind*6)+=mA;
+            M.block<6,6>(jnd*6,jnd*6)+=mB;
+            //
+            iface++;
+        }
+
+        if (ChElementLDPM::LargeDeflection) {
+            // TODO JBC: the mass matrix must be rotated into the current spatial orientation of the tetrahedron
+            //           I think instead of rotating the 24*24 matrix here, we should rotate the vertices into the current configuration before building the matrix above. TBD
+        }
+    }
 }
 
 
@@ -855,15 +652,17 @@ void ChElementLDPM::EleIntLoadLumpedMass_Md(ChVectorDynamic<>& Md, double& error
 
 
 ChMatrixNM<double, 1, 9> ChElementLDPM::ComputeMacroStressContribution(){
-	ChMatrixNM<double, 1, 9> macro_stress;	  
+    ChMatrixNM<double, 1, 9> macro_stress;	  
     macro_stress.setZero();	
-	for (auto facet:this->GetSection()){		
-		double length=facet->Get_Length();		 	
-		double area =facet->Get_area();	
-		auto statev= facet->Get_StateVar();		
-		macro_stress +=(facet->GetProjectionMatrix()).transpose()*statev.segment(3,3)*area*length;		
-	}
-	return macro_stress;
+    for (int iface = 0 ; iface < my_section.size() ; iface++) {
+        std::shared_ptr<ChSectionLDPM> facet = my_section[iface];		
+        double length = facet->Get_Length();		 	
+        double area = facet->Get_area();
+        int numsv = facet->Get_material()->GetNumberOfStateVariables();
+        ChVectorDynamic<> statev = statevar.segment(iface * numsv + 3, 3);
+        macro_stress += (facet->GetProjectionMatrix()).transpose() * statev * area * length;		
+    }
+    return macro_stress;
 }
 
 
