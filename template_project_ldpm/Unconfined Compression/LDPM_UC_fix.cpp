@@ -676,7 +676,7 @@ int main(int argc, char** argv) {
     // Create a Chrono::Engine physical system
     ChSystemSMC sys;
 	
-    //sys.SetNumThreads(24);
+    sys.SetNumThreads(24);
 	// Collision system type
     //auto collision_type = collision::ChCollisionSystemType::BULLET;
     //sys.SetCollisionSystemType(collision_type);
@@ -689,8 +689,9 @@ int main(int argc, char** argv) {
     ///
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
     std::string current_dir(argv[0]);
-    int pos = current_dir.find_last_of("/\\");
-    current_dir=current_dir.substr(0, pos-5);  
+    //int pos = current_dir.find_last_of("/\\");
+    //current_dir=current_dir.substr(0, pos-5); 
+    current_dir="";  
     //  
     std::string LDPM_data_path=current_dir+"LDPMgeo000Box000/";
     std::string LDPM_GeoName="LDPMgeo000";
@@ -702,8 +703,11 @@ int main(int argc, char** argv) {
     }
     	
     std::string history_filename="hist.dat"; 
+    std::string num_iter_filename="num_iter.dat";
     std::ofstream histfile;
     histfile.open(out_dir+history_filename, std::ios::out);
+    std::ofstream num_iter_file;
+    num_iter_file.open(out_dir+num_iter_filename, std::ios::out);
     //
     //	
     // Create ground:   
@@ -892,9 +896,6 @@ int main(int argc, char** argv) {
         }       
     }
 	
-
-
-
 
     std::cout << "RP1" << RP1->GetX0() << std::endl;
     std::cout << "RP2" << RP2->GetX0() << std::endl;
@@ -1100,7 +1101,7 @@ int main(int argc, char** argv) {
     solver->UseSparsityPatternLearner(true);
     solver->LockSparsityPattern(true);   
     //solver->SetVerbose(true);
-	sys.Update();
+	//sys.Update();
     
        
     /*	
@@ -1126,7 +1127,7 @@ int main(int argc, char** argv) {
         //if (mystepper==ChTimestepper::Type::HHT){
         mystepper->SetAlpha(-0.05); // alpha=-0.2 default value
         mystepper->SetMaxIters(50);
-        mystepper->SetAbsTolerances(1e-06, 1e-04);
+        mystepper->SetAbsTolerances(1e-03, 1e-03);
         //mystepper->SetMode(ChTimestepperHHT::POSITION);
         //mystepper->SetMode(ChTimestepperHHT::ACCELERATION); // Default
         mystepper->SetMinStepSize(1E-15);
@@ -1138,6 +1139,7 @@ int main(int argc, char** argv) {
         //mystepper->SetScaling(true);
         mystepper->SetVerbose(false);
         mystepper->SetModifiedNewton(true);
+        mystepper->SetModifiedNewton(ChTimestepperHHT::JacobianUpdate::NEVER);
         mystepper->SetStepControl(false);
         sys.SetTimestepper(mystepper);
         //} 
@@ -1332,7 +1334,7 @@ int main(int argc, char** argv) {
     double F = 0;
     double Wext = 0;
 
-    std::vector<int> N_iter;
+    //std::vector<int> N_iter;
 
     //while (vis->Run() & sys.GetChTime() <= 0.4) {
 	while (sys.GetChTime() <= 0.4  ) {
@@ -1345,7 +1347,7 @@ int main(int argc, char** argv) {
 		
 		sys.DoStepDynamics(timestep);  
 		
-
+        stepnum++;
 
 
         double du = motor1->GetMotorPos() - u;
@@ -1357,9 +1359,11 @@ int main(int argc, char** argv) {
 
         int n_iter = mystepper->GetNumIterations();
         std::cout << "n_iter= " << n_iter << std::endl;
-        N_iter.push_back(n_iter);
+        num_iter_file << "\tt=\t" << sys.GetChTime()<< "\tstep=\t" << stepnum << "\tn_iter=\t" << n_iter << "\t\n";
+        num_iter_file.flush();
+        //N_iter.push_back(n_iter);
 
-		stepnum++;
+		
 		if(stepnum%100==0) {
 
             double Wint = 0;
@@ -1443,11 +1447,9 @@ int main(int argc, char** argv) {
 		}
 
 	    }
-        histfile << " N_iter" << "\t\n";
-        for (int n : N_iter) {
-            histfile << n << "\t\n";
-        }
+
 	     histfile.close();
+         num_iter_file.close();
 	    
 		
 	   };
