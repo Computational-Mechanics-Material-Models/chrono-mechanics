@@ -671,10 +671,6 @@ public:
 
 
 
-
-
-
-
 int main(int argc, char** argv) {
      SetChronoDataPath(CHRONO_DATA_DIR);
     //
@@ -695,8 +691,9 @@ int main(int argc, char** argv) {
     ///
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
     std::string current_dir(argv[0]);
-    int pos = current_dir.find_last_of("/\\");
-    current_dir=current_dir.substr(0, pos-5);  
+    //int pos = current_dir.find_last_of("/\\");
+    //current_dir=current_dir.substr(0, pos-5); 
+    current_dir=""; 
     //  
     std::string LDPM_data_path=current_dir+"LDPMgeo000Cylinder000/";
     //std::string LDPM_data_path = "LDPMgeo000Cylinder000/";
@@ -710,8 +707,11 @@ int main(int argc, char** argv) {
     }
     	
     std::string history_filename="hist.dat"; 
+    std::string num_iter_filename="num_iter.dat";
     std::ofstream histfile;
     histfile.open(out_dir+history_filename, std::ios::out);
+    std::ofstream num_iter_file;
+    num_iter_file.open(out_dir+num_iter_filename, std::ios::out);
     //
     //	
     // Create ground:   
@@ -915,11 +915,6 @@ int main(int argc, char** argv) {
     }
     
 
-	
-
-
-
-
     //std::cout << "RP1" << RP1->GetX0() << std::endl;
     //std::cout << "RP2" << RP2->GetX0() << std::endl;
     std::cout << "TOP nodes number:" << top_nodes.size() << std::endl;
@@ -940,8 +935,6 @@ int main(int argc, char** argv) {
         sys.Add(constr_sur);
         constr_sur_list.push_back(constr_sur);
      }
-    
-
     
 
     //auto constr_sur = chrono_types::make_shared<ChLinkMateGeneric>(true, true, false, false, false, false);
@@ -1147,9 +1140,7 @@ int main(int argc, char** argv) {
     solver->UseSparsityPatternLearner(true);
     solver->LockSparsityPattern(true);   
     //solver->SetVerbose(true);
-    
-    
-	sys.Update();
+	//sys.Update();
     
 
     
@@ -1173,24 +1164,24 @@ int main(int argc, char** argv) {
 	
         //sys.SetTimestepperType(ChTimestepper::Type::HHT);   
     //auto mystepper = std::dynamic_pointer_cast<ChTimestepperHHT>(sys.GetTimestepper());
-    auto mystepper=chrono_types::make_shared<ChTimestepperHHT>(&sys);
-    
-    	mystepper->SetAlpha(-0.05); // alpha=-0.2 default value
-	    mystepper->SetMaxIters(50);
-	    mystepper->SetAbsTolerances(1e-06, 1e-04);
-	    //mystepper->SetMode(ChTimestepperHHT::POSITION);
-	    //mystepper->SetMode(ChTimestepperHHT::ACCELERATION); // Default
-	    mystepper->SetMinStepSize(1E-15);
-	    mystepper->SetMaxItersSuccess(4);
-	    mystepper->SetRequiredSuccessfulSteps(3);
-	    mystepper->SetStepIncreaseFactor(1.25);
-	    mystepper->SetStepDecreaseFactor(0.25);
-	    //mystepper->SetThreshold_R(1E20);
-	    //mystepper->SetScaling(true);
-	    mystepper->SetVerbose(false);	    
-	    mystepper->SetModifiedNewton(true);
-	    mystepper->SetStepControl(false);
-	    sys.SetTimestepper(mystepper); 
+    auto mystepper = chrono_types::make_shared<ChTimestepperHHT>(&sys);
+        //if (mystepper==ChTimestepper::Type::HHT){
+        mystepper->SetAlpha(-0.05); // alpha=-0.2 default value
+        mystepper->SetMaxIters(50);
+        mystepper->SetAbsTolerances(1e-03, 1e-03);
+        //mystepper->SetMode(ChTimestepperHHT::POSITION);
+        //mystepper->SetMode(ChTimestepperHHT::ACCELERATION); // Default
+        mystepper->SetMinStepSize(1E-15);
+        mystepper->SetMaxItersSuccess(4);
+        mystepper->SetRequiredSuccessfulSteps(3);
+        mystepper->SetStepIncreaseFactor(1.25);
+        mystepper->SetStepDecreaseFactor(0.25);
+        mystepper->SetModifiedNewton(true);
+        mystepper->SetModifiedNewton(ChTimestepperHHT::JacobianUpdate::NEVER);    //only at the beginning of the very first step
+        // Default: JacobianUpdate::EVERY_STEP
+        mystepper->SetVerbose(false);
+        mystepper->SetStepControl(false);
+        sys.SetTimestepper(mystepper);
     
     //if (mystepper==ChTimestepper::Type::HHT){
   
@@ -1386,7 +1377,7 @@ int main(int argc, char** argv) {
     double F = 0;
     double Wext = 0;
 
-    std::vector<int> N_iter;
+    //std::vector<int> N_iter;
 
     //while (vis->Run() & sys.GetChTime() <= 0.1) {
 	while (sys.GetChTime() <= 0.2  ) {
@@ -1397,10 +1388,9 @@ int main(int argc, char** argv) {
 		vis->EndScene(); 
         
 		
-		
-
-		
-		sys.DoStepDynamics(timestep);  
+			
+		sys.DoStepDynamics(timestep); 
+        stepnum++;
 
         double du = motor1->GetMotorPos() - u;
         Wext = Wext + abs(du * (motor1->GetMotorForce() + F) / 2);
@@ -1410,9 +1400,11 @@ int main(int argc, char** argv) {
 
         int n_iter = mystepper->GetNumIterations();
         std::cout << "n_iter= " << n_iter << std::endl;
-        N_iter.push_back(n_iter);
+        num_iter_file << "\tt=\t" << sys.GetChTime()<< "\tstep=\t" << stepnum << "\tn_iter=\t" << n_iter << "\t\n";
+        num_iter_file.flush();
+        //N_iter.push_back(n_iter);
 
-		stepnum++;
+		
 		if(stepnum%50==0) {
 
             double Wint = 0;
@@ -1449,15 +1441,15 @@ int main(int argc, char** argv) {
                 Ek = Ek + Ekp;
             }
 
-	    	//std::string mesh_filename=out_dir+"deneme"+std::to_string(stepnum)+".vtk";
-	    	//std::string vtk_filename=out_dir+"Vtkdeneme"+std::to_string(stepnum)+".vtk";
-	    	//WriteMesh(my_mesh, mesh_filename);
-	    	//WriteFrame(my_mesh, mesh_filename, vtk_filename);
+	    	std::string mesh_filename=out_dir+"deneme"+std::to_string(stepnum)+".vtk";
+	    	std::string vtk_filename=out_dir+"Vtkdeneme"+std::to_string(stepnum)+".vtk";
+	    	WriteMesh(my_mesh, mesh_filename);
+	    	WriteFrame(my_mesh, mesh_filename, vtk_filename);
 
-            //std::string mesh_filename1 = out_dir + "crack" + std::to_string(stepnum) + ".vtk";
-            //std::string vtk_filename1 = out_dir + "Vtkcrack" + std::to_string(stepnum) + ".vtk";
-            //WriteMesh1(my_mesh, mesh_filename1);
-            //WriteFrame1(my_mesh, mesh_filename1, vtk_filename1);
+            std::string mesh_filename1 = out_dir + "crack" + std::to_string(stepnum) + ".vtk";
+            std::string vtk_filename1 = out_dir + "Vtkcrack" + std::to_string(stepnum) + ".vtk";
+            WriteMesh1(my_mesh, mesh_filename1);
+            WriteFrame1(my_mesh, mesh_filename1, vtk_filename1);
 		
 
         
@@ -1475,18 +1467,15 @@ int main(int argc, char** argv) {
             << "\texternal_work\t" << Wext
             << "\tkinetic energy\t" << Ek << "\t\n";
         
+        histfile.flush();
 
 		}
 
 	    }
 		
 		
-        histfile << " N_iter" << "\t\n";
-        for (int n : N_iter) {
-            histfile << n << "\t\n";
-        }
-		
-	     histfile.close();
+	    histfile.close();
+	    num_iter_file.close();
 	    
          /*
          while (vis->Run()) {
