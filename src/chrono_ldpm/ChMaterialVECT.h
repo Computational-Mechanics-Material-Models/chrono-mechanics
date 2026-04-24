@@ -193,7 +193,7 @@ class ChLdpmApi ChMaterialVECT {
     double m_mu0;               ///< initial friction
     double m_muinf;             ///< asymptotic friction
     double m_sigmaN0;           ///< transitional stress.
-    double m_kt;                ///< tensile unloading
+    double m_kt=0;                ///< tensile unloading
 	  double m_rs=0;              ///< Shear softening modulus ratio
     bool m_ela = false;                 ///< elastic analysis or not
     double RayleighDampingK=0;
