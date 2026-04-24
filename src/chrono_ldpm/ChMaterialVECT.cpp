@@ -289,15 +289,18 @@ double ChMaterialVECT::FractureBC(ChVectorDynamic<>& mstrain, double& len, ChVec
 	if (eps_tr > epsQ) {
 		sigma_bt = 0;
 	}
-	
-	
 
 	double strs_ela = E0 * (epsQ - statev(8)) + statev(9);
 	double sigma_fr = std::min(std::max(strs_ela, 0.0), sigma_bt);
 	
 	bool ela_flag = this->Get_ela();
+
 	if (ela_flag) {
 		sigma_fr = strs_ela;
+	}
+
+	if (abs(sigma_fr) < sigmat/1000 && epsQ > eps0) { // to avoid numerical issue when the stress is very small, set it to zero
+		sigma_fr = 0.0 * sigma_fr;
 	}
 	return sigma_fr;
 }
