@@ -1013,8 +1013,8 @@ int main(int argc, char** argv) {
     ///
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
     //
-    
-    auto mvisualizebeamA = chrono_types::make_shared<ChVisualShapeFEA>(my_mesh);
+    /*
+    auto mvisualizebeamA = chrono_types::make_shared<ChVisualShapeFEA>();
     //mvisualizebeamA->SetFEMdataType(ChVisualShapeFEA::DataType::ELEM_BEAM_MZ);   
     mvisualizebeamA->SetFEMdataType(ChVisualShapeFEA::DataType::NODE_DISP_NORM); 
     mvisualizebeamA->SetColorscaleMinMax(-5., 0.);
@@ -1023,7 +1023,7 @@ int main(int argc, char** argv) {
     my_mesh->AddVisualShapeFEA(mvisualizebeamA);
 
 
-    auto mvisualizebeamC = chrono_types::make_shared<ChVisualShapeFEA>(my_mesh);
+    auto mvisualizebeamC = chrono_types::make_shared<ChVisualShapeFEA>();
     mvisualizebeamC->SetFEMglyphType(ChVisualShapeFEA::GlyphType::NODE_DOT_POS);
     mvisualizebeamC->SetFEMdataType(ChVisualShapeFEA::DataType::NONE);
     mvisualizebeamC->SetSymbolsThickness(1);
@@ -1042,17 +1042,9 @@ int main(int argc, char** argv) {
     vis->AddTypicalLights();
     vis->AddCamera(ChVector3d(100.0, 100.0, 200.));
     vis->AttachSystem(&sys);
+    */
     
 
-	
-    
-    	/*
-    auto mvisualizemeshcoll = chrono_types::make_shared<ChVisualShapeFEA>(my_mesh);
-    mvisualizemeshcoll->SetFEMdataType(ChVisualShapeFEA::DataType::NODE_DISP_NORM);
-    mvisualizemeshcoll->SetWireframe(true);
-    mvisualizemeshcoll->SetDefaultMeshColor(ChColor(1, 0.5, 0));
-    my_mesh->AddVisualShapeFEA(mvisualizemeshcoll);
-    	*/
 	
 	
 
@@ -1340,9 +1332,9 @@ int main(int argc, char** argv) {
     //while (vis->Run() & sys.GetChTime() <= 0.4) {
 	while (sys.GetChTime() <= 0.1  ) {
 			
-		vis->BeginScene();
-		vis->Render();  
-		vis->EndScene(); 
+		//vis->BeginScene();
+		//vis->Render();  
+		//vis->EndScene(); 
 		
 
 		

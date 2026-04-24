@@ -723,57 +723,7 @@ int main(int argc, char** argv) {
     ///
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
     //
- 
 
-    //auto mysurfmaterial = chrono_types::make_shared<ChMaterialSurfaceNSC>();    
-    //mysurfmaterial->SetFriction(0.5f);   
-
-    ///
-    /*
-        auto bottom_plate = chrono_types::make_shared<ChBodyEasyBox>(140,140,10,7.8E-9,true,true,mysurfmaterial);
-    bottom_plate->SetPos(ChVector<>(50,50,-5));
-    //bottom_plate->SetCollide(true);
-    bottom_plate->GetVisualShape(0)->SetTexture("/chrono-concrete/data/textures/blue.png");
-    //bottom_plate->SetBodyFixed(true);
-    sys.Add(bottom_plate);    
-    
-	auto constr_bot_plate=chrono_types::make_shared<ChLinkMateGeneric>(true, true, true, true, true, true);
-    constr_bot_plate->Initialize(bottom_plate, mtruss, bottom_plate->GetFrame_COG_to_abs()); 
-    sys.Add(constr_bot_plate); 
-    ///    
-    ///    
-    auto top_plate = chrono_types::make_shared<ChBodyEasyBox>(140, 140, 10,7.8E-9,true,true,mysurfmaterial);
-    top_plate->SetPos(ChVector<>(50,50,105)); 
-    top_plate->GetVisualShape(0)->SetTexture("/chrono-concrete/data/textures/blue.png");  
-    sys.Add(top_plate); 
-    */
-
-
-    /// 
-    //auto constr_top_plate = chrono_types::make_shared<ChLinkMateGeneric>(true, true, false, true, true, true);
-    //constr_top_plate->Initialize(top_plate, mtruss, top_plate->GetFrame_COG_to_abs());
-    //sys.Add(constr_top_plate);
-
-    //auto constr_top_plate = chrono_types::make_shared<ChLinkLockLock>();
-    //constr_top_plate->Initialize(top_plate, mtruss, ChCoordsys<>(top_plate->GetPos()));
-    //sys.Add(constr_top_plate);
-
-
-    //    
-    //auto constr_top_plate = chrono_types::make_shared<ChLinkLockLock>();
-    //constr_top_plate->Initialize(top_plate, mtruss, ChCoordsys<>(top_plate->GetPos()));
-    //sys.Add(constr_top_plate);
-
-	/*
-    auto constr_top_plate = chrono_types::make_shared<ChLinkLockPrismatic>();    
-    constr_top_plate->Initialize(top_plate, mtruss, ChCoordsys<>( ChCoordsys<>(top_plate->GetPos(), Q_from_AngAxis(CH_C_PI_2, ChVector<>(1,0,0))))); 
-    sys.Add(constr_top_plate);	
-    */
-    /*
-    auto constr_top_plate = chrono_types::make_shared<ChLinkLockLock>();    
-    constr_top_plate->Initialize(top_plate, mtruss, ChCoordsys<>(ChVector<>(0, 0, 0))); 
-    sys.Add(constr_top_plate);	
-    */
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
     ///
     /// Read LDPM Freecad outputs and insert into mesh object
@@ -941,68 +891,9 @@ int main(int argc, char** argv) {
         const_top.push_back(constr_tie);
         sys.Add(constr_tie);
     }
-    
 
-    
-
-
-
-
- 
-    /// traced node
-    /// 
-    ///
-    /*
-    auto traced_node= chrono_types::make_shared<ChNodeFEAxyzrot>();
-    for (unsigned int i = 0; i < my_mesh->GetNumNodes(); i++) {
-        auto node = std::dynamic_pointer_cast<ChNodeFEAxyzrot>(my_mesh->GetNode(i)); 
-        double cy=node->GetPos().y();
-        double cz=node->GetPos().z();
-        double cx=node->GetPos().x();   
-        if (cy>49. && abs(cx-25)<2 && abs(cz-25)<2 ){            		
-        	traced_node=node;
-        	break;
-        }       
-    }
-    std::cout << "traced_node->GetIndex() : "<<traced_node->GetIndex()<<std::endl;
-    */
-
-    
-    
-	/*
-    auto mcontactsurf = chrono_types::make_shared<ChContactSurfaceMesh>(mysurfmaterial);
-    my_mesh->AddContactSurface(mcontactsurf);
-    mcontactsurf->AddFacesFromBoundary(1);    
-    */
-    
-    /*
-        auto mcontactcloud = chrono_types::make_shared<ChContactSurfaceNodeCloud>(mysurfmaterial);
-    my_mesh->AddContactSurface(mcontactcloud);
-    mcontactcloud->AddAllNodes(0.0);
-    */
-
-    
-
-
-    
-    /*
-   ChVector <> F_node_1(0, 1000, 0); 
-    for (auto node: top_nodes) {
-    	//auto link_1 = chrono_types::make_shared<ChLinkLockLock>();
-    	//sys.Add(link_1);
-    	//link_1->Initialize(node, mtruss);
-		//node->SetForce(F_node_1);
-    	auto impose_1 = chrono_types::make_shared<ChLinkMotionImposed>();    	
-    	impose_1->Initialize(node, mtruss, ChFrame<>(node->GetPos()));
-    	impose_1->SetPositionFunction(f_xyz);
-		sys.Add(impose_1);
-    	
-    } 
-    */   
-     
-    // We do not want gravity effect on FEA elements in this demo
     my_mesh->SetAutomaticGravity(false);
-    //sys.Set_G_acc(ChVector<>(0, 0, 0));
+
     //
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
     ///
@@ -1010,8 +901,8 @@ int main(int argc, char** argv) {
     ///
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
     //
-    
-    auto mvisualizebeamA = chrono_types::make_shared<ChVisualShapeFEA>(my_mesh);
+    /*
+    auto mvisualizebeamA = chrono_types::make_shared<ChVisualShapeFEA>();
     //mvisualizebeamA->SetFEMdataType(ChVisualShapeFEA::DataType::ELEM_BEAM_MZ);   
     mvisualizebeamA->SetFEMdataType(ChVisualShapeFEA::DataType::NODE_DISP_NORM); 
     mvisualizebeamA->SetColorscaleMinMax(-5., 0.);
@@ -1020,7 +911,7 @@ int main(int argc, char** argv) {
     my_mesh->AddVisualShapeFEA(mvisualizebeamA);
 
 
-    auto mvisualizebeamC = chrono_types::make_shared<ChVisualShapeFEA>(my_mesh);
+    auto mvisualizebeamC = chrono_types::make_shared<ChVisualShapeFEA>();
     mvisualizebeamC->SetFEMglyphType(ChVisualShapeFEA::GlyphType::NODE_DOT_POS);
     mvisualizebeamC->SetFEMdataType(ChVisualShapeFEA::DataType::NONE);
     mvisualizebeamC->SetSymbolsThickness(1);
@@ -1039,19 +930,10 @@ int main(int argc, char** argv) {
     vis->AddTypicalLights();
     vis->AddCamera(ChVector3d(100.0, 100.0, 200.));
     vis->AttachSystem(&sys);
+    */
+    
     
 
-	
-    
-    	/*
-    auto mvisualizemeshcoll = chrono_types::make_shared<ChVisualShapeFEA>(my_mesh);
-    mvisualizemeshcoll->SetFEMdataType(ChVisualShapeFEA::DataType::NODE_DISP_NORM);
-    mvisualizemeshcoll->SetWireframe(true);
-    mvisualizemeshcoll->SetDefaultMeshColor(ChColor(1, 0.5, 0));
-    my_mesh->AddVisualShapeFEA(mvisualizemeshcoll);
-    	*/
-	
-	
 
     //
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1059,41 +941,7 @@ int main(int argc, char** argv) {
     /// Create a Chrono solver and set solver settings
     ///
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
-    
-    ///
-    ///
-    /// Select solver type
-    ///
-    ///
-    // Use the ADMM solver: it has the capability of handling both FEA and NSC!
-    /*
-    sys.SetSolverForceTolerance(1e-10);
-    //auto solver = chrono_types::make_shared<ChSolverADMM>(chrono_types::make_shared<ChSolverSparseLU>());
-    auto solver = chrono_types::make_shared<ChSolverADMM>(chrono_types::make_shared<ChSolverPardisoMKL>());
-    solver->EnableWarmStart(true);
-    solver->SetMaxIterations(50);
-    solver->SetToleranceDual(1e-6);
-    solver->SetTolerancePrimal(1e-6);
-    solver->SetRho(1.);
-    solver->SetStepAdjustPolicy(ChSolverADMM::AdmmStepType::BALANCED_UNSCALED);
-    solver->SetVerbose(false);
-    sys.SetSolver(solver);
-
-    sys.SetSolverForceTolerance(1e-10);
-    */
-
-
-	/*
-    //auto solver = chrono_types::make_shared<ChSolverSparseQR>();   
-    auto solver = chrono_types::make_shared<ChSolverSparseLU>();
-    sys.SetSolver(solver);
-    solver->UseSparsityPatternLearner(true);
-    solver->LockSparsityPattern(true);
-    solver->SetVerbose(false);	
-    */
-
-	
-    
+  
 	
     auto solver = chrono_types::make_shared<ChSolverPardisoMKL>();    
     sys.SetSolver(solver); 
@@ -1101,18 +949,7 @@ int main(int argc, char** argv) {
     solver->LockSparsityPattern(true);   
     //solver->SetVerbose(true);
 	//sys.Update();
-    
-       
-    /*	
-    auto solver = chrono_types::make_shared<ChSolverMINRES>();
-    sys.SetSolver(solver);
-    solver->SetMaxIterations(400);
-    solver->SetTolerance(1e-12);
-    solver->EnableDiagonalPreconditioner(true);
-    solver->EnableWarmStart(true);  // Enable for better convergence when using Euler implicit linearized
-    solver->SetVerbose(false);
-    sys.SetSolverForceTolerance(1e-14);
-	*/  
+
 	
     ///
     ///
@@ -1122,78 +959,27 @@ int main(int argc, char** argv) {
 	
         //sys.SetTimestepperType(ChTimestepper::Type::HHT);   
         //auto mystepper = std::dynamic_pointer_cast<ChTimestepperHHT>(sys.GetTimestepper());
-        auto mystepper = chrono_types::make_shared<ChTimestepperHHT>(&sys);
-        //if (mystepper==ChTimestepper::Type::HHT){
-        mystepper->SetAlpha(-0.05); // alpha=-0.2 default value
-        mystepper->SetMaxIters(50);
-        mystepper->SetAbsTolerances(1e-03, 1e-03);
-        //mystepper->SetMode(ChTimestepperHHT::POSITION);
-        //mystepper->SetMode(ChTimestepperHHT::ACCELERATION); // Default
-        mystepper->SetMinStepSize(1E-15);
-        mystepper->SetMaxItersSuccess(4);
-        mystepper->SetRequiredSuccessfulSteps(3);
-        mystepper->SetStepIncreaseFactor(1.25);
-        mystepper->SetStepDecreaseFactor(0.25);
-        //mystepper->SetThreshold_R(1E20);
-        //mystepper->SetScaling(true);
-        mystepper->SetVerbose(false);
-        mystepper->SetModifiedNewton(true);
-        mystepper->SetModifiedNewton(ChTimestepperHHT::JacobianUpdate::NEVER);
-        mystepper->SetStepControl(false);
-        sys.SetTimestepper(mystepper);
-        //} 
-    
+    auto mystepper = chrono_types::make_shared<ChTimestepperHHT>(&sys);
+    //if (mystepper==ChTimestepper::Type::HHT){
+    mystepper->SetAlpha(-0.05); // alpha=-0.2 default value
+    mystepper->SetMaxIters(50);
+    mystepper->SetAbsTolerances(1e-03, 1e-03);
+    //mystepper->SetMode(ChTimestepperHHT::POSITION);
+    //mystepper->SetMode(ChTimestepperHHT::ACCELERATION); // Default
+    mystepper->SetMinStepSize(1E-15);
+    mystepper->SetMaxItersSuccess(4);
+    mystepper->SetRequiredSuccessfulSteps(3);
+    mystepper->SetStepIncreaseFactor(1.25);
+    mystepper->SetStepDecreaseFactor(0.25);
+    //mystepper->SetThreshold_R(1E20);
+    //mystepper->SetScaling(true);
+    mystepper->SetVerbose(false);
+    mystepper->SetModifiedNewton(true);
+    mystepper->SetModifiedNewton(ChTimestepperHHT::JacobianUpdate::NEVER);
+    mystepper->SetStepControl(false);
+    sys.SetTimestepper(mystepper);
 
-    
-    
-    
 
-    
-
-    
-  
-    
-
-    	
-    	
-    //auto mystepper=chrono_types::make_shared<ChTimestepperNewmark>(&sys);
-    //mystepper->SetGammaBeta(0.5, 0.25);  // Newmark as const accel. method    
-    //mystepper->SetGammaBeta(0.5, 1 / 6);  // Newmark as linear accel. method    
-    //mystepper->SetGammaBeta(1.0, 0.25);  // Newmark with max numerical damping
-    //auto mystepper=chrono_types::make_shared<ChTimestepperEulerImplicit>(&sys);
-    //auto mystepper=chrono_types::make_shared<ChTimestepperEulerImplicitLinearized>(&sys);
-    //auto mystepper=chrono_types::make_shared<ChTimestepperEulerImplicitProjected>(&sys);
-    //auto mystepper=chrono_types::make_shared<ChTimestepperTrapezoidal>(&sys);
-    //auto mystepper=chrono_types::make_shared<ChTimestepperTrapezoidalLinearized>(&sys);
-    //auto mystepper=chrono_types::make_shared<ChTimestepperTrapezoidalLinearized2>(&sys);
-    //auto mystepper=chrono_types::make_shared<ChTimestepperLeapfrog>(&sys);
-    //auto mystepper=chrono_types::make_shared<ChTimestepperHeun>(&sys);
-    //auto mystepper=chrono_types::make_shared<ChTimestepperRungeKuttaExpl>(&sys);
-    //auto mystepper=chrono_types::make_shared<ChTimestepperEulerSemiImplicit>(&sys);
-    //auto mystepper=chrono_types::make_shared<ChTimestepperEulerExplIIorder>(&sys);
-    //auto mystepper=chrono_types::make_shared<ChTimestepperEulerExpl>(&sys);    
-    //sys.SetTimestepper(mystepper);
-    ///
-    ///
-    
-    //sys.SetTimestepperType(ChTimestepper::Type::EULER_IMPLICIT_LINEARIZED);
-    //sys.SetTimestepperType(ChTimestepper::Type::EULER_IMPLICIT_PROJECTED);
-    //sys.SetTimestepperType(ChTimestepper::Type::EULER_IMPLICIT);
-    //sys.SetTimestepperType(ChTimestepper::Type::NEWMARK);
-    //sys.SetTimestepperType(ChTimestepper::Type::TRAPEZOIDAL);
-    //sys.SetTimestepperType(ChTimestepper::Type::RUNGEKUTTA45);
-    //sys.SetTimestepperType(ChTimestepper::Type::EULER_EXPLICIT);
-    //auto mystepper = std::dynamic_pointer_cast<ChTimestepperEulerExplIIorder>(sys.GetTimestepper());
-    //sys.SetTimestepper(mystepper);
-    //sys.DoStaticLinear();    
-    //sys.DoStaticNonlinear(50);             
-    
-        
-        
-        
-    //std::string history_filename="hist.dat";   
-    //std::ofstream histfile(history_filename);  
-       
     
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
     ///
@@ -1201,56 +987,7 @@ int main(int argc, char** argv) {
     ///
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
     
-    /*
-    for(int i=0; i<my_mesh->GetNumElements(); i++){    
-	    	auto elem = std::dynamic_pointer_cast<ChElementLDPM>(my_mesh->GetElement(i));
-	    	elem->ComputeStiffnessMatrix();
-	    	//
-	    	auto nI=std::dynamic_pointer_cast<ChNodeFEAxyz>(elem->GetNodeN(0));
-	    	auto nJ=std::dynamic_pointer_cast<ChNodeFEAxyz>(elem->GetNodeN(1));
-	    	auto nK=std::dynamic_pointer_cast<ChNodeFEAxyz>(elem->GetNodeN(2));
-	    	auto nL=std::dynamic_pointer_cast<ChNodeFEAxyz>(elem->GetNodeN(3));
-	    	std::cout<< i <<". element:  ";
-	    	std::cout<<nI->Frame().GetPos().x()<<"\t"<<nI->Frame().GetPos().y()<<"\t"<<nI->Frame().GetPos().z()<<"\t";
-	    	std::cout<<nJ->Frame().GetPos().x()<<"\t"<<nJ->Frame().GetPos().y()<<"\t"<<nJ->Frame().GetPos().z()<<"\t";
-	    	std::cout<<nK->Frame().GetPos().x()<<"\t"<<nK->Frame().GetPos().y()<<"\t"<<nK->Frame().GetPos().z()<<"\t";
-	    	std::cout<<nL->Frame().GetPos().x()<<"\t"<<nL->Frame().GetPos().y()<<"\t"<<nL->Frame().GetPos().z()<<std::endl;
-	    	//
-	    	
-    		auto Km=elem->GetStiffnessMatrix();
-    		std::cout<<"Km\n"<< Km <<"\n\n";
-    		//
-    		
-    		 ChMatrixDynamic<> Mloc(24, 24);
-        	Mloc.setZero();
-    		elem->ComputeMmatrixGlobal(Mloc);
-    		std::cout<<"mLOC\n"<< Mloc <<"\n\n";
-    		
-    		//
-    		ChQuaternion<> qa0 = nJ->GetRot();
-    		ChVector<> rotator(VNULL);  rotator[0] = 1e-5;
-                ChQuaternion<> mdeltarotL;  mdeltarotL.Q_from_Rotv(rotator); // rot.in local basis - as in system wide vectors
-                ChQuaternion<> qaD = qa0 * mdeltarotL;
-    		nJ->SetRot(qaD);
-    		ChVectorDynamic<> displ(elem->GetNdofs());
-    		elem->GetStateBlock(displ);
-    		std::cout<< "displ:\n"<< displ<<std::endl;
-    		//std::cout<< -Km*displ<<std::endl;
-    		//
-    		ChVectorDynamic<> Fi(24);
-    		elem->ComputeInternalForces(Fi);
-    		std::cout<<"Fi\n"<< Fi+Km*displ <<"\n\n";
-    		
-    		exit(9);
-    
-    	}
-        //exit(9);
-    */
-
-
-    		
-    
-    
+ 
     
     if (true) {
 	std::cout << "LDPM RESULTS (DYNAMIC ANALYSIS) \n\n";
@@ -1258,12 +995,6 @@ int main(int argc, char** argv) {
         /// Displacement controlled 
         ///
         
-        /*
-	auto motion = chrono_types::make_shared<ChFunction_Ramp>();
-    	motion->Set_ang(10.0);      
-    	constr_top_plate->SetMotion_Y(motion);  
-	*/
-	
 
     auto motor1 = chrono_types::make_shared<ChLinkMotorLinearPosition>();
 
@@ -1287,45 +1018,6 @@ int main(int argc, char** argv) {
 
 
 
-    
-    /*
-        auto my_motion_function1 = chrono_types::make_shared<ChFunction_Poly>();
-    my_motion_function1->Set_coeff(0.0, 0);
-    my_motion_function1->Set_coeff(0.0, 1);
-    my_motion_function1->Set_coeff(-1000, 2);
-    my_motion_function1->Set_order(2);
-    auto my_motion_function2 = chrono_types::make_shared<ChFunction_Ramp>(0, -2.0);
-
-    auto f_sequence1 = chrono_types::make_shared<ChFunction_Sequence>();
-    f_sequence1->InsertFunct(my_motion_function1, 0.001, 1, true);
-    f_sequence1->InsertFunct(my_motion_function2, 1.0, 1, true);
-
-    constr_top_plate->SetMotion_Z(f_sequence1);
-
-    ChVector<double> initial_pos = top_plate->GetPos();
-    */
-
-    
-	
-	///
-        /// Load controlled 
-        ///
-        //auto mod = chrono_types::make_shared<ChFunction_Ramp>();
-    	//mod->Set_ang(1000000.0);
-   	
-   	/*
-	// Actuate second slider using a body force
-	auto frcY = chrono_types::make_shared<ChForce>();
-	frcY->SetF_y(mod);
-	top_plate->AddForce(frcY); 	
-	*/
-
-    
-    //Add following lines before while loop (before beginning of dynamic analysis):
-    //auto cmaterial = chrono_types::make_shared<UserContactMaterial>();
-    //cmaterial->SetSystem(sys);
-    //sys.GetContactContainer()->RegisterAddContactCallback(cmaterial);
-
 	double timestep = 5.0E-6; 
 	int stepnum=0;
     	
@@ -1338,9 +1030,9 @@ int main(int argc, char** argv) {
     while (sys.GetChTime() <= 0.2) {
 	//while (sys.GetChTime() <= 1.5  ) {
 			
-		vis->BeginScene();
-		vis->Render();  
-		vis->EndScene(); 
+		//vis->BeginScene();
+		//vis->Render();  
+		//vis->EndScene(); 
 		
 
 		
@@ -1399,15 +1091,15 @@ int main(int argc, char** argv) {
                 Ek = Ek + Ekp;
             }
 
-	    	//std::string mesh_filename=out_dir+"deneme"+std::to_string(stepnum)+".vtk";
-	    	//std::string vtk_filename=out_dir+"Vtkdeneme"+std::to_string(stepnum)+".vtk";
-	    	//WriteMesh(my_mesh, mesh_filename);
-	    	//WriteFrame(my_mesh, mesh_filename, vtk_filename);
+	    	std::string mesh_filename=out_dir+"deneme"+std::to_string(stepnum)+".vtk";
+	    	std::string vtk_filename=out_dir+"Vtkdeneme"+std::to_string(stepnum)+".vtk";
+	    	WriteMesh(my_mesh, mesh_filename);
+	    	WriteFrame(my_mesh, mesh_filename, vtk_filename);
 
-            //std::string mesh_filename1 = out_dir + "crack" + std::to_string(stepnum) + ".vtk";
-            //std::string vtk_filename1 = out_dir + "Vtkcrack" + std::to_string(stepnum) + ".vtk";
-            //WriteMesh1(my_mesh, mesh_filename1);
-            //WriteFrame1(my_mesh, mesh_filename1, vtk_filename1);
+            std::string mesh_filename1 = out_dir + "crack" + std::to_string(stepnum) + ".vtk";
+            std::string vtk_filename1 = out_dir + "Vtkcrack" + std::to_string(stepnum) + ".vtk";
+            WriteMesh1(my_mesh, mesh_filename1);
+            WriteFrame1(my_mesh, mesh_filename1, vtk_filename1);
 		
 
         

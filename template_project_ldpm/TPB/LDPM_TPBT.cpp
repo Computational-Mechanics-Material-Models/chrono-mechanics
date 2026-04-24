@@ -815,8 +815,9 @@ int main(int argc, char** argv) {
     ///
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
     std::string current_dir(argv[0]);
-    int pos = current_dir.find_last_of("/\\");
-    current_dir=current_dir.substr(0, pos-5);  
+    //int pos = current_dir.find_last_of("/\\");
+    //current_dir=current_dir.substr(0, pos-5); 
+    current_dir="";
     //  
     std::string LDPM_data_path=current_dir+"LDPMgeo000NotchedPrism_Semi_Circle000/";
     std::string LDPM_GeoName="LDPMgeo000";
@@ -828,8 +829,11 @@ int main(int argc, char** argv) {
     }
     	
     std::string history_filename="hist.dat"; 
+    std::string num_iter_filename="num_iter.dat";
     std::ofstream histfile;
     histfile.open(out_dir+history_filename, std::ios::out);
+    std::ofstream num_iter_file;
+    num_iter_file.open(out_dir+num_iter_filename, std::ios::out);
     //
     //	
     // Create ground:   
@@ -1179,47 +1183,7 @@ int main(int argc, char** argv) {
     	
     }  
     
-    
-       
-    
-    
-    //
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////
-    ///
-    /// Create a motor and impose displacement of a body
-    ///
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////
-    //
-    // Create the linear motor
-    /*
-    auto motor = chrono_types::make_shared<ChLinkMotorLinearPosition>();	
-	ChQuaternion<> q=QUNIT;
-    q.Q_from_AngZ(-CH_C_PI_2);
-    motor->Initialize(top_plate,  mtruss,                
-                        ChFrame<>(top_plate->GetPos(), q)  // motor frame, in abs. coords
-    ); 
-	
-    //motor1->SetGuideConstraint(true, true, true, true, true); 
-    //auto my_motion_function = chrono_types::make_shared<ChFunction_Const>(CH_C_PI/10);
-    auto my_motion_function = chrono_types::make_shared<ChFunction_Ramp>();
-    my_motion_function->Set_ang(-8);	
-	
-    motor->SetMotionFunction(my_motion_function);    
-    sys.Add(motor);
-    */
-    
-    /*
-    auto f_xyz = chrono_types::make_shared<ChFunctionPosition_XYZfunctions>();    
-    f_xyz->SetFunctionY(chrono_types::make_shared<ChFunction_Ramp>(0,-5));
-    auto impose_1 = chrono_types::make_shared<ChLinkMotionImposed>();
-    sys.Add(impose_1);
-    impose_1->Initialize(top_plate, mtruss, ChFrame<>(top_plate->GetPos()));    
-    impose_1->SetPositionFunction(f_xyz);
-    */
-     
-    // We do not want gravity effect on FEA elements in this demo
-    //my_mesh->SetAutomaticGravity(false);
-    //sys.Set_G_acc(ChVector3d(0, 0, 0));
+   
     //
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
     ///
@@ -1312,40 +1276,14 @@ int main(int argc, char** argv) {
     /// Select solver type
     ///
     ///
-    
-    
-    /*
-    auto solver = chrono_types::make_shared<ChSolverSparseLU>();
-    sys.SetSolver(solver);
-    solver->UseSparsityPatternLearner(true);
-    solver->LockSparsityPattern(true);
-    solver->SetVerbose(false);
-    */
-    //auto solver = chrono_types::make_shared<ChSolverSparseQR>();   
 
-
-    
-	
-        
+	        
     auto solver = chrono_types::make_shared<ChSolverPardisoMKL>();    
     sys.SetSolver(solver); 
     solver->UseSparsityPatternLearner(true);
     solver->LockSparsityPattern(true);   
     solver->SetVerbose(false);
     
-
-     
-       
-    /*	
-    auto solver = chrono_types::make_shared<ChSolverMINRES>();
-    sys.SetSolver(solver);
-    solver->SetMaxIterations(400);
-    solver->SetTolerance(1e-6);
-    solver->EnableDiagonalPreconditioner(true);
-    solver->EnableWarmStart(true);  // Enable for better convergence when using Euler implicit linearized
-    solver->SetVerbose(true);
-    sys.SetSolverForceTolerance(1e-8);
-	*/
     
     ///
     ///
@@ -1356,55 +1294,25 @@ int main(int argc, char** argv) {
     //sys.SetTimestepperType(ChTimestepper::Type::HHT);   
     //auto mystepper = std::dynamic_pointer_cast<ChTimestepperHHT>(sys.GetTimestepper());
     auto mystepper = chrono_types::make_shared<ChTimestepperHHT>(&sys);
-        //if (mystepper==ChTimestepper::Type::HHT){
-        mystepper->SetAlpha(-0.05); // alpha=-0.2 default value
-        mystepper->SetMaxIters(50);
-        mystepper->SetAbsTolerances(1e-03, 1e-03);
-        //mystepper->SetMode(ChTimestepperHHT::POSITION);
-        //mystepper->SetMode(ChTimestepperHHT::ACCELERATION); // Default
-        mystepper->SetMinStepSize(1E-15);
-        mystepper->SetMaxItersSuccess(4);
-        mystepper->SetRequiredSuccessfulSteps(3);
-        mystepper->SetStepIncreaseFactor(1.25);
-        mystepper->SetStepDecreaseFactor(0.25);
-        //mystepper->SetThreshold_R(1E20);
-        //mystepper->SetScaling(true);
-        mystepper->SetVerbose(false);
-        mystepper->SetModifiedNewton(true);
-        mystepper->SetStepControl(false);
-        sys.SetTimestepper(mystepper);
-    //}   
-    	
-    	
-    //auto mystepper=chrono_types::make_shared<ChTimestepperNewmark>(&sys);
-    //mystepper->SetGammaBeta(0.5, 0.25);  // Newmark as const accel. method    
-    //mystepper->SetGammaBeta(0.5, 1 / 6);  // Newmark as linear accel. method    
-    //mystepper->SetGammaBeta(1.0, 0.25);  // Newmark with max numerical damping
-    //auto mystepper=chrono_types::make_shared<ChTimestepperEulerImplicit>(&sys);
-    //auto mystepper=chrono_types::make_shared<ChTimestepperEulerImplicitLinearized>(&sys);
-    //auto mystepper=chrono_types::make_shared<ChTimestepperEulerImplicitProjected>(&sys);
-    //auto mystepper=chrono_types::make_shared<ChTimestepperTrapezoidal>(&sys);
-    //auto mystepper=chrono_types::make_shared<ChTimestepperTrapezoidalLinearized>(&sys);
-    //auto mystepper=chrono_types::make_shared<ChTimestepperTrapezoidalLinearized2>(&sys);
-    //auto mystepper=chrono_types::make_shared<ChTimestepperLeapfrog>(&sys);
-    //auto mystepper=chrono_types::make_shared<ChTimestepperHeun>(&sys);
-    //auto mystepper=chrono_types::make_shared<ChTimestepperRungeKuttaExpl>(&sys);
-    //auto mystepper=chrono_types::make_shared<ChTimestepperEulerSemiImplicit>(&sys);
-    //auto mystepper=chrono_types::make_shared<ChTimestepperEulerExplIIorder>(&sys);
-    //auto mystepper=chrono_types::make_shared<ChTimestepperEulerExpl>(&sys);
-    //mystepper->SetVerbose(false);
-    //sys.SetTimestepper(mystepper);
-    ///
-    ///
-    
-         
-    
-        
-        
-        
-   
-    
-    
+    //if (mystepper==ChTimestepper::Type::HHT){
+    mystepper->SetAlpha(-0.05); // alpha=-0.2 default value
+    mystepper->SetMaxIters(50);
+    mystepper->SetAbsTolerances(1e-03, 1e-03);
+    //mystepper->SetMode(ChTimestepperHHT::POSITION);
+    //mystepper->SetMode(ChTimestepperHHT::ACCELERATION); // Default
+    mystepper->SetMinStepSize(1E-15);
+    mystepper->SetMaxItersSuccess(4);
+    mystepper->SetRequiredSuccessfulSteps(3);
+    mystepper->SetStepIncreaseFactor(1.25);
+    mystepper->SetStepDecreaseFactor(0.25);
+    mystepper->SetModifiedNewton(true);
+    mystepper->SetModifiedNewton(ChTimestepperHHT::JacobianUpdate::NEVER);    //only at the beginning of the very first step
+    // Default: JacobianUpdate::EVERY_STEP
+    mystepper->SetVerbose(true);
+    mystepper->SetStepControl(false);
+    sys.SetTimestepper(mystepper);
+ 
+
     
     if (true) {
 	std::cout << "LDPM RESULTS (DYNAMIC ANALYSIS) \n\n";
@@ -1412,35 +1320,6 @@ int main(int argc, char** argv) {
         /// Displacement controlled 
         ///
         
-        
-    /*
-        auto motion = chrono_types::make_shared<ChFunction_Ramp>();
-    	motion->Set_ang(-5.0);      
-    	constr_top_plate->SetMotion_Z(motion); 
-     
-    */
-	     
-	
-        
-
-    /*
-    * 
-    auto my_motion_function1 = chrono_types::make_shared<ChFunction_Poly>();
-    my_motion_function1->Set_coeff(0.0, 0);
-    my_motion_function1->Set_coeff(0.0, 1);
-    my_motion_function1->Set_coeff(-1250, 2);
-    my_motion_function1->Set_order(2);
-    auto my_motion_function2 = chrono_types::make_shared<ChFunction_Ramp>(0, -5.0);
-    //auto my_motion_function1 = chrono_types::make_shared<ChFunction_Ramp>(0, -5.0);
-    //auto my_motion_function2 = chrono_types::make_shared<ChFunction_Const>(-5.0);
-    auto f_sequence1 = chrono_types::make_shared<ChFunction_Sequence>();
-    f_sequence1->InsertFunct(my_motion_function1, 0.002, 1, true);
-    f_sequence1->InsertFunct(my_motion_function2, 1.0, 1, true);
-    //f_xyz->SetFunctionZ(f_sequence1);
-
-    constr_top_plate->SetMotion_Z(f_sequence1);
-    */
-
 
     auto motor1 = chrono_types::make_shared<ChLinkMotorLinearPosition>();
 
@@ -1475,7 +1354,7 @@ int main(int argc, char** argv) {
     double F = 0;
     double Wext = 0;
     double Wint_elas = 0;
-    std::vector<int> N_iter;
+    //std::vector<int> N_iter;
     
 
 
@@ -1487,15 +1366,7 @@ int main(int argc, char** argv) {
 		vis->Render();  
 		vis->EndScene(); 
         */
-		
-		
-		
-		/*
-		ChVector3d <> F_node(0, -1000000*sys.GetChTime(), 0);
-		for (auto node: top_mid_nodes) {
-		    	node->SetForce(F_node);
-	    	} 
-	    	*/	    	
+		  	
 
 		sys.DoStepDynamics(timestep);        
 		stepnum++;
@@ -1539,20 +1410,20 @@ int main(int argc, char** argv) {
 
         int n_iter = mystepper->GetNumIterations();
         std::cout << "n_iter= " << n_iter << std::endl;
-
-        N_iter.push_back(n_iter);
+        num_iter_file << "\tt=\t" << sys.GetChTime()<< "\tstep=\t" << stepnum << "\tn_iter=\t" << n_iter << "\t\n";
+        num_iter_file.flush();
 
 		if(stepnum%100==0) {
-	    	//std::string mesh_filename=out_dir+"deneme"+std::to_string(stepnum)+".vtk";
-	    	//std::string vtk_filename=out_dir+"Vtkdeneme"+std::to_string(stepnum)+".vtk";
-	    	//WriteMesh(my_mesh_C, mesh_filename);
-	    	//WriteFrame(my_mesh_C, mesh_filename, vtk_filename);
+	    	std::string mesh_filename=out_dir+"deneme"+std::to_string(stepnum)+".vtk";
+	    	std::string vtk_filename=out_dir+"Vtkdeneme"+std::to_string(stepnum)+".vtk";
+	    	WriteMesh(my_mesh_C, mesh_filename);
+	    	WriteFrame(my_mesh_C, mesh_filename, vtk_filename);
 	    	//
 	    	
-	    	//std::string mesh_filename_elas=out_dir+"deneme_elas"+std::to_string(stepnum)+".vtk";
-	    	//std::string vtk_filename_elas=out_dir+"Vtkdeneme_elas"+std::to_string(stepnum)+".vtk";
-	    	//WriteMesh(my_mesh_Elas, mesh_filename_elas);
-	    	//WriteFrame(my_mesh_Elas, mesh_filename_elas, vtk_filename_elas);
+	    	std::string mesh_filename_elas=out_dir+"deneme_elas"+std::to_string(stepnum)+".vtk";
+	    	std::string vtk_filename_elas=out_dir+"Vtkdeneme_elas"+std::to_string(stepnum)+".vtk";
+	    	WriteMesh(my_mesh_Elas, mesh_filename_elas);
+	    	WriteFrame(my_mesh_Elas, mesh_filename_elas, vtk_filename_elas);
 
             double Wint = 0;
             for (int i = 0; i < my_mesh_C->GetNumElements(); ++i) {
@@ -1565,26 +1436,6 @@ int main(int argc, char** argv) {
             }
 
             
-            /*
-                        double Wint_elas = 0;
-            for (int i = 0; i < my_mesh_Elas->GetNumElements(); ++i) {
-                auto elem = std::dynamic_pointer_cast<ChElementTetraCorot_4>(my_mesh_Elas->GetElement(i));
-
-                ChStrainTensor<> strain = elem->GetStrain();
-                ChStressTensor<> stress = elem->GetStress();
-                //ChStrainTensor<> dstrain = strain - strain_pre;
-
-                double vol = elem->GetVolume();
-                Wint_elas = Wint_elas + 0.5 * vol * (stress.XX() * strain.XX() + stress.YY() * strain.YY() +
-                    stress.ZZ() * strain.ZZ() + stress.XY() * strain.XY() + stress.XZ() * strain.XZ() + stress.YZ() * strain.YZ());
-                //ChStrainTensor<> strain_pre = strain;
-            }
-            */
-
-            
-            
-
-
             double Ek_elas = 0;
             for (int i = 0; i < my_mesh_Elas->GetNumElements(); ++i) {
                 auto elem = std::dynamic_pointer_cast<ChElementTetraCorot_4>(my_mesh_Elas->GetElement(i));
@@ -1637,9 +1488,6 @@ int main(int argc, char** argv) {
             std::cout << "Wext-Wint-Ek\t" << Wext - Wint_elas- Wint- Ek_elas- Ek << std::endl;
 
             
-	    	
-
-
 		    std::cout << " t=\t" << sys.GetChTime() << "\ttop_plate_disp_z=\t" << u << "\tCMOD=\t" << CMOD 
             << "\tforce=\t" << F << "\tleft_force=\t" << R1 << "\tright_force=\t" << R2 
             << "\tleft_plate_disp_x\t" << v1 << "\tright_plate_disp_x\t" << v2 << "\tinternal_work\t" << Wint+Wint_elas 
@@ -1651,28 +1499,13 @@ int main(int argc, char** argv) {
             << "\texternal_work\t" << Wext << "\tkinetic_energy\t" << Ek + Ek_elas << "\tkinetic_energy_LDPM\t" << Ek << "\t\n";
 			
 			histfile.flush();
-		//std::cout << " t=" << sys.GetChTime() << "  top_plate disp_z=" << top_plate->GetPos().z()
-		//<< top_plate->GetAppliedForce() << "  \n";
-		
-		/*
-		histfile  << " t=" << sys.GetChTime() << "  traced_node pos.y()= " << traced_node->GetPos().y()-traced_node-> GetX0().GetPos().y()
-		<< "\t"<< calculate_Force(const_bot) << "  \n";
-		histfile  << " t=" << sys.GetChTime() << "  traced_node pos.y()= " << traced_node->GetPos().y()-traced_node-> GetX0().GetPos().y()
-		<< "\t"<< bottom_plate->GetAppliedForce() << "  \n";
-		*/
 		
 		}
 		
-		
-		
 	    }
-        histfile << " N_iter" << "\t\n";
-        for (int n : N_iter) {
-            histfile << n << "\t\n";
-        }
 
-        
-	     histfile.close();
+        histfile.close();
+	    num_iter_file.close();
 		
 	   };
    	
