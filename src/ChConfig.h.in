@@ -91,6 +91,15 @@
 // If module FMI was enabled, define CHRONO_FMI
 @CHRONO_FMI@
 
+// If module LDPM was enabled, define CHRONO_LDPM
+@CHRONO_LDPM@
+
+// If module WOOD was enabled, define CHRONO_WOOD
+@CHRONO_WOOD@
+
+// If module FLOW was enabled, define CHRONO_FLOW
+@CHRONO_FLOW@
+
 // -----------------------------------------------------------------------------
 // GnuPlot
 // -----------------------------------------------------------------------------

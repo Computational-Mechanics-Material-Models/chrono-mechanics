@@ -119,7 +119,6 @@ set(CHRONO_THRUST_AVAILABLE @Thrust_FOUND@)
 set(CHRONO_MPI_CXX_AVAILABLE @MPI_CXX_FOUND@)
 set(CHRONO_HDF5_AVAILABLE @HDF5_FOUND@)
 set(CHRONO_OPTIX_AVAILABLE @CH_USE_SENSOR_OPTIX@)
-set(CHRONO_YAML_AVAILABLE @CHRONO_YAML_ENABLED@)
 
 set(CHRONO_CUDA_ARCHITECTURES "@CHRONO_CUDA_ARCHITECTURES@")
 
@@ -147,6 +146,9 @@ set(Chrono_VSG_AVAILABLE            @CH_ENABLE_MODULE_VSG@)
 set(Chrono_CSHARP_AVAILABLE         @CH_ENABLE_MODULE_CSHARP@)
 set(Chrono_FMI_AVAILABLE            @CH_ENABLE_MODULE_FMI@)
 set(Chrono_ROS_AVAILABLE            @CH_ENABLE_MODULE_ROS@)
+set(Chrono_LDPM_AVAILABLE           @CH_ENABLE_MODULE_LDPM@)
+set(Chrono_WOOD_AVAILABLE           @CH_ENABLE_MODULE_WOOD@)
+set(Chrono_FLOW_AVAILABLE           @CH_ENABLE_MODULE_FLOW@)
 
 if(CHRONO_MPI_CXX_AVAILABLE)
    set(Chrono_VEHICLECOSIM_AVAILABLE TRUE)
@@ -181,6 +183,9 @@ set(Chrono_MODAL_DEPENDENCIES          "@DEPENDENCIES_MODAL@")
 set(Chrono_VSG_DEPENDENCIES            "@DEPENDENCIES_VSG@")
 set(Chrono_ROS_DEPENDENCIES            "@DEPENDENCIES_ROS@")
 set(Chrono_VEHICLECOSIM_DEPENDENCIES   "@DEPENDENCIES_VEHICLECOSIM@")
+set(Chrono_LDPM_DEPENDENCIES           "@ENABLE_MODULE_DEPENDENCIES@")
+set(Chrono_WOOD_DEPENDENCIES           "@CH_ENABLE_MODULE_DEPENDENCIES@")
+set(Chrono_FLOW_DEPENDENCIES           "@CH_ENABLE_MODULE_DEPENDENCIES@")
 
 #-------------------------------------------------------------------------------
 # Build complete list of Chrono modules (requested and their dependencies)
@@ -444,22 +449,6 @@ list(PREPEND CHRONO_LIB_NAMES "ChronoModels_robot")
 if (NOT CHRONO_STATIC)
   list(APPEND CHRONO_DLL_NAMES "Chrono_core.dll")
   list(APPEND CHRONO_DLL_NAMES "ChronoModels_robot.dll")
-endif()
-
-
-#-------------------------------------------------------------------------------
-# Add dependency on yaml-cpp if it was available during build (even if Parsers module is not requested)
-#-------------------------------------------------------------------------------
-
-if (CHRONO_YAML_AVAILABLE)
-    list(PREPEND CHRONO_LIB_NAMES "yaml-cpp")
-    if (NOT CHRONO_STATIC)
-      list(APPEND CHRONO_DLL_NAMES "yaml-cpp.dll")
-    endif()
-
-    if (CHRONO_INSTALL_TREE)
-      include_directories(${CHRONO_PACKAGE_PREFIX_DIR}/include/chrono_thirdparty/yaml-cpp/include)
-    endif()
 endif()
 
 #-------------------------------------------------------------------------------
@@ -977,8 +966,14 @@ foreach(COMPONENT_UPPER ${Chrono_COMPONENTS})
     set(CHRONO_PARSERS_URDF @CH_USE_URDF@)
 
     list(PREPEND CHRONO_LIB_NAMES "Chrono_parsers")
+    list(PREPEND CHRONO_LIB_NAMES "yaml-cpp")
     if (NOT CHRONO_STATIC)
       list(APPEND CHRONO_DLL_NAMES "Chrono_parsers.dll")
+      list(APPEND CHRONO_DLL_NAMES "yaml-cpp.dll")
+    endif()
+
+    if (CHRONO_INSTALL_TREE)
+      include_directories(${CHRONO_PACKAGE_PREFIX_DIR}/include/chrono_thirdparty/yaml-cpp/include)
     endif()
 
     if(@CH_USE_URDF@)
@@ -1140,6 +1135,31 @@ foreach(COMPONENT_UPPER ${Chrono_COMPONENTS})
     list(PREPEND CHRONO_LIB_NAMES "Chrono_fmi")
     if (NOT CHRONO_STATIC)
       list(APPEND CHRONO_DLL_NAMES "Chrono_fmi.dll")
+    endif()
+		
+  elseif(${COMPONENT_UPPER} STREQUAL "LDPM")
+
+    list(PREPEND CHRONO_LIB_NAMES "Chrono_ldpm")
+    list(PREPEND CHRONO_LIB_NAMES "yaml-cpp")
+    if (NOT CHRONO_STATIC)
+      list(APPEND CHRONO_DLL_NAMES "Chrono_ldpm.dll")
+	  list(APPEND CHRONO_DLL_NAMES "yaml-cpp.dll")
+    endif()
+      
+  elseif(${COMPONENT_UPPER} STREQUAL "WOOD")
+    
+    list(PREPEND CHRONO_LIB_NAMES "Chrono_wood")
+	list(PREPEND CHRONO_LIB_NAMES "yaml-cpp")
+    if (NOT CHRONO_STATIC)
+      list(APPEND CHRONO_DLL_NAMES "Chrono_wood.dll")
+	  list(APPEND CHRONO_DLL_NAMES "yaml-cpp.dll")
+    endif()
+      
+  elseif(${COMPONENT_UPPER} STREQUAL "FLOW")
+    
+    list(PREPEND CHRONO_LIB_NAMES "Chrono_flow")
+    if (NOT CHRONO_STATIC)
+      list(APPEND CHRONO_DLL_NAMES "Chrono_flow.dll")
     endif()
 
   endif() # end if-else for component type
