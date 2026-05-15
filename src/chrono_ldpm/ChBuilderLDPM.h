@@ -56,14 +56,14 @@ class ChLdpmApi ChBuilderLDPM {
   public:    
     
     void read_LDPM_info(std::shared_ptr<ChMesh> my_mesh,  std::shared_ptr<ldpm::ChMaterialVECT> vect_mat, std::string& LDPM_data_path, 
-				std::string& LDPM_GeoName);
+				std::string& LDPM_GeoName, bool isFiber = false);
 	
-	///	
+  ///	
 	/// Reader for multy material LDPM (P-LDPM)
-	///
-	void read_LDPM_info(std::shared_ptr<ChMesh> my_mesh,  std::vector<std::shared_ptr<ldpm::ChMaterialVECT>> vect_mat, std::string& LDPM_data_path, 
+	///    
+    void read_LDPM_info(std::shared_ptr<ChMesh> my_mesh,  std::vector<std::shared_ptr<ldpm::ChMaterialVECT>> vect_mat, std::string& LDPM_data_path, 
 				std::string& LDPM_GeoName);
-
+        
     /// Access the list of elements used by the last built beam.
     /// It can be useful for changing properties afterwards.
     /// This list is reset all times a BuildBeam function is called.

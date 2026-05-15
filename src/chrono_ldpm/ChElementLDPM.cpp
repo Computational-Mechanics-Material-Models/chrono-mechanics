@@ -427,6 +427,39 @@ void ChElementLDPM::ComputeStiffnessMatrix() {
 	    			aLE_T*(mBJ.block<1,6>(1,0).transpose()*mBI.block<1,6>(1,0)+
 	    			mBJ.block<1,6>(2,0).transpose()*mBI.block<1,6>(2,0) ) );
 	    //
+		std::vector<std::vector<double>> fiber = facet->Get_fiber();
+		double crack_threshold = 1e-10;
+		double crack_width = facet->Get_StateVar()(11);
+		
+		if (!fiber.empty()&& crack_width > crack_threshold) {
+			
+			//double Ef = facet->Get_material()->Get_Ef();
+			
+            for (std::vector<double>& ifiber : fiber) {
+				
+				ChVectorN<double,3> nf_global;
+				nf_global << ifiber[0], ifiber[1], ifiber[2];
+				nf_global.normalize();
+
+				double kf = ifiber[11];
+				
+				ChMatrix33<double> Df = kf * (nf_global * nf_global.transpose());
+				StiffnessMatrix.block<6,6>(ind*6,ind*6) += (mBI.transpose() * Df * mBI);
+				StiffnessMatrix.block<6,6>(jnd*6,jnd*6) += (mBJ.transpose() * Df * mBJ);
+				StiffnessMatrix.block<6,6>(ind*6,jnd*6) -= (mBI.transpose() * Df * mBJ);
+				StiffnessMatrix.block<6,6>(jnd*6,ind*6) -= (mBJ.transpose() * Df * mBI);
+				
+			}
+			
+			double error = (StiffnessMatrix - StiffnessMatrix.transpose()).norm();
+			if (error > 1e-10){
+				std::cout << "StiffnessMatrix is not symmetric "<< std::endl;
+			}
+			if (StiffnessMatrix.determinant()<1e-12){
+				std::cout << "StiffnessMatrix determinant is very small "<< std::endl;
+			}
+		}
+		
 	    iface++;	    
     }    
     //    
@@ -641,7 +674,8 @@ void ChElementLDPM::ComputeInternalForces(ChVectorDynamic<>& Fi) {
 		if (nonMechanicalStrain.size()){
 			facet->Get_material()->ComputeStress( dmstrain, nonMechanicalStrain, length,  epsV, statev, mstress, area);
 		}else{
-			facet->Get_material()->ComputeStress( dmstrain, length,  epsV, statev, mstress, area);
+			std::vector<std::vector<double>> fiber = facet->Get_fiber();
+			facet->Get_material()->ComputeStress( dmstrain, length,  epsV, statev, mstress, area, fiber, nmL);
 		}
 		//facet->Set_StateVar(statev);	
 		statev_new[iface] = statev;

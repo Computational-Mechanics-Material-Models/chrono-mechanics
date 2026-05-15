@@ -23,10 +23,11 @@ SET(Chrono_LDPM_SOURCES
     ChLinkPoint2Line.cpp
     ChRepresentedVolumeElement.cpp
     ChElementFrictionalInterface.cpp
+    ChFiber.cpp
 )
 
 SET(Chrono_LDPM_HEADERS
-	ChLdpmApi.h
+	  ChLdpmApi.h
     ChElementTetrahedron_6DOFs.h 
     ChElementLDPM.h
     ChMaterialVECT.h
@@ -40,6 +41,7 @@ SET(Chrono_LDPM_HEADERS
     ChLinkPoint2Line.h
     ChRepresentedVolumeElement.h
     ChElementFrictionalInterface.h
+    ChFiber.h
 )
 
 SOURCE_GROUP("" FILES 

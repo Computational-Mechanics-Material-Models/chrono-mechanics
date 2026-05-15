@@ -30,11 +30,15 @@ ChMaterialVECT::ChMaterialVECT(double rho,  // material density
                                        double sigmat, double sigmas, double nt, double lt, 
 									   double Ed, double sigmac0, double beta, double Hc0,
 									   double Hc1, double kc0, double kc1, double kc2, double kc3,
-									   double mu0, double muinf, double sigmaN0, double kt, bool ela_flag)
+									   double mu0, double muinf, double sigmaN0, double kt, bool ela_flag, 
+									   double ksp, double ksn, double Ef, double t0,
+									   double Gd, double beta_fiber, double sigmauf, double krup, double salpha)
     : m_rho(rho), m_E0(E0), m_alpha(alpha), m_sigmat(sigmat), m_sigmas(sigmas), m_nt(nt),
 		m_lt(lt), m_Ed(Ed), m_sigmac0(sigmac0), m_beta(beta), m_Hc0(Hc0), m_Hc1(Hc1),
 		m_kc0(kc0), m_kc1(kc1), m_kc2(kc2), m_kc3(kc3), m_mu0(mu0), m_muinf(muinf), 
-		m_sigmaN0(sigmaN0), m_kt(kt), m_ela(ela_flag) {
+		m_sigmaN0(sigmaN0), m_kt(kt), m_ela(ela_flag), 
+        m_ksp(ksp), m_ksn(ksn), m_Ef(Ef), m_t0(t0), m_Gd(Gd), m_beta_fiber(beta_fiber),
+        m_sigmauf(sigmauf), m_krup(krup), m_salpha(salpha) {
         
 }
 
@@ -75,14 +79,22 @@ ChMaterialVECT::~ChMaterialVECT()	{};
 // statev(16): average fiber force
 // statev(17): volumetric strain
 
-void ChMaterialVECT::ComputeStress(ChVectorDynamic<>& dmstrain, double &len, double &epsV, ChVectorDynamic<>& statev, ChVectorDynamic<>& mstress, double& area) {
-    	mstress.resize(3);    
-	//std::cout << "statev: "<<"max stress: " << statev.segment(6,2).transpose() <<" strain/stress_eff " << statev.segment(8,2).transpose() << "\n";	
+void ChMaterialVECT::ComputeStress(ChVectorDynamic<>& dmstrain,
+                                   double& len,
+                                   double& epsV,
+                                   ChVectorDynamic<>& statev,
+                                   ChVectorDynamic<>& mstress,
+                                   double& area,
+                                   std::vector<std::vector<double>>& fiber,
+                                   ChMatrix33<double>& nmL) {
+    mstress.resize(3);    	
 	//
 	double E0=this->Get_E0();
 	double alpha=this->Get_alpha();	
 	// 
 	ChVectorDynamic<> mstrain(3);
+    ChVectorDynamic<> stress_ldpm(3);
+
 	mstrain=statev.segment(0,3)+dmstrain;	
 	//
 	double epsQ = pow(mstrain(0) * mstrain(0) + alpha * (mstrain(1) * mstrain(1) + mstrain(2) * mstrain(2)), 0.5);
@@ -98,9 +110,9 @@ void ChMaterialVECT::ComputeStress(ChVectorDynamic<>& dmstrain, double &len, dou
 	if (epsQ != 0) {
 		if (mstrain(0) > 10e-16) {     // fracture behaivor
 			double strsQ = FractureBC(mstrain, len, statev);
-			mstress(0) = strsQ * mstrain(0) / epsQ;
-			mstress(1) = alpha * strsQ * mstrain(1) / epsQ;
-			mstress(2) = alpha * strsQ * mstrain(2) / epsQ;
+			stress_ldpm(0) = strsQ * mstrain(0) / epsQ;
+			stress_ldpm(1) = alpha * strsQ * mstrain(1) / epsQ;
+			stress_ldpm(2) = alpha * strsQ * mstrain(2) / epsQ;
 		}
 		else {
 			double sigmaN = CompressBC(mstrain, epsV, statev);
@@ -111,40 +123,108 @@ void ChMaterialVECT::ComputeStress(ChVectorDynamic<>& dmstrain, double &len, dou
 			//double sigmaM = sigmaT * statev(4) / sigmaTpre;
 			//double sigmaL = sigmaT * statev(5) / sigmaTpre;
 
-			mstress(0) = sigmaN;
-			mstress(1) = sigmaM;
-			mstress(2) = sigmaL;
+			stress_ldpm(0) = sigmaN;
+			stress_ldpm(1) = sigmaM;
+			stress_ldpm(2) = sigmaL;
 		}
 		//double Wint = len * area * ((mstress(0)+ statev(3))/2 * dmstrain(0) + (mstress(1)+statev(4)) / 2 * dmstrain(1) +( mstress(2) + statev(5))/2 * dmstrain(2));
 		const auto stress_old = statev.segment(3,3);
 		
-		double Wint = len * area * ((mstress + stress_old)/2).dot(dmstrain);
+		double Wint = len * area * ((stress_ldpm + stress_old)/2).dot(dmstrain);
 
 		ChVectorN<double, 3> dmstrain_in;
 		ChVectorN<double, 3> dstress_in;
-		dstress_in(0) = (mstress(0) - statev(3)) / E0;
-		dstress_in(1) = (mstress(1) - statev(4)) / (E0 * alpha);
-		dstress_in(2) = (mstress(2) - statev(5)) / (E0 * alpha);
+		dstress_in(0) = (stress_ldpm(0) - statev(3)) / E0;
+		dstress_in(1) = (stress_ldpm(1) - statev(4)) / (E0 * alpha);
+		dstress_in(2) = (stress_ldpm(2) - statev(5)) / (E0 * alpha);
 		dmstrain_in = dmstrain - dstress_in;
-		//double DE = len * area * ((mstress(0)+ statev(3))/2 * dmstrain_in(0) + (mstress(1)+statev(4)) / 2 * dmstrain_in(1) +( mstress(2) + statev(5))/2 * dmstrain_in(2));
-		double DE = len * area * ((mstress + stress_old)/2).dot(dmstrain_in); // Dissipated energy
+		double DE = len * area * ((stress_ldpm + stress_old)/2).dot(dmstrain_in); // Dissipated energy
+		
+		//double Wint = len * area * ((stress_ldpm(0)+ statev(3))/2 * dmstrain(0) + (stress_ldpm(1)+statev(4)) / 2 * dmstrain(1) +( stress_ldpm(2) + statev(5))/2 * dmstrain(2));
+        
+		double w_N, w_M, w_L;
 
-		double w_N = len * (mstrain(0) - mstress(0) / E0);
-		double w_M = len * (mstrain(1) - mstress(1) / (E0 * alpha));
-		double w_L = len * (mstrain(2) - mstress(2) / (E0 * alpha));
+		if (mstrain(0) > 10e-16) {
+            w_N = len * (mstrain(0) - stress_ldpm(0) / E0);
+            //if (w_N < -10e-16) {
+                //std::cout << "w_N" << w_N << "mstrain" << mstrain(0) << "stress" << stress_ldpm(0) / E0 << std::endl;
+			//}
+            w_M = len * (mstrain(1) - stress_ldpm(1) / (E0 * alpha));
+            w_L = len * (mstrain(2) - stress_ldpm(2) / (E0 * alpha));
+		}
 
-		double w = pow(w_N * w_N + w_M * w_M + w_L * w_L, 0.5);
+		//double w = pow(w_N * w_N + w_M * w_M + w_L * w_L, 0.5);
+
+		ChVector3d w(w_N, w_M, w_L);
+
+		// for fluid to solid transition, the effective stress is multiplied by a hydration degree factor s_alpha.
+		double salpha = this->Get_salpha();
+        //stress_ldpm = stress_ldpm* salpha;
+		//mstress = stress_ldpm;
+		mstress = stress_ldpm* salpha;
+        
+		if (!fiber.empty() && w.Length() > 10e-16 && mstrain(0) > 10e-16) {
+
+			if (w_N < 0) {
+                w = -w;
+            } 
+
+			//std::cout << "start processing fiber "<< std::endl;
+
+            //ChVector3d nn(nmL(0, 0), nmL(0, 1), nmL(0, 2));
+            //ChVector3d mm(nmL(1, 0), nmL(1, 1), nmL(1, 2));
+            //ChVector3d ll(nmL(2, 0), nmL(2, 1), nmL(2, 2));
+            double P_n=0;
+            double P_m = 0;
+            double P_l = 0;
+            double P_fiber = 0;
+
+            for (std::vector<double>& ifiber : fiber) {
+                ChVector3d Pf = FiberForce(w, statev(16), ifiber, nmL);
+                P_n += Pf.x();
+                P_m += Pf.y();
+                P_l += Pf.z();
+                P_fiber += Pf.Length();
+
+				/*
+				if (fiber.size() > 1) {
+                    std::cout << "2 fibers in 1 facet" << std::endl;
+				}*/
+
+				//std::cout << "nf vector" << ifiber[0] << " " << ifiber[1] << " "<< ifiber[2] << std::endl;
+				//std::cout << "Pf: " << Pf.Length() << std::endl;
+                //std::cout << "w: " << w.Length() << std::endl;
+                //std::cout << "n vector" << nn << std::endl;
+				
+			}
+            
+			//std::cout << "stress  " << mstress(0) << " " << mstress(1) << " " << mstress(2) << " " << std::endl;
+			//std::cout << "fibers  " << P_n / area << " " << P_m / area << " " << P_l / area << " " << std::endl;
+
+
+			mstress(0) = mstress(0) + P_n / area;
+            mstress(1) = mstress(1) + P_m / area;
+            mstress(2) = mstress(2) + P_l / area;
+
+			statev(16) = P_fiber / fiber.size();
+			//std::cout << "final  " << mstress(0) << " " << mstress(1) << " " << mstress(2) << " " << std::endl;
+
+			//std::cout << "  " << std::endl;
+		}
+		
+		//std::cout << "stress_ldpm  " << stress_ldpm(0) << " " << stress_ldpm(1) << " " << stress_ldpm(2) << " " << std::endl;
+		//std::cout << "stress  " << mstress(0) << " " << mstress(1) << " " << mstress(2) << " " << std::endl;
 
 		statev(0) = mstrain(0);
 		statev(1) = mstrain(1);
 		statev(2) = mstrain(2);
-		statev(3) = mstress(0);
-		statev(4) = mstress(1);
-		statev(5) = mstress(2);
+		statev(3) = stress_ldpm(0);
+		statev(4) = stress_ldpm(1);
+		statev(5) = stress_ldpm(2);
 		statev(8) = pow(statev(0) * statev(0) + alpha * (statev(1) * statev(1) + statev(2) * statev(2)), 0.5);
 		statev(9) = pow(statev(3) * statev(3) + (statev(4) * statev(4) + statev(5) * statev(5)) / alpha, 0.5);
 		statev(10) = Wint + statev(10);
-		statev(11) = w;
+        statev(11) = w.Length();
 		statev(15) = DE + statev(15);
 		statev(17) = epsV;
 	}
@@ -321,6 +401,14 @@ double ChMaterialVECT::FractureBC(ChVectorDynamic<>& mstrain, double& len, ChVec
 	if (ela_flag) {
 		sigma_fr = strs_ela;
 	}
+	/*
+	if (abs(sigma_fr) < sigmat/1000 && epsQ > eps0) { // to avoid numerical issue when the stress is very small, set it to zero
+		sigma_fr = 0.0 * sigma_fr;
+		//std::cout << "in the small stress " << std::endl;
+
+	}
+	*/
+	
 	return sigma_fr;
 }
 
@@ -531,6 +619,74 @@ std::pair<double, double> ChMaterialVECT::ShearBC(ChVectorDynamic<>& mstrain, Ch
 	}
 	
 	return std::make_pair(sigmaM, sigmaL);
+}
+
+ChVector3d ChMaterialVECT::FiberForce(ChVector3d w, double Pf0, std::vector<double>& ifiber, ChMatrix33<double>& nmL) {
+
+	ChVector3d nf(ifiber[0], ifiber[1], ifiber[2]);
+    double Ls = ifiber[3];
+    double Ll = ifiber[4];
+    double df = ifiber[5];
+    double vmaxs = ifiber[7];
+    double vmaxl = ifiber[8];
+    double pmaxs = ifiber[9];
+    double pmaxl = ifiber[10];
+    //ChVector3d n(nmL(0, 0), nmL(0, 1), nmL(0, 2));
+
+	double ksp = this->Get_ksp();
+    double ksn = this->Get_ksn();
+    double Ef = this->Get_Ef();
+    double t0 = this->Get_t0();
+    double Gd = this->Get_Gd();
+    double beta_fiber = this->Get_beta_fiber();
+
+
+
+	ChVector3d nn(nmL(0, 0), nmL(0, 1), nmL(0, 2));
+
+    ChVector3d nf_local = (nmL * nf).GetNormalized();
+
+	if (nf_local.x() < 0) {
+        nf_local = nf_local * (-1);
+	}
+
+	auto [Pf,Ps,vs, vl, kf] =
+        ChFiber::FRP(w, Pf0, nf_local, nn, ksp, ksn, df, Ef, t0, Gd, Ls, Ll, beta_fiber, vmaxs, vmaxl, pmaxs, pmaxl);
+
+	if (vs > vmaxs) {
+        ifiber[7] = vs;
+	}
+    if (vl > vmaxl) {
+        ifiber[8] = vl;
+    }
+    if (Ps > pmaxs) {
+        ifiber[9] = Ps;
+	}
+    if (Ps > pmaxl) {
+        ifiber[10] = Ps;
+    }
+	
+	ifiber[11] = kf;
+	
+	double sigmauf = this->Get_sigmauf();
+    double krup = this->Get_krup();
+
+    double phi_prime = acos(nf_local.Dot(Pf.GetNormalized()));
+    double Pf_u = sigmauf * exp(-krup * phi_prime) * CH_PI * df * df/4;
+
+	if (Pf_u <= 0) {
+        std::cout << "Pf_u < 0 "<< std::endl;
+	}
+
+    if (Pf.Length() > Pf_u) {
+        Pf = Pf_u * Pf.GetNormalized();
+	}
+    //std::cout << "nf vector" << nf << std::endl;
+    //std::cout << "nf' vector" << nf_local << std::endl;
+	//std::cout << "kf: " << kf << std::endl;
+
+
+	return Pf;
 }
 
 

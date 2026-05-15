@@ -59,7 +59,8 @@ class ChLdpmApi ChSectionLDPM  : public chrono::fea::ChBeamSection {
     ChSectionLDPM(  std::shared_ptr<ChMaterialVECT> material,  // material 
                                     double area,    // Projected total area of the facet
                                     ChVector3d center,    // Center point of the facet area      
-                                    ChMatrix33<double> facetFrame   /// local system of frame of facet
+                                    ChMatrix33<double> facetFrame,   /// local system of frame of facet
+                                    std::vector<std::vector<double>> fiber_info// fiber
                                      );
 
     ChSectionLDPM();
@@ -85,6 +86,12 @@ class ChLdpmApi ChSectionLDPM  : public chrono::fea::ChBeamSection {
     //
     ChMatrix33<double> Get_facetFrame() const { return m_facetFrame; }
     void Set_facetFrame( ChMatrix33<double> facetFrame) { m_facetFrame=facetFrame; }
+    // Setter & Getter fiber information
+    std::vector<std::vector<double>> Get_fiber() const { return m_fiber_info; }
+    void Set_fiber(std::vector<std::vector<double>> fiber_info) { m_fiber_info = fiber_info; }
+
+
+
     // Setter & Getter for facet state variables
     ChVectorDynamic<>  Get_StateVar() const { return m_state; };
     void Set_StateVar(ChVectorDynamic<>  state) { m_state=state; }  
@@ -114,10 +121,12 @@ class ChLdpmApi ChSectionLDPM  : public chrono::fea::ChBeamSection {
 	 
     ChQuaternion<> mq_lattice_abs_rot;
     ChQuaternion<> mq_lattice_ref_rot; 
-    
+	
+    std::vector<std::vector<double>> m_fiber_info;
+	
     //std::shared_ptr<ChInternalDataCSL> m_state;    
     double m_area=1.0; 
-	double m_length=1.0;
+	  double m_length=1.0;
     //
     ChMatrixNM<double,3,9> mprojection_matrix;
     // 

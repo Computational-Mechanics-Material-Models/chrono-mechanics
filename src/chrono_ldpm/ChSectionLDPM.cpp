@@ -31,10 +31,10 @@ namespace ldpm {
 ChSectionLDPM::ChSectionLDPM( std::shared_ptr<ChMaterialVECT> material,  // material 
                                     double area,    // Projected total area of the facet
                                     ChVector3d center,    // Center point of the facet area      
-                                    ChMatrix33<double> facetFrame    /// local system of frame of facet 
-                                       )
-    : m_material{material}, m_area{area}, m_center{center}, m_facetFrame{facetFrame} {
-        
+                                    ChMatrix33<double> facetFrame,   /// local system of frame of facet 
+                             		std::vector<std::vector<double>> fiber_info)
+    : m_material{material}, m_area{area}, m_center{center}, m_facetFrame{facetFrame}, m_fiber_info{fiber_info} {
+
 }
 
 ChSectionLDPM::ChSectionLDPM() {};

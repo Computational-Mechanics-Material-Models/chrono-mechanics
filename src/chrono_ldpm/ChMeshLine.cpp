@@ -50,7 +50,7 @@ void ChMeshLine::AddBeamsFromNodeSet(std::vector<std::shared_ptr<fea::ChNodeFEAx
     
     for (unsigned int ie = 0; ie < this->mmesh->GetNumElements (); ++ie) {
         auto element = mmesh->GetElement(ie);
-		///////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////
         ///
         /// Get Euler beam elements  
         ///
@@ -64,7 +64,7 @@ void ChMeshLine::AddBeamsFromNodeSet(std::vector<std::shared_ptr<fea::ChNodeFEAx
 
             if ((nodes & 0x03) == 0x03)  // both nodes are in the set
                 AddBeam(beam);
-        }		
+        }
         ///////////////////////////////////////////////////////////////////////////////
         ///
         /// Get edge of LDPM tet  

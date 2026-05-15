@@ -21,6 +21,7 @@
 #define CHMATERIALVECT_H
 
 #include "chrono_ldpm/ChLdpmApi.h"
+#include "chrono_ldpm/ChFiber.h"
 #include "chrono/core/ChMatrix33.h"
 #include <vector>
 #include <string>
@@ -42,7 +43,9 @@ class ChLdpmApi ChMaterialVECT {
                        double sigmat, double sigmas, double nt, double lt, 
 					   double Ed, double sigmac0, double beta, double Hc0,
 					   double Hc1, double kc0, double kc1, double kc2, double kc3,
-					   double mu0, double muinf, double sigmaN0, double kt, bool ela_flag
+					   double mu0, double muinf, double sigmaN0, double kt, bool ela_flag, 
+                       double ksp, double ksn, double Ef, double t0, double Gd,
+                       double beta_fiber, double sigmauf, double krup, double salpha
     );
     
     ChMaterialVECT();
@@ -158,8 +161,37 @@ class ChLdpmApi ChMaterialVECT {
     double GetRayleighDampingM() const { return RayleighDampingM; }
     void SetRayleighDampingM(double myRayleighDampingM) { RayleighDampingM = myRayleighDampingM; }
 
+    /// Parameters for fiber
+    double Get_ksp() const { return m_ksp; }
+    void Set_ksp(double ksp) { m_ksp = ksp; }
+
+    double Get_ksn() const { return m_ksn; }
+    void Set_ksn(double ksn) { m_ksn = ksn; }
+
+    double Get_Ef() const { return m_Ef; }
+    void Set_Ef(double Ef) { m_Ef = Ef; }
+
+    double Get_t0() const { return m_t0; }
+    void Set_t0(double t0) { m_t0 = t0; }
+
+    double Get_Gd() const { return m_Gd; }
+    void Set_Gd(double Gd) { m_Gd = Gd; }
+
+    double Get_beta_fiber() const { return m_beta_fiber; }
+    void Set_beta_fiber(double beta_fiber) { m_beta_fiber = beta_fiber; }
+
+    double Get_krup() const { return m_krup; }
+    void Set_krup(double krup) { m_krup = krup; }
+
+    double Get_sigmauf() const { return m_sigmauf; }
+    void Set_sigmauf(double sigmauf) { m_sigmauf = sigmauf; }
+
+    double Get_salpha() const { return m_salpha; }
+    void Set_salpha(double salpha) { m_salpha = salpha; }
+
+
     /// Compute stresses from given strains and state variables.
-    void ComputeStress(ChVectorDynamic<>& mstrain, double &len, double& epsV, ChVectorDynamic<>& statev,ChVectorDynamic<>& mstress, double& area);
+    void ComputeStress(ChVectorDynamic<>& mstrain, double &len, double& epsV, ChVectorDynamic<>& statev,ChVectorDynamic<>& mstress, double& area, std::vector<std::vector<double>>& fiber, ChMatrix33<double>& nmL);
     void ComputeStress(ChVectorDynamic<>& mstrain, ChVectorDynamic<>& eigenstrain, double &len, double& epsV, ChVectorDynamic<>& statev,ChVectorDynamic<>& mstress, double& area);
 
     double FractureBC(ChVectorDynamic<>& mstrain, double& len, ChVectorDynamic<>& statev);
@@ -170,6 +202,8 @@ class ChLdpmApi ChMaterialVECT {
     
     double CompressBC(ChVectorDynamic<>& mstrain, ChVectorDynamic<>& dmstrain, double& epsV, ChVectorDynamic<>& statev);
     std::pair<double, double> ShearBC(ChVectorDynamic<>& mstrain, ChVectorDynamic<>& dmstrain, ChVectorDynamic<>& statev, double& sigmaN);
+
+    ChVector3d FiberForce(ChVector3d w, double Pf0, std::vector<double>& ifiber, ChMatrix33<double>& nmL);
     
   private:
     
@@ -198,6 +232,17 @@ class ChLdpmApi ChMaterialVECT {
     bool m_ela = false;                 ///< elastic analysis or not
     double RayleighDampingK=0;
     double RayleighDampingM=0;
+
+    double m_ksp;
+    double m_ksn;
+    double m_Ef;
+    double m_t0;
+    double m_Gd;
+    double m_beta_fiber;
+    double m_sigmauf;
+    double m_krup;
+
+    double m_salpha = 1;
   //public:
   //EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
