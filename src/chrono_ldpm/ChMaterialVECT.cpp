@@ -78,6 +78,9 @@ ChMaterialVECT::~ChMaterialVECT()	{};
 // statev(15): dissipated energy
 // statev(16): average fiber force
 // statev(17): volumetric strain
+// statev(18): normal N fiber stress
+// statev(19): shear M fiber stress
+// statev(20): shear L fiber stress
 
 void ChMaterialVECT::ComputeStress(ChVectorDynamic<>& dmstrain,
                                    double& len,
@@ -201,15 +204,26 @@ void ChMaterialVECT::ComputeStress(ChVectorDynamic<>& dmstrain,
 			//std::cout << "stress  " << mstress(0) << " " << mstress(1) << " " << mstress(2) << " " << std::endl;
 			//std::cout << "fibers  " << P_n / area << " " << P_m / area << " " << P_l / area << " " << std::endl;
 
+			
+			ChVectorDynamic<> stress_fiber(3);
+			stress_fiber(0) = P_n / area;
+			stress_fiber(1) = P_m / area;
+			stress_fiber(2) = P_l / area;
+			// mstress(0) = mstress(0) + P_n / area;
+            // mstress(1) = mstress(1) + P_m / area;
+            // mstress(2) = mstress(2) + P_l / area;
 
-			mstress(0) = mstress(0) + P_n / area;
-            mstress(1) = mstress(1) + P_m / area;
-            mstress(2) = mstress(2) + P_l / area;
+			const auto stress_old_fiber = statev.segment(18,3);
+			double Wint_fiber = len * area * ((stress_fiber + stress_old_fiber)/2).dot(dmstrain);
+
+			mstress = mstress + stress_fiber;
+			Wint = Wint + Wint_fiber;
 
 			statev(16) = P_fiber / fiber.size();
-			//std::cout << "final  " << mstress(0) << " " << mstress(1) << " " << mstress(2) << " " << std::endl;
+			statev(18) = stress_fiber(0);
+			statev(19) = stress_fiber(1);
+			statev(20) = stress_fiber(2);
 
-			//std::cout << "  " << std::endl;
 		}
 		
 		//std::cout << "stress_ldpm  " << stress_ldpm(0) << " " << stress_ldpm(1) << " " << stress_ldpm(2) << " " << std::endl;

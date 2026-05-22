@@ -280,7 +280,7 @@ std::tuple<ChVector3d, double, double, double> ChFiber::Pf_cal(ChVector3d w,
     double sf = 0;
 
 	ChVector3d w_prime = w + 2 * sf * nf;
-    if (w_prime.Length() == 1e-12) {
+    if (w_prime.Length() < 1e-16) {
         //ChVector3d nf_prime = nf;
         throw std::runtime_error("Error when calculating fiber bridging force vector: w_prime=0 \n");
         exit(EXIT_FAILURE);
