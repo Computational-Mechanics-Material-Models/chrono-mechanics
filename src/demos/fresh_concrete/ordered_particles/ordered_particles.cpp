@@ -45,18 +45,30 @@ using namespace std::filesystem;
 struct AppOptions {
     bool visualization = false;     // default: headless
     int  fps_limit = 60;            // opcjonalnie
+    int number_of_paricles_in_layer = 0;
+    float initial_velocity = 0.0f;
 };
 
 AppOptions parse_args(int argc, char* argv[]) {
     AppOptions opt;
+
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
+
         if (a == "--vis" || a == "--visualization") {
             opt.visualization = true;
+
         } else if (a == "--no-vis") {
             opt.visualization = false;
+
         } else if (a.rfind("--fps=", 0) == 0) {
             opt.fps_limit = std::max(1, std::stoi(a.substr(6)));
+
+        } else if (a.rfind("--nlayer=", 0) == 0) {
+            opt.number_of_paricles_in_layer = std::max(1, std::stoi(a.substr(9)));
+
+        } else if (a.rfind("--vel=", 0) == 0) {
+            opt.initial_velocity = std::stof(a.substr(6));
         }
     }
     return opt;
@@ -115,7 +127,18 @@ std::vector<std::shared_ptr<ChBody>> create_container(ChSystemSMC& sys,
     bottom_wall->GetVisualShape(0)->SetOpacity(0.25);
     bottom_wall->EnableCollision(true);
     sys.Add(bottom_wall);
+    std::shared_ptr<ChBodyEasyBox> top_wall = chrono_types::make_shared<ChBodyEasyBox>(size, size, wall_thickness, // x, y, z size
+                                                                                          density, // density
+                                                                                          true, // visualise
+                                                                                          true, // collide
+                                                                                          container_wall_material); // material
+    top_wall->SetPos(ChVector3d(size/2 - sphere_radius, size/2 - sphere_radius, size + wall_thickness/2 + 2*sphere_radius));
+    top_wall->SetFixed(true);
+    top_wall->GetVisualShape(0)->SetOpacity(0.25);
+    top_wall->EnableCollision(true);
+    sys.Add(top_wall);
 
+    /*
     std::shared_ptr<ChBodyEasyBox> side_wall_1 = chrono_types::make_shared<ChBodyEasyBox>(size, wall_thickness, size, // x, y, z size
                                                                                           density, // density
                                                                                           true, // visualise
@@ -159,13 +182,14 @@ std::vector<std::shared_ptr<ChBody>> create_container(ChSystemSMC& sys,
     side_wall_4->GetVisualShape(0)->SetOpacity(0.25);
     side_wall_4->EnableCollision(true);
     sys.Add(side_wall_4);
-
+    */
     std::vector<std::shared_ptr<ChBody>> walls;
     walls.push_back(bottom_wall);
-    walls.push_back(side_wall_1);
+    walls.push_back(top_wall);
+/*    walls.push_back(side_wall_1);
     walls.push_back(side_wall_2);
     walls.push_back(side_wall_3);
-    walls.push_back(side_wall_4);
+    walls.push_back(side_wall_4);*/
     return walls;
 }
 
@@ -184,8 +208,9 @@ std::shared_ptr<ChMaterialFCM> create_concrete_material() {
     DFC_concrete->Set_flocbeta(0.01);
     DFC_concrete->Set_flocm(1.0);
     DFC_concrete->Set_flocTcr(100.);
-    DFC_concrete->Set_lambda_init(2.0);
+    DFC_concrete->Set_lambda_init(0);  // set to 0 from 2.0 to check influence on CPU vs GPU comparison, 
     DFC_concrete->Set_ThixOnFlag(false);
+    DFC_concrete->Set_SmoothOnFlag(false);
     return DFC_concrete;
 }
 
@@ -223,11 +248,22 @@ std::vector<std::shared_ptr<ChBody>> create_sphere_layers(ChSystemSMC& sys,
                                                           const ChVector3d vel,
                                                           float radius,
                                                           float density,
-                                                          int layer_size_in_spheres){
+                                                          int layer_size_in_spheres,
+                                                          int sphere_configuration){
     std::vector<std::shared_ptr<ChBody>> created_spheres;
     float h = material->Get_mortar_h();
     for (int i = 0; i < layer_size_in_spheres; ++i) {
-        float layer_shift = (i % 2 == 0) ? 0 : radius / 2;
+        float layer_shift = 0;
+        switch (sphere_configuration) {
+        case 1:
+            layer_shift = (i % 2 == 0) ? 0 : radius / 2;  // configuration A
+            break;
+        case 2:
+            layer_shift = 0;  // configuration B
+            break;
+        default:
+            std::cout << "Wrong configuration. The simulation will not work correctly.\n";
+        }
         for (int j = 0; j < layer_size_in_spheres; ++j) {
             for (int k = 0; k < layer_size_in_spheres; ++k) {
                 float x = k * (2 * radius - h) + layer_shift;
@@ -260,13 +296,18 @@ int main(int argc, char* argv[]) {
     // parse arguments
     const auto opt = parse_args(argc, argv);
     
-    float simulation_time = 1.0;
+    float simulation_time = 1;
     float sphere_radius = 5;
-    int number_of_paricles_in_layer = 5;
-    float initial_velocity = -50.0;
+    int number_of_paricles_in_layer = opt.number_of_paricles_in_layer;
+    float initial_velocity = opt.initial_velocity;
+    std::cout << number_of_paricles_in_layer << initial_velocity << "\n";
+    if (number_of_paricles_in_layer == 0 || initial_velocity == 0.0f) {
+        std::cout << "Wrong initial velocity or number of particles in layer. Finish simulation.";
+        return 0;
+    }
     path out_dir = current_path();
-    out_dir += "/experiment_test_CPU";
-    out_dir += "/simulation_time_" + std::to_string(int(simulation_time)) + "s";
+    out_dir += "/experiment_test_CPU_flocculation_0";
+    out_dir += "/configuration_B";
     out_dir += "/box_size_in_spheres_" + std::to_string(number_of_paricles_in_layer);
     out_dir += "/initial_velocity_" + std::to_string(int(initial_velocity));
     std::cout << out_dir;
@@ -274,6 +315,9 @@ int main(int argc, char* argv[]) {
 
 // Create a Chrono system
     ChSystemSMC sys;
+    std::cout << "Default integration scheme is: " << static_cast<int>(sys.GetTimestepper()->GetType()) << std::endl;
+    sys.SetTimestepperType(ChTimestepper::Type::EULER_EXPLICIT);  // EULER_IMPLICIT
+    std::cout << "Changed integration scheme to: " << static_cast<int>(sys.GetTimestepper()->GetType()) << std::endl;
 	sys.SetGravitationalAcceleration(ChVector3d(0, 0, 0));
 	sys.SetNumThreads(1,1,1);
     sys.SetCollisionSystemType(ChCollisionSystem::Type::BULLET);
@@ -296,12 +340,13 @@ int main(int argc, char* argv[]) {
         vis->AddCamera(ChVector3d(250, 250, 500));
         vis->AddTypicalLights();
     }
-    std::vector<std::shared_ptr<ChBody>> my_spheres = create_sphere_layers(sys, materialFCM, ChVector3d(0, 0, initial_velocity), sphere_radius, 1.4858e-9, number_of_paricles_in_layer);
+    std::vector<std::shared_ptr<ChBody>> my_spheres = create_sphere_layers(sys, materialFCM, ChVector3d(0, 0, initial_velocity), sphere_radius, 1.4858e-9, number_of_paricles_in_layer, 2);
+    std::size_t sphere_number = my_spheres.size();
     bool closed_window = false;
     if (opt.visualization) {
         vis->AttachSystem(&sys);
     }
-    float time_step = 2.0E-5;
+    float time_step = 1.0E-6;
     int number_of_files_to_save = 100;
     int save_dt_in_steps = static_cast<int>(simulation_time / time_step / number_of_files_to_save);
     int simulation_steps = 0;
@@ -315,6 +360,8 @@ int main(int argc, char* argv[]) {
             sprintf(file_name, "%s/Case_%04d.csv", out_dir.c_str(), total_save_counter);
             write_sphere_file(std::string(file_name), my_spheres);
             std::cout << "Current simulation time: " << sys.GetChTime() << " " << total_save_counter-1  << " % of simulation has been completed.\n";
+            std::cout << "Average number of contacts per sphere in the system: " << float(sys.GetContactContainer()->GetNumContacts()) / float(sphere_number) << std::endl;
+            std::cout << "Contact force acting on particle: " << my_spheres[0]->GetContactForce() << std::endl << std::endl;
         }
         
         sys.DoStepDynamics(time_step);

@@ -871,10 +871,15 @@ class FCContactForce : public ChSystemSMC::ChContactForceTorqueSMC {
 				map_contact_info[mykey].strain[1]=0; map_contact_info[mykey].strain[2]=0;
 			}else{
 				sgmN=(epsA)*ENm+(epsN-epsA)*ENa;
-				sgmM=alpha*ENa*epsM;
+                // changed for GPU vs CPU comparison to have it the same as in GPU ForceDFC_Bahar.cu
+                sgmM = 0;
+                sgmL = 0;
+                /*
+                sgmM=alpha*ENa*epsM;
 				sgmM = sgn(epsM)*std::min<double>(abs(sgmM), mat.mu_eff * std::abs(sgmN))*0;
 				sgmL=alpha*ENa*epsL;
 				sgmL = sgn(epsL)* std::min<double>(abs(sgmL), mat.mu_eff * std::abs(sgmN))*0;
+                */
 				//std::cout<<"delta_new: "<<delta_new <<" epsQ: "<<epsQ<<"  epsA: "<<epsA<<"  stot "<<stot<<"\n";
 				//exit(0);
 				/*

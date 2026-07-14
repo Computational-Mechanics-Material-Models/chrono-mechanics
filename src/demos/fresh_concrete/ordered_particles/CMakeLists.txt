@@ -64,8 +64,7 @@ project(my_project)
 list(APPEND CMAKE_PREFIX_PATH "/home/mariusz/PROJECT_CHRONO_MECHANICS_DFC_DEV/INSTALL_DEBUG")
 set(Chrono_DIR "/home/mariusz/PROJECT_CHRONO_MECHANICS_DFC_DEV/INSTALL_DEBUG/lib/cmake/Chrono")
 find_package(Chrono
-             COMPONENTS Irrlicht
-	     COMPONENTS Multicore
+             COMPONENTS Irrlicht Multicore Postprocess
              OPTIONAL_COMPONENTS PardisoMKL
              CONFIG)
 
@@ -81,6 +80,7 @@ endif()
 # Ścieżka do bibliotek w czasie URUCHAMIANIA (nie linkowania)
 set(CMAKE_BUILD_RPATH "/home/mariusz/PROJECT_CHRONO_MECHANICS_DFC_DEV/INSTALL_DEBUG/lib")
 set(CMAKE_INSTALL_RPATH "/home/mariusz/PROJECT_CHRONO_MECHANICS_DFC_DEV/INSTALL_DEBUG/lib")
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 #--------------------------------------------------------------
 # Important! To ensure ABI compatibility, use the same C++ standard
@@ -152,7 +152,7 @@ add_executable(ordered_particles ordered_particles.cpp)
 
 target_compile_definitions(ordered_particles PUBLIC "CHRONO_DATA_DIR=\"${CHRONO_DATA_DIR}\"") 
 target_compile_options(ordered_particles PUBLIC ${CHRONO_CXX_FLAGS})
-target_link_options(ordered_particles PUBLIC ${CHRONO_LINKER_FLAGS})
+target_link_options(ordered_particles PUBLIC ${CHRONO_LINKER_FLAGS} "-Wl,--no-as-needed")
 
 #--------------------------------------------------------------
 # Link to Chrono libraries and dependency libraries
