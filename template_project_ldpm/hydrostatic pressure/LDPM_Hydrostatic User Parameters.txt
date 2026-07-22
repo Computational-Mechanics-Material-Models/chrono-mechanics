@@ -1,0 +1,147 @@
+LDPM Hydrostatic Compression Example
+====================================
+
+This file summarizes the main user-defined parameters that may need to be changed when running the hydrostatic compression example with a different cylindrical specimen.
+
+1. LDPM Geometry Files
+----------------------
+
+Update the folder containing the LDPM geometry files:
+
+    std::string LDPM_data_path =
+        current_dir + "LDPMgeo000Cylinder000/";
+
+Example:
+
+    std::string LDPM_data_path =
+        current_dir + "MyCylinderGeometry/";
+
+Update the geometry file prefix only if the names of the .dat files use a different prefix:
+
+    std::string LDPM_GeoName = "LDPMgeo000";
+
+For example, if the files are named:
+
+    Cylinder01-data-nodes.dat
+    Cylinder01-data-tets.dat
+    ...
+
+use:
+
+    std::string LDPM_GeoName = "Cylinder01";
+
+
+2. Specimen Dimensions
+----------------------
+
+The cylinder dimensions are calculated automatically from the LDPM mesh:
+
+    double D = std::max(xmax - xmin, ymax - ymin);
+    double R = D / 2.0;
+    double H = zmax - zmin;
+    double A_specimen = CH_PI * R * R;
+
+The code also detects the specimen center and the top and bottom coordinates automatically using:
+
+    center_x
+    center_y
+    zmin
+    zmax
+
+The top and bottom boundaries are selected using the automatically calculated coordinates:
+
+    std::abs(p.z() - zmin) < tol_z     // bottom surface
+    std::abs(p.z() - zmax) < tol_z     // top surface
+
+The top and bottom reference nodes are also selected relative to the automatically calculated specimen center:
+
+    std::abs(p.x() - center_x)
+    std::abs(p.y() - center_y)
+
+Therefore, when a different cylindrical geometry is used, the user does not need to manually enter the cylinder diameter, height, center coordinates, or top and bottom coordinates.
+
+No hard-coded specimen coordinates such as z = 0 or z = 200 are required.
+
+
+3. Maximum Hydrostatic Pressure
+-------------------------------
+
+Set the maximum applied pressure using:
+
+    double Pmax = 800;
+
+The pressure unit is MPa when the model uses N and mm.
+
+Example for a maximum pressure of 500 MPa:
+
+    double Pmax = 500;
+
+
+4. Loading Duration
+-------------------
+
+Set the time required to reach the maximum pressure using:
+
+    double T0 = 0.8;
+
+The applied pressure increases linearly:
+
+    P_applied = Pmax * current_time / T0;
+
+The analysis loop should use T0 directly:
+
+    while (sys.GetChTime() <= T0)
+
+This avoids changing the final time in more than one location.
+
+
+5. Time Step
+------------
+
+Set the time-integration step using:
+
+    double timestep = 1.0e-4;
+
+A smaller time step may improve numerical stability but increases the computational cost.
+
+Example:
+
+    double timestep = 5.0e-5;
+
+
+6. Boundary-Detection Tolerances
+--------------------------------
+
+The code uses tolerances to identify the top, bottom, and lateral surfaces:
+
+    double tol_z = 0.001 * H;
+    double tol_r = 0.02 * R;
+
+Normally, these values do not need to be changed.
+
+They may require adjustment if the new mesh is much coarser, irregular, or if the boundary nodes are not detected correctly.
+
+Increasing the tolerances excessively may incorrectly select internal nodes or faces.
+
+
+7. Material Parameters
+----------------------
+
+Changing only the cylinder dimensions does not require changing the LDPM material parameters.
+
+Material parameters should be modified only when a different concrete material or calibration is used.
+
+
+Quick User Checklist
+--------------------
+
+For a new cylindrical specimen, check or modify:
+
+    1. LDPM_data_path
+    2. LDPM_GeoName, only if the file prefix changes
+    3. Pmax
+    4. T0
+    5. timestep, only if needed
+    6. tol_z and tol_r, only if boundary detection is unsuccessful
+
+The cylinder diameter, height, radius, top area, and lateral geometry are obtained automatically from the imported LDPM mesh.
