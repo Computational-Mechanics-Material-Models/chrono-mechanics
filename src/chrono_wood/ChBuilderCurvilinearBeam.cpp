@@ -1227,7 +1227,7 @@ void ChBuilderCurvilinearBeamBezier::BuildBeam(std::shared_ptr<ChMesh> mesh,    
 
 
 void ChBuilderCurvilinearBeamBezier::read_CBL_info_ElBased(std::shared_ptr<ChMesh> my_mesh,   std::string& CBL_data_path, 
-				std::string& CBL_GeoName, double YoungModulus,	double ShearModulus, double density){
+				std::string& CBL_GeoName, double YoungModulus,	double ShearModulus, double density, std::shared_ptr<ChViscoelasticity> viscoelasticity){
 	//	
 	//
 	//
@@ -1447,7 +1447,8 @@ void ChBuilderCurvilinearBeamBezier::read_CBL_info_ElBased(std::shared_ptr<ChMes
 		ShearModulus,			// shear modulus
 		density			        // density
 		);
-		
+	newsection->Set_ViscoElasticity(viscoelasticity);
+	
 	Beam_Sections.push_back(newsection);
     
      }

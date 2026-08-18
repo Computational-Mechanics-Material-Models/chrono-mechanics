@@ -9,7 +9,7 @@
 // http://projectchrono.org/license-chrono.txt.
 //
 // =============================================================================
-// Authors: Erol Lale, Jibril B. Coulibaly
+// Authors: Erol Lale, Wisdom AKpan, Jibril B. Coulibaly
 // =============================================================================
 
 #ifndef CHELEMENT_CBLCON_H
@@ -17,6 +17,7 @@
 
 #include "chrono_wood/ChWoodApi.h"
 #include "chrono_wood/ChBeamSectionCBLCON.h"
+#include "chrono_wood/ChWoodViscoelasticity.h"
 //#include "chrono/fea/ChBeamSectionEuler.h"
 #include "chrono/fea/ChElementBeam.h"
 #include "chrono/fea/ChElementCorotational.h"
@@ -62,6 +63,16 @@ class ChWoodApi ChElementCBLCON : public ChElementBeam,
 
     unsigned int GetDOFOffset() { return section->Get_material()->GetNumberOfStateVariables(); }
     virtual std::shared_ptr<ChNodeFEAbase> GetNode(unsigned int n) override { return nodes[n]; }
+	
+	// Access connector state variables, similar in spirit to LDPM facet Get_StateVar().
+	ChVectorDynamic<>& Get_StateVar() { return statevar; }
+
+	const ChVectorDynamic<>& Get_StateVar() const { return statevar; }
+
+	// Alias for code that uses GetStateVar().
+	ChVectorDynamic<>& GetStateVar() { return statevar; }
+
+	const ChVectorDynamic<>& GetStateVar() const { return statevar; }
 	
 	virtual std::shared_ptr<ChNodeFEAxyzrot> GetConnectorNode(unsigned int n) { return nodes[n]; }
 
@@ -311,6 +322,13 @@ class ChWoodApi ChElementCBLCON : public ChElementBeam,
   public: // TODO JBC: WHY IS ALL OF THAT PUBLIC ?!?! I Think some of it must be private, let's discuss!
     /// Initial setup. Precompute mass and matrices that do not change during the simulation, such as the local tangent
     /// stiffness Kl of each element, if needed, etc.
+	
+	const ChViscoelasticityState& GetViscoState() const { return m_visco_state; }
+    ChViscoelasticityState&       GetViscoState()       { return m_visco_state; }
+    void SetLocalEnv(double T, double h, double dT, double dh) { m_visco_state.SetFromCoupling(T, h, dT, dh); }
+    void ClearCoupledEnv() { m_visco_state.ClearCoupledEnv(); }
+	
+	
     virtual void SetupInitial(ChSystem* system) override;
 
     std::vector<std::shared_ptr<ChNodeFEAxyzrot> > nodes;
@@ -340,6 +358,10 @@ class ChWoodApi ChElementCBLCON : public ChElementBeam,
     ChVectorDynamic<> statevar_old;
 	
 	std::shared_ptr<ChMatrixNM<double,1,9>> macro_strain;
+	
+	private: 
+	ChViscoelasticityState m_visco_state;
+    ChSystem* m_system = nullptr;
     
   
 };

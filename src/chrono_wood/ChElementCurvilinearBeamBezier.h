@@ -9,7 +9,7 @@
 // http://projectchrono.org/license-chrono.txt.
 //
 // =============================================================================
-// Authors: Erol Lale
+// Authors: Erol Lale, Wisdom Akpan
 // =============================================================================
 
 #ifndef CHELEMENT_CURVILINEAR_BEAM_Bezier_H
@@ -19,6 +19,7 @@
 #include "chrono_wood/ChWoodApi.h"
 #include "chrono_wood/ChBasisToolsBeziers.h"
 #include "chrono_wood/ChBeamSectionCurvedIGA.h"
+#include "chrono_wood/ChWoodViscoelasticity.h"
 #include "chrono/fea/ChElementBeam.h"
 //#include "chrono/fea/ChElementBeamIGA.h"
 #include "chrono/fea/ChBeamSectionCosserat.h"
@@ -154,6 +155,9 @@ class ChWoodApi ChElementCurvilinearBeamBezier : public ChElementBeam, public Ch
     double GetU2() { return knots(knots.size() - order - 1); }
 
     virtual void Update() override ;
+	
+	// Commit history variables only after Chrono accepts the time step.
+	virtual void ElementUpdateEndStep(double time) override;
 
      /// Get the plastic data, in a vector with as many elements as Gauss points.
     std::vector<std::unique_ptr<ChBeamMaterialInternalData>>& GetPlasticData() { return plastic_data; }
@@ -452,8 +456,32 @@ class ChWoodApi ChElementCurvilinearBeamBezier : public ChElementBeam, public Ch
 	void ComputeEigenStrain(int ig, std::shared_ptr<ChMatrixNM<double,1,9>> macro_strain);
 	
 	ChVector3d Get_nonMechanicStrain(int ig) const { return m_nonMechanicStrain[ig]; };
-    void Set_nonMechanicStrain(int ig, ChVector3d  nonMechanicStrain) { m_nonMechanicStrain[ig]=nonMechanicStrain; } 
+    void Set_nonMechanicStrain(int ig, ChVector3d  nonMechanicStrain) { m_nonMechanicStrain[ig]=nonMechanicStrain; }
+
+	double ComputeWint() const;
 	
+    //
+    void SetNumStateVars(int n) { m_num_statevars = n; }
+    int  GetNumStateVars() const { return m_num_statevars; }
+    std::vector<ChVectorDynamic<>>& GetStateVars()    { return m_statevars; }
+    std::vector<ChVectorDynamic<>>& GetStateVarsOld() { return m_statevars_old; }
+	
+    const ChViscoelasticityState& GetViscoState(int ig) const { return m_visco_states[ig]; }
+    ChViscoelasticityState&       GetViscoState(int ig)       { return m_visco_states[ig]; }
+	
+	void SetLocalEnv(int ig, double T, double h, double dT, double dh) {
+        m_visco_states[ig].SetFromCoupling(T, h, dT, dh);
+    }
+	
+    void ClearCoupledEnv(int ig) { m_visco_states[ig].ClearCoupledEnv(); }
+
+    ChVector3d GetGaussPointPos(int ig);
+	
+	ChVector3d GetGaussPointPosRef(int ig);
+	
+	int GetNumGaussPoints() const { return int_order_b; }
+
+		
   private:
     /// Initial setup. Precompute mass and matrices that do not change during the simulation. In particular, compute the
     /// arc-length parametrization.
@@ -461,6 +489,15 @@ class ChWoodApi ChElementCurvilinearBeamBezier : public ChElementBeam, public Ch
 
     std::vector<std::shared_ptr<ChNodeFEAxyzrot>> nodes;  // also "control points"
     ChVectorDynamic<> knots;
+	
+    int m_num_statevars = 0;
+    std::vector<ChVectorDynamic<>> m_statevars_old;
+    std::vector<ChVectorDynamic<>> m_statevars;
+	
+    std::vector<ChViscoelasticityState> m_visco_states;
+	
+	ChSystem* m_system = nullptr;
+	
     //ChVectorDynamic<> weights;
 	public:
     int order;
@@ -494,8 +531,15 @@ class ChWoodApi ChElementCurvilinearBeamBezier : public ChElementBeam, public Ch
     std::vector<ChQuaternion<>> Qpoint_abs_rot;
     std::vector<ChQuaternion<>> Qpoint_ref_rot; 
     ChVectorDynamic<> DUn_1;
-    ChVectorDynamic<> Un_1;
-	std::vector<ChVector3d>  m_nonMechanicStrain;	
+	ChVectorDynamic<> Un_1;
+	ChVectorDynamic<> DUn_trial;
+	std::vector<ChVector3d> strain_e_old;
+	std::vector<ChVector3d> strain_k_old;
+	std::vector<ChVector3d> stress_n_old;
+	std::vector<ChVector3d> stress_m_old;
+	double m_Wint = 0.0;
+
+	std::vector<ChVector3d> m_nonMechanicStrain;	
 	
 	std::shared_ptr<ChMatrixNM<double,1,9>> macro_strain;
 	std::vector<ChMatrixNM<double,3,9>> mprojection_matrix;

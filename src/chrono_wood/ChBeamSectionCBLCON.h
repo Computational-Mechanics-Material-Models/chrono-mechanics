@@ -34,6 +34,8 @@
 #include "chrono_wood/ChWoodMaterialVECT.h"
 #include "chrono/core/ChMatrix33.h"
 #include "chrono/fea/ChBeamSection.h"
+#include "chrono_wood/ChWoodViscoelasticity.h"
+
 
 using namespace chrono::fea;
 
@@ -114,10 +116,16 @@ class ChWoodApi ChBeamSectionCBLCON  : public ChBeamSection {
 	
 	ChVector3d Get_nonMechanicStrain() const { return m_nonMechanicStrain; };
     void Set_nonMechanicStrain(ChVector3d nonMechanicStrain) { m_nonMechanicStrain=nonMechanicStrain; }
+	
+	std::shared_ptr<ChViscoelasticity> Get_ViscoElasticity() const { return m_viscoelasticity; };
+    void Set_ViscoElasticity(std::shared_ptr<ChViscoelasticity> viscoelasticity) {
+        m_viscoelasticity = viscoelasticity;
+    }
     
     
   protected:
     std::shared_ptr<ChWoodMaterialVECT> m_material;
+	std::shared_ptr<ChViscoelasticity> m_viscoelasticity = nullptr;
     ChVector3d m_center;
     ChVector3d m_center_ref;
     ChMatrix33<double> m_facetFrame;
@@ -134,6 +142,7 @@ class ChWoodApi ChBeamSectionCBLCON  : public ChBeamSection {
     double JzzJyy_factor;
 	
 	ChMatrixNM<double,3,9> mprojection_matrix;
+	
 };
 
 

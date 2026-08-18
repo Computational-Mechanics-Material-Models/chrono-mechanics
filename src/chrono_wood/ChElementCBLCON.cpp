@@ -33,6 +33,8 @@
 #include "chrono/core/ChQuaternion.h"
 #include "chrono/core/ChVector3.h"
 #include "chrono_wood/ChBeamSectionCBLCON.h"
+#include "chrono/physics/ChSystem.h"
+
 
 namespace chrono {
 namespace wood {
@@ -494,6 +496,22 @@ void ChElementCBLCON::SetupInitial(ChSystem* system) {
     statevar_old.setZero(GetNumStateVar());
     GetStateBlock(statevar_old); // Store DOFs at the end of state variables vector (temporary, to do updated Lagrangian until these are stored at the nodes in Tasora's new design)
     statevar = statevar_old;
+	
+	m_system = system;
+    auto visco = section->Get_ViscoElasticity();
+    if (visco && section->Get_material()->GetCreepAnalysisFlag()) {
+        section->Get_material()->SetNkelvForSizing(visco->GetNkelv());
+        statevar_old.setZero(GetNumStateVar());
+        GetStateBlock(statevar_old);
+        statevar = statevar_old;
+
+        m_visco_state.UpdateFromGlobalFunctions(
+            system->GetChTime(), system->GetStep(),
+            visco->GetRHFunction(),   visco->GetInitialRH(),
+            visco->GetTempFunction(), visco->GetInitialTemp());
+        m_visco_state.dt    = system->GetStep();
+        m_visco_state.CTime = system->GetChTime();
+    }
     
     
     //
@@ -656,7 +674,23 @@ void ChElementCBLCON::ComputeInternalForces(ChVectorDynamic<>& Fi) {
     double random_field =section->GetRandomField();
     auto nonMechanicalStrain=section->Get_nonMechanicStrain();
     ChVector3d mstress, mcouple;
-    section->Get_material()->ComputeStress(strain_increment, curvature_increment, nonMechanicalStrain, length, statevar_old, statevar, area, width, height, random_field, mstress, mcouple);
+	
+    auto visco = section->Get_ViscoElasticity();
+    if (visco && section->Get_material()->GetCreepAnalysisFlag()) {
+        m_visco_state.dt    = m_system ? m_system->GetStep()   : 0.0;
+        m_visco_state.CTime = m_system ? m_system->GetChTime() : 0.0;
+        if (!m_visco_state.use_coupled_env) {
+            m_visco_state.UpdateFromGlobalFunctions(
+                m_visco_state.CTime, m_visco_state.dt,
+                visco->GetRHFunction(),   visco->GetInitialRH(),
+                visco->GetTempFunction(), visco->GetInitialTemp());
+        }
+        section->Get_material()->ComputeStress(visco, m_visco_state, strain_increment, curvature_increment, nonMechanicalStrain,length, statevar_old, statevar, area, width, height, random_field, mstress, mcouple);
+    } else {
+        section->Get_material()->ComputeStress(strain_increment, curvature_increment, nonMechanicalStrain,length, statevar_old, statevar, area, width, height, random_field, mstress, mcouple);
+    }
+	
+    //section->Get_material()->ComputeStress(strain_increment, curvature_increment, nonMechanicalStrain, length, statevar_old, statevar, area, width, height, random_field, mstress, mcouple);
 
     ChVector3d force = area * (nmL_tr * mstress);
 

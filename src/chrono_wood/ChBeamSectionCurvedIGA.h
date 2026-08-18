@@ -9,7 +9,7 @@
 // http://projectchrono.org/license-chrono.txt.
 //
 // =============================================================================
-// Authors: Erol Lale
+// Authors: Erol Lale, Wisdom Akpan
 // =============================================================================
 //
 #ifndef CH_BEAM_SECTION_CURVED_H
@@ -21,6 +21,10 @@
 #include "chrono/core/ChMatrix.h"
 #include "chrono/core/ChMatrix33.h"
 #include "chrono/core/ChQuadrature.h"
+#include "chrono_wood/ChWoodViscoelasticity.h"
+#include "chrono/physics/ChSystem.h"
+#include <memory>
+
 
 using namespace chrono;
 using namespace chrono::fea;
@@ -64,6 +68,7 @@ class ChWoodApi ChInternalDataPlastic : public ChBeamMaterialInternalData {
 
 class CurvedBeamSection : public ChBeamSectionCosserat {
 protected:
+    std::shared_ptr<ChViscoelasticity> m_viscoelasticity;
     CurvedBeamSection(){};    
     std::vector<rectangle_wing> props;
     int nwings=1;
@@ -73,16 +78,18 @@ protected:
 	double Cy=0.5;  // eccentricity of section in normal direction 
 	double Cz=0.0;  // eccentricity of section in binormal direction
 public:
-    CurvedBeamSection( 
-        std::shared_ptr<ChInertiaCosserat> minertia,
-        std::shared_ptr<ChElasticityCosserat> melasticity,
-        std::shared_ptr<ChPlasticityCosserat> mplasticity = nullptr,
-        std::shared_ptr<ChDampingCosserat> mdamping = nullptr,
-        double mwidth_y = 1.0,  // Default width
-        double mwidth_z = 1.0  // Default height
-        ) : ChBeamSectionCosserat(minertia, melasticity, mplasticity, mdamping),
-           width_y(mwidth_y), 
-           width_z(mwidth_z) {}
+    CurvedBeamSection(
+    std::shared_ptr<ChInertiaCosserat> minertia,
+    std::shared_ptr<ChElasticityCosserat> melasticity,
+    std::shared_ptr<ChPlasticityCosserat> mplasticity = nullptr,
+    std::shared_ptr<ChDampingCosserat> mdamping = nullptr,
+    std::shared_ptr<ChViscoelasticity> viscoelasticity = nullptr,
+    double mwidth_y = 1.0,
+    double mwidth_z = 1.0
+	) : ChBeamSectionCosserat(minertia, melasticity, mplasticity, mdamping),
+    width_y(mwidth_y),
+    width_z(mwidth_z),
+    m_viscoelasticity(viscoelasticity) {}
 
     virtual ~CurvedBeamSection() {}
     
@@ -109,6 +116,9 @@ public:
     void SetProps(std::vector<rectangle_wing> mprops) { props = mprops; }
     rectangle_wing GetPropsN(int i) const { return props[i]; }
     std::vector<rectangle_wing> GetProps() const { return props; }
+
+	std::shared_ptr<ChViscoelasticity> Get_ViscoElasticity() const { return m_viscoelasticity; }
+	void Set_ViscoElasticity(std::shared_ptr<ChViscoelasticity> viscoelasticity) { m_viscoelasticity = viscoelasticity; }
     
     std::vector<double> EasyMultiWingsSection(const std::vector<rectangle_wing>& mwings) {
     
@@ -172,7 +182,7 @@ public:
         const ChVector3d& strain_n,
         const ChVector3d& strain_m,
         ChBeamMaterialInternalData* mdata_new = nullptr,
-        const ChBeamMaterialInternalData* mdata = nullptr ) override {
+        const ChBeamMaterialInternalData* mdata = nullptr) override {
         // Implement your custom stress computation here
         ChVectorN<double, 6> mstrain;
     	ChVectorN<double, 6> mstress;
@@ -181,7 +191,7 @@ public:
 		if (mdata_new){
 			auto mydata = dynamic_cast<const ChInternalDataPlastic*>(mdata);
 			auto mydata_new = dynamic_cast<ChInternalDataPlastic*>(mdata_new);
-			Eigen::Vector3d p_strain_e( mydata->p_strain_e.x(), mydata->p_strain_e.y(), mydata->p_strain_e.z() );
+			Eigen::Vector3d p_strain_e( mydata->p_strain_e[0], mydata->p_strain_e[1], mydata->p_strain_e[2] );
 			mstrain.segment(0, 3) = strain_n.eigen() - p_strain_e;
 			//mstrain.segment(3, 3) = strain_m.eigen() - mdata->p_curvature_acc;
 		}else{
@@ -203,7 +213,7 @@ public:
         const ChVector3d& strain_m,
         ChMatrixNM<double, 6, 6>& Dmat,
         ChBeamMaterialInternalData* mdata_new = nullptr,
-        const ChBeamMaterialInternalData* mdata = nullptr ) {
+        const ChBeamMaterialInternalData* mdata = nullptr) {
         // Implement your custom stress computation here
         ChVectorN<double, 6> mstrain;
     	ChVectorN<double, 6> mstress;    	
@@ -211,7 +221,7 @@ public:
     	if (mdata_new){
 			auto mydata = dynamic_cast<const ChInternalDataPlastic*>(mdata);						
 			auto mydata_new = dynamic_cast<ChInternalDataPlastic*>(mdata_new);
-			Eigen::Vector3d p_strain_e( mydata->p_strain_e.x(), mydata->p_strain_e.y(), mydata->p_strain_e.z() );
+			Eigen::Vector3d p_strain_e( mydata->p_strain_e[0], mydata->p_strain_e[1], mydata->p_strain_e[2] );
 			mstrain.segment(0, 3) = strain_n.eigen() - p_strain_e;
 			//mstrain.segment(3, 3) = strain_m.eigen() - mdata->p_curvature_acc;
 		}else{
@@ -224,9 +234,228 @@ public:
     	stress_n = mstress.segment(0, 3);
     	stress_m = mstress.segment(3, 3);
     };
+
+	virtual void ComputeStress(
+    ChVector3d& stress_n,
+    ChVector3d& stress_m,
+    const ChVector3d& strain_n,
+    const ChVector3d& strain_m,
+    ChMatrixNM<double, 6, 6>& Dmat,
+    ChBeamMaterialInternalData* mdata_new,
+    const ChBeamMaterialInternalData* mdata,
+    const std::shared_ptr<ChViscoelasticity>& visco,
+    const ChViscoelasticityState& env_state,
+    const ChVectorDynamic<>& svars_old,
+    ChVectorDynamic<>& svars_new) {
+
+    ChVectorN<double, 6> mstrain;
+    ChVectorN<double, 6> mstress;
+
+    mstrain.setZero();
+    mstress.setZero();
+
+    // total strain passed from element
+    if (mdata_new) {
+        auto mydata = dynamic_cast<const ChInternalDataPlastic*>(mdata);
+        auto mydata_new = dynamic_cast<ChInternalDataPlastic*>(mdata_new);
+
+        if (mydata) {
+            Eigen::Vector3d p_strain_e(mydata->p_strain_e[0],
+                                       mydata->p_strain_e[1],
+                                       mydata->p_strain_e[2]);
+            mstrain.segment(0, 3) = strain_n.eigen() - p_strain_e;
+            mstrain.segment(3, 3) = strain_m.eigen();
+            // mstrain.segment(3, 3) = strain_m.eigen() - mdata->p_curvature_acc;
+        } else {
+            mstrain.segment(0, 3) = strain_n.eigen();
+            mstrain.segment(3, 3) = strain_m.eigen();
+        }
+    } else {
+        mstrain.segment(0, 3) = strain_n.eigen();
+        mstrain.segment(3, 3) = strain_m.eigen();
+    }
+
+    // pure elastic fallback
+    if (!visco) {
+        mstress = Dmat * mstrain;
+        stress_n = mstress.segment(0, 3);
+        stress_m = mstress.segment(3, 3);
+        return;
+    }
+
+    const int Nkelv = visco->GetNkelv();
+
+    const int idx_GAM  = 19;
+    const int idx_Z    = idx_GAM + 3 * Nkelv;
+    const int idx_CMC0 = idx_Z + 1;
+    const int idx_DMC0 = idx_Z + 2;
+    const int idx_CMCX = idx_Z + 3;
+    const int idx_AF   = idx_Z + 4;
+
+    const int NSVARS = idx_AF + 1;   // 24 + 3*Nkelv
+
+    if (svars_new.size() != NSVARS) {
+        svars_new.resize(NSVARS);
+    }
+    svars_new.setZero();
+
+    // initialize elastically if old state is not available yet
+    if (svars_old.size() != NSVARS) {
+        mstress = Dmat * mstrain;
+
+        stress_n = mstress.segment(0, 3);
+        stress_m = mstress.segment(3, 3);
+
+        svars_new(0) = mstrain(0);
+        svars_new(1) = mstrain(1);
+        svars_new(2) = mstrain(2);
+
+        svars_new(3) = mstrain(3);
+        svars_new(4) = mstrain(4);
+        svars_new(5) = mstrain(5);
+
+        svars_new(6)  = stress_n[0];
+        svars_new(7)  = stress_n[1];
+        svars_new(8)  = stress_n[2];
+
+        svars_new(9)  = stress_m[0];
+        svars_new(10) = stress_m[1];
+        svars_new(11) = stress_m[2];
+
+        svars_new(12) = stress_n[0];
+        svars_new(13) = stress_n[1];
+        svars_new(14) = stress_n[2];
+
+        svars_new(15) = stress_m[0];
+        svars_new(16) = stress_m[1];
+        svars_new(17) = stress_m[2];
+
+        svars_new(18) = 0.0;
+
+        for (int i = 0; i < Nkelv; ++i) {
+            int idx = idx_GAM + 3 * i;
+            svars_new(idx)     = 0.0;
+            svars_new(idx + 1) = 0.0;
+            svars_new(idx + 2) = 0.0;
+        }
+
+        svars_new(idx_Z)    = 0.0;
+        svars_new(idx_CMC0) = 0.0;
+        svars_new(idx_DMC0) = 0.0;
+        svars_new(idx_CMCX) = 0.0;
+        svars_new(idx_AF)   = 1.0;
+
+        return;
+    }
+
+    ChVector3d strain_n_prev(svars_old(0),  svars_old(1),  svars_old(2));
+    ChVector3d strain_m_prev(svars_old(3),  svars_old(4),  svars_old(5));
+
+    ChVector3d stress_n_prev(svars_old(6),  svars_old(7),  svars_old(8));
+    ChVector3d stress_m_prev(svars_old(9),  svars_old(10), svars_old(11));
+
+    ChVector3d dstress_n_prev(svars_old(12), svars_old(13), svars_old(14));
+    ChVector3d dstress_m_prev(svars_old(15), svars_old(16), svars_old(17));
+
+    double dtold = svars_old(18);
+
+    std::vector<ChVector3d> gamold(Nkelv, ChVector3d(0, 0, 0));
+    for (int i = 0; i < Nkelv; ++i) {
+        int idx = idx_GAM + 3 * i;
+        gamold[i] = ChVector3d(svars_old(idx), svars_old(idx + 1), svars_old(idx + 2));
+    }
+
+    double Zold = svars_old(idx_Z);
+    double CMC0 = svars_old(idx_CMC0);
+    double DMC0 = svars_old(idx_DMC0);
+    double CMCX = svars_old(idx_CMCX);
+    double AF   = svars_old(idx_AF);
+
+    ChVector3d dstrain_n = ChVector3d(mstrain(0), mstrain(1), mstrain(2)) - strain_n_prev;
+    ChVector3d dstrain_m = ChVector3d(mstrain(3), mstrain(4), mstrain(5)) - strain_m_prev;
+
+    std::vector<ChVector3d> gamnew;
+    double CN_visco = 0.0;
+    ChVector3d dstrain_visco_n = visco->ComputeViscoBeam(
+        gamold, dtold, stress_n_prev, dstress_n_prev, env_state, gamnew, CN_visco);
+
+    double Znew = Zold;
+    double CN_mech = 0.0;
+    ChVector3d mechano_n = visco->ComputeMechanoBeam(Zold, stress_n_prev, dstress_n_prev, env_state, Znew, CN_mech);
+
+    double CMCnew = 0.0, DMCnew = 0.0, CMCXnew = 0.0, AFnew = 1.0;
+    ChVector3d shrink_n  = visco->ComputeShrinkBeam(CMC0, CMCX, AF, DMC0, env_state, CMCnew, DMCnew, CMCXnew, AFnew);
+    ChVector3d thermal_n = visco->ComputeThermalBeam(env_state);
+
+	//ChVector3d eigen_n = shrink_n;
+     ChVector3d eigen_n = dstrain_visco_n + AFnew * mechano_n + shrink_n + thermal_n;
+
+    ChVector3d dstrain_mech_n = dstrain_n - eigen_n;
+    ChVector3d dstrain_mech_m = dstrain_m;   // no direct curvature
+
+    ChVectorN<double, 6> dstrain_mech;
+    dstrain_mech.setZero();
+    dstrain_mech.segment(0, 3) = dstrain_mech_n.eigen();
+    dstrain_mech.segment(3, 3) = dstrain_mech_m.eigen();
+
+    double A0       = visco->GetA0();
+    double Q1       = visco->GetQ1();
+    double El       = visco->GetEl();
+
+    double A_total = A0 + Q1 + CN_mech + CN_visco;   // + CN_mech  //CN_visco //
+    double Em      = (A_total > 0.0) ? 1.0 / A_total : El;
+    double ratio   =  Em / El ;
+
+    ChVectorN<double, 6> df = ratio * (Dmat * dstrain_mech);
+
+    ChVector3d dstress_n_new(df(0), df(1), df(2));
+    ChVector3d dstress_m_new(df(3), df(4), df(5));
+
+    stress_n = stress_n_prev + dstress_n_new;
+    stress_m = stress_m_prev + dstress_m_new;
+
+    svars_new(0) = mstrain(0);
+    svars_new(1) = mstrain(1);
+    svars_new(2) = mstrain(2);
+
+    svars_new(3) = mstrain(3);
+    svars_new(4) = mstrain(4);
+    svars_new(5) = mstrain(5);
+
+    svars_new(6)  = stress_n[0];
+    svars_new(7)  = stress_n[1];
+    svars_new(8)  = stress_n[2];
+
+    svars_new(9)  = stress_m[0];
+    svars_new(10) = stress_m[1];
+    svars_new(11) = stress_m[2];
+
+    svars_new(12) = dstress_n_new[0];
+    svars_new(13) = dstress_n_new[1];
+    svars_new(14) = dstress_n_new[2];
+
+    svars_new(15) = dstress_m_new[0];
+    svars_new(16) = dstress_m_new[1];
+    svars_new(17) = dstress_m_new[2];
+
+    svars_new(18) = env_state.dt;
+
+    for (int i = 0; i < Nkelv; ++i) {
+        int idx = idx_GAM + 3 * i;
+        svars_new(idx)     = gamnew[i][0];
+        svars_new(idx + 1) = gamnew[i][1];
+        svars_new(idx + 2) = gamnew[i][2];
+    }
+
+    svars_new(idx_Z)    = Znew;
+    svars_new(idx_CMC0) = CMCnew;
+    svars_new(idx_DMC0) = DMCnew;
+    svars_new(idx_CMCX) = CMCXnew;
+    svars_new(idx_AF)   = AFnew;
+
+}
     
-    
-    std::vector<double> ComputeSectionCharacteristic( const double kappa, ///< curvature
+std::vector<double> ComputeSectionCharacteristic( const double kappa, ///< curvature
                             const int order)               ///< order of integration
     {
         ChQuadratureTables* mtables = 0;
