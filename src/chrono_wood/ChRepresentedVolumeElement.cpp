@@ -6,6 +6,8 @@
 #include <unordered_map>
 
 #include <filesystem>
+#include <unistd.h>
+#include <sys/types.h>
 
 //#include "chrono_thirdparty/filesystem/path.h"
 //#include "chrono/utils/ChUtilsInputOutput.h"

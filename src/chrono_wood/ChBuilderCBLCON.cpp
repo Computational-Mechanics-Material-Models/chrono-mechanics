@@ -189,7 +189,7 @@ void ChBuilderCBLCON::BuildBeam(std::shared_ptr<ChMesh> mesh,                 //
 
 
 void ChBuilderCBLCON::read_CBLCON_info(std::shared_ptr<ChMesh> my_mesh,  std::shared_ptr<ChWoodMaterialVECT> vect_mat, std::string& CBLCON_data_path, 
-				std::string& CBLCON_GeoName){
+				std::string& CBLCON_GeoName, std::shared_ptr<ChViscoelasticity> vect_visco){
 	//
 	std::vector<std::vector<double>> Mfacet;
 	//std::vector<vertdata> MvertIDs;
@@ -300,13 +300,18 @@ void ChBuilderCBLCON::read_CBLCON_info(std::shared_ptr<ChMesh> my_mesh,  std::sh
 		//
 		// Get connector nodes which previously stored as pointers in mesh object	
 		//
-		if (connector.preCrack  || connector.conType == 11 || connector.conType == 12 || connector.conType == 13)
-			continue;   //if precrack and tangential_ray connectors, skip inserting  into mesh
+		//if (connector.preCrack  || connector.conType == 11 || connector.conType == 12 || connector.conType == 13)
+		//	continue;   //if precrack and tangential_ray connectors, skip inserting  into mesh
 		//
 		auto nodeA = std::dynamic_pointer_cast<ChNodeFEAxyzrot>(my_mesh->GetNode(connector.inode-1));
 		auto nodeB = std::dynamic_pointer_cast<ChNodeFEAxyzrot>(my_mesh->GetNode(connector.jnode-1));
 		//
-		double area=connector.width*connector.height;
+		double width = connector.width;
+
+		if (connector.randomField > 0.0)
+		width *= connector.randomField;
+	
+		double area = width * connector.height;
 		//
 		facetC[0]=connector.centerx;
 		facetC[1]=connector.centery;
@@ -362,7 +367,8 @@ void ChBuilderCBLCON::read_CBLCON_info(std::shared_ptr<ChMesh> my_mesh,  std::sh
 		//
 		auto msection = chrono_types::make_shared<ChBeamSectionCBLCON>();
 		msection->Set_material(vect_mat);
-		msection->SetWidth(connector.width);
+		msection->Set_ViscoElasticity(vect_visco); 
+		msection->SetWidth(width);
 		msection->SetHeight(connector.height);
 		msection->Set_area(area);
 		msection->Set_center_ref(facetC);
@@ -421,7 +427,7 @@ void ChBuilderCBLCON::read_CBLCON_info(std::shared_ptr<ChMesh> my_mesh,  std::sh
 
 
 void ChBuilderCBLCON::read_CBLCON_info(std::shared_ptr<ChMesh> my_mesh,  std::vector<std::shared_ptr<ChWoodMaterialVECT>> vect_mat, std::string& CBLCON_data_path, 
-				std::string& CBLCON_GeoName){
+				std::string& CBLCON_GeoName, std::vector<std::shared_ptr<ChViscoelasticity>> vect_visco){
 	
 	
 	
@@ -506,13 +512,18 @@ void ChBuilderCBLCON::read_CBLCON_info(std::shared_ptr<ChMesh> my_mesh,  std::ve
 		//
 		// Get connector nodes which previously stored as pointers in mesh object	
 		//
-		if (connector.preCrack || connector.conType == 11 || connector.conType == 12 || connector.conType == 13)
-			continue;   //if precrack and tangential_ray connectors, skip inserting  into mesh
+		//if (connector.preCrack || connector.conType == 11 || connector.conType == 12 || connector.conType == 13)
+		//	continue;   //if precrack and tangential_ray connectors, skip inserting  into mesh
 		//
 		auto nodeA = std::dynamic_pointer_cast<ChNodeFEAxyzrot>(my_mesh->GetNode(connector.inode-1));
 		auto nodeB = std::dynamic_pointer_cast<ChNodeFEAxyzrot>(my_mesh->GetNode(connector.jnode-1));
 		//
-		double area=connector.width*connector.height;
+		double width = connector.width;
+
+		if (connector.randomField > 0.0)
+		width *= connector.randomField;
+	
+		double area = width * connector.height;
 		//
 		facetC[0]=connector.centerx;
 		facetC[1]=connector.centery;
@@ -569,7 +580,7 @@ void ChBuilderCBLCON::read_CBLCON_info(std::shared_ptr<ChMesh> my_mesh,  std::ve
 		int typeFlag=connector.conType;
 		//
 		auto msection = chrono_types::make_shared<ChBeamSectionCBLCON>();		
-		msection->SetWidth(connector.width);
+		msection->SetWidth(width);
 		msection->SetHeight(connector.height);
 		msection->Set_area(area);
 		msection->Set_center_ref(facetC);
@@ -595,31 +606,53 @@ void ChBuilderCBLCON::read_CBLCON_info(std::shared_ptr<ChMesh> my_mesh,  std::ve
     		case 1: 
 				msection->SetSectionType(ChBeamSectionCBLCON::ConSectionType::transverse_regular_bot);
 				msection->Set_material(vect_mat[0]);
-				break;
+				msection->Set_ViscoElasticity(vect_visco[0]);
+				break; 
 			case 2:
 				msection->SetSectionType(ChBeamSectionCBLCON::ConSectionType::transverse_regular_gen);
 				msection->Set_material(vect_mat[0]);
+				msection->Set_ViscoElasticity(vect_visco[0]);
 				break;
 			case 3:
 				msection->SetSectionType(ChBeamSectionCBLCON::ConSectionType::transverse_regular_top);
 				msection->Set_material(vect_mat[0]);
+				msection->Set_ViscoElasticity(vect_visco[0]);
 				break;
 			case 4: 
 				msection->SetSectionType(ChBeamSectionCBLCON::ConSectionType::longitudinal);
 				msection->Set_material(vect_mat[1]);
+				msection->Set_ViscoElasticity(vect_visco[1]);
 				break;
 			case 21: 
 				msection->SetSectionType(ChBeamSectionCBLCON::ConSectionType::radial_ray_bot);
 				msection->Set_material(vect_mat[2]);
+				msection->Set_ViscoElasticity(vect_visco[2]);
 				break;
 			case 22: 
 				msection->SetSectionType(ChBeamSectionCBLCON::ConSectionType::radial_ray_gen);
 				msection->Set_material(vect_mat[2]);
+				msection->Set_ViscoElasticity(vect_visco[2]);
 				break;
 			case 23: 
 				msection->SetSectionType(ChBeamSectionCBLCON::ConSectionType::radial_ray_top);
 				msection->Set_material(vect_mat[2]);
+				msection->Set_ViscoElasticity(vect_visco[2]);
 				break;
+			case 11: 
+				msection->SetSectionType(ChBeamSectionCBLCON::ConSectionType::tangential_ray_bot);
+				msection->Set_material(vect_mat[3]);
+				msection->Set_ViscoElasticity(vect_visco[3]);
+				break;
+			case 12: 
+				msection->SetSectionType(ChBeamSectionCBLCON::ConSectionType::tangential_ray_gen);
+				msection->Set_material(vect_mat[3]);
+				msection->Set_ViscoElasticity(vect_visco[3]);
+				break;
+			case 13: 
+				msection->SetSectionType(ChBeamSectionCBLCON::ConSectionType::tangential_ray_top);
+				msection->Set_material(vect_mat[3]);
+				msection->Set_ViscoElasticity(vect_visco[3]);
+				break;	
         }
 		//		
 		auto mel = chrono_types::make_shared<ChElementCBLCON>();

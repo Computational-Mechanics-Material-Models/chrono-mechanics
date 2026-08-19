@@ -17,6 +17,7 @@
 
 #include "chrono_wood/ChWoodApi.h"
 #include "chrono_wood/ChElementCBLCON.h"
+#include "chrono_wood/ChWoodViscoelasticity.h"
 #include "chrono/fea/ChElementTetraCorot_4.h"
 
 
@@ -84,11 +85,15 @@ class ChWoodApi ChBuilderCBLCON {
                    const ChVector3d Ydir                         ///< the 'up' Y direction of the beam
     );
     
-    void read_CBLCON_info(std::shared_ptr<ChMesh> my_mesh,  std::shared_ptr<ChWoodMaterialVECT> vect_mat, std::string& CBLCON_data_path, 
-				std::string& CBLCON_GeoName);
-	
-    void read_CBLCON_info(std::shared_ptr<ChMesh> my_mesh,  std::vector<std::shared_ptr<ChWoodMaterialVECT>> vect_mat, std::string& CBLCON_data_path, 
-				std::string& CBLCON_GeoName);
+    void read_CBLCON_info(std::shared_ptr<ChMesh> my_mesh,
+                          std::shared_ptr<ChWoodMaterialVECT> vect_mat,
+                          std::string& CBLCON_data_path, std::string& CBLCON_GeoName,
+                          std::shared_ptr<ChViscoelasticity> vect_visco = nullptr);
+
+    void read_CBLCON_info(std::shared_ptr<ChMesh> my_mesh,
+                          std::vector<std::shared_ptr<ChWoodMaterialVECT>> vect_mat,
+                          std::string& CBLCON_data_path, std::string& CBLCON_GeoName,
+                          std::vector<std::shared_ptr<ChViscoelasticity>> vect_visco = {});
 
     /// Access the list of elements used by the last built beam.
     /// It can be useful for changing properties afterwards.

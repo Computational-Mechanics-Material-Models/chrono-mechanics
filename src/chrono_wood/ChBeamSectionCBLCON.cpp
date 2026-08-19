@@ -9,7 +9,7 @@
 // http://projectchrono.org/license-chrono.txt.
 //
 // =============================================================================
-// Authors: Erol Lale, Jibril B. Coulibaly
+// Authors: Erol Lale, Wisdom Akpan, Jibril B. Coulibaly
 // =============================================================================
 // Section class for CBL Connectors
 //

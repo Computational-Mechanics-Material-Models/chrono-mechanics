@@ -20,6 +20,7 @@
 #include "chrono_wood/ChElementCurvilinearBeamBezier.h"
 #include "chrono_wood/ChBeamSectionCurvedIGA.h"
 #include "chrono_wood/ChLineBezierCBL.h"
+#include "chrono_wood/ChWoodViscoelasticity.h"
 
 #include "chrono/fea/ChMesh.h"
 #include "chrono/fea/ChElementBeamEuler.h"
@@ -298,7 +299,7 @@ class ChWoodApi ChBuilderCurvilinearBeamBezier {
 				std::string& CBL_GeoName, double YoungModulus,	double ShearModulus, double density);
     
     void read_CBL_info_ElBased(std::shared_ptr<ChMesh> my_mesh,   std::string& CBL_data_path, 
-				std::string& CBL_GeoName, double YoungModulus,	double ShearModulus, double density);
+				std::string& CBL_GeoName, double YoungModulus,	double ShearModulus, double density, std::shared_ptr<ChViscoelasticity> viscoelasticity = nullptr);
 	
 	
 };

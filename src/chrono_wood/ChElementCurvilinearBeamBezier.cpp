@@ -9,13 +9,14 @@
 // http://projectchrono.org/license-chrono.txt.
 //
 // =============================================================================
-// Authors: Erol Lale, Jibril B. Coulibaly
+// Authors: Erol Lale, Wisdom Akpan, Jibril B. Coulibaly
 // =============================================================================
 
 //#define BEAM_VERBOSE
 
 //#include "chrono/fea/ChElementCurvilinearBeamIGA.h"
 #include "chrono_wood/ChElementCurvilinearBeamBezier.h"
+#include "chrono_wood/ChWoodViscoelasticity.h"
 #include "chrono/core/ChVector3.h"
 #include <iterator>
 
@@ -224,6 +225,50 @@ void ChElementCurvilinearBeamBezier::Update() {
 	}
 }
 
+
+
+
+double ChElementCurvilinearBeamBezier::ComputeWint() const {
+    return m_Wint;
+}
+
+
+void ChElementCurvilinearBeamBezier::ElementUpdateEndStep(double time) {
+    (void)time;
+
+    ChVectorDynamic<> displ;
+    this->GetStateBlock_NEW(displ);
+    Un_1 = displ;
+    DUn_1.setZero(displ.size());
+    DUn_trial.setZero(displ.size());
+
+    for (int ig = 0; ig < int_order_b; ++ig) {
+        const double w   = ChQuadrature::GetStaticTables()->Weight[int_order_b - 1][ig];
+        const double dV  = w * this->Jacobian_b[ig];
+
+        ChVector3d deps = strain_e[ig] - strain_e_old[ig];
+        ChVector3d dkap = strain_k[ig] - strain_k_old[ig];
+
+        m_Wint += 0.5 * ( (stress_n_old[ig] + stress_n[ig]).Dot(deps)
+                        + (stress_m_old[ig] + stress_m[ig]).Dot(dkap) ) * dV;
+    }
+
+    // commit
+    strain_e_old = strain_e;
+    strain_k_old = strain_k;
+    stress_n_old = stress_n;
+    stress_m_old = stress_m;
+	
+	// Commit plastic internal state variables.
+    for (size_t i = 0; i < this->plastic_data.size(); ++i) {
+        this->plastic_data_old[i]->Copy(*this->plastic_data[i]);
+    }
+	
+	// Commit viscoelastic internal state variables 
+	if (m_num_statevars > 0 && m_statevars.size() == m_statevars_old.size()) {
+        m_statevars_old = m_statevars;
+    }
+}
 
 ChMatrix33<> ChElementCurvilinearBeamBezier::FrenetSerret(std::vector<std::shared_ptr<ChNodeFEAxyzrot>>& nodes, ChVector3d& jacob, double invJacob, ChVectorDynamic<>& RR, ChVectorDynamic<>& dRdxi, ChVectorDynamic<>& ddRddxi, ChVectorDynamic<>& dddRdddxi, double& kappa, double& tau){
 	//
@@ -1207,21 +1252,30 @@ void ChElementCurvilinearBeamBezier::ComputeInternalForces_impl(ChVectorDynamic<
                                                   bool used_for_differentiation) {
     
     
-    ChVectorDynamic<> displ;   
-    this->GetStateBlock_NEW(displ);
-    DUn_1=displ-Un_1;
-    Un_1=displ;   
-    // zero the Fi accumulator
-    Fi.setZero();
+    ChVectorDynamic<> displ;
+	this->GetStateBlock_NEW(displ);
+
+	// Compute trial increment from the last committed state.
+	// Do NOT update Un_1 here.
+	if (Un_1.size() != displ.size()) {
+		Un_1 = displ;
+	}
+
+	DUn_trial = displ - Un_1;
+
+	// zero the Fi accumulator
+	Fi.setZero();
     
-    
-    
+       
     //std::cout<<"state_x: "<<state_x<<std::endl;
     //std::cout<<"stiffness: \n"<<this->GetStiffnessMatrix()<<std::endl; 
     
     //
     //auto myelasticity=std::dynamic_pointer_cast<ChElasticityCosseratSimple>(this->section->GetElasticity());   
     auto myelasticity=std::dynamic_pointer_cast<ChElasticityCosseratAdvancedGenericFPM>(this->section->GetElasticity());
+	
+	std::shared_ptr<ChViscoelasticity> visco = this->section->Get_ViscoElasticity();
+
     //ChVector3d strain_e, strain_k;
     // Do quadrature over the "s" shear Gauss points
     // (only if int_order_b != int_order_s, otherwise do a single loop later over "b" bend points also for shear)
@@ -1292,18 +1346,31 @@ void ChElementCurvilinearBeamBezier::ComputeInternalForces_impl(ChVectorDynamic<
         //
         ChMatrixNM<double, 6, 6> Dmat=myelasticity->GetStiffnessMatrix();        
     	//  
-		ChVectorDynamic<> dstrain=Bmat*DUn_1;
+		ChVectorDynamic<> dstrain = Bmat * DUn_trial;
 		//std::cout<<"dstrain: "<<dstrain<<std::endl;
         // compute local epsilon strain:  strain_e= R^t * r' - {1, 0, 0}
         //ChVector3d astrain_e = R.transpose() * dr - VECT_X - this->strain_e_0[ig];
 		//
-        ChVector3d astrain_e =dstrain.segment(0, 3);
-		astrain_e += this->strain_e[ig];       
+        //ChVector3d astrain_e =dstrain.segment(0, 3);
+		//astrain_e += this->strain_e[ig];       
 		//
         // compute local curvature strain:  strain_k= 2*[F(q*)(+)] * q' = 2*[F(q*)(+)] * N_i'*q_i = R^t * a' = a'_local
         //ChVector3d astrain_k = da - this->strain_k_0[ig];
-        ChVector3d astrain_k =dstrain.segment(3, 3);
-        astrain_k += this->strain_k[ig];
+        //ChVector3d astrain_k =dstrain.segment(3, 3);
+        //astrain_k += this->strain_k[ig];
+		if ((int)strain_e_old.size() != int_order_b) {
+		strain_e_old = strain_e;
+		}
+
+		if ((int)strain_k_old.size() != int_order_b) {
+			strain_k_old = strain_k;
+		}
+
+		ChVector3d astrain_e = dstrain.segment(0, 3);
+		astrain_e += strain_e_old[ig];
+
+		ChVector3d astrain_k = dstrain.segment(3, 3);
+		astrain_k += strain_k_old[ig];
 		
 		if (!used_for_differentiation) {
             //this->stress_n[ig] = astress_n;
@@ -1336,9 +1403,33 @@ void ChElementCurvilinearBeamBezier::ComputeInternalForces_impl(ChVectorDynamic<
                 aplastic_data = foo_plastic_data[0].get();
             }
         }
+		// Viscoelastic environment state, 
+		    if (visco) {
+            m_visco_states[ig].dt    = m_system ? m_system->GetStep()   : 0.0;
+            m_visco_states[ig].CTime = m_system ? m_system->GetChTime() : 0.0;
+
+            if (!m_visco_states[ig].use_coupled_env) {
+                m_visco_states[ig].UpdateFromGlobalFunctions(
+                    m_visco_states[ig].CTime, m_visco_states[ig].dt,
+                    visco->GetRHFunction(),   visco->GetInitialRH(),
+                    visco->GetTempFunction(), visco->GetInitialTemp());
+            }
+        }
+		
+		if (m_num_statevars > 0) {
+            m_statevars[ig] = m_statevars_old[ig];
+        }
+		
+		ChVectorDynamic<> foo_statevars;
+        ChVectorDynamic<>* statevars_out_ptr = &m_statevars[ig];
+        if (used_for_differentiation && m_num_statevars > 0) {
+            foo_statevars = m_statevars_old[ig];
+            statevars_out_ptr = &foo_statevars;
+        }
         //std::cout<<"astrain_e, astrain_k: "<< astrain_e <<"  " <<astrain_k<<std::endl;
         //std::cout<<"Dmat: "<< Dmat<<std::endl;        
-        this->section->ComputeStress(astress_n, astress_m, astrain_e, astrain_k, Dmat, aplastic_data, aplastic_data_old);
+         this->section->ComputeStress(astress_n, astress_m, astrain_e, astrain_k, Dmat, aplastic_data, aplastic_data_old, 
+										visco, m_visco_states[ig], m_statevars_old[ig], *statevars_out_ptr);
 	//std::cout<<"astress_n, astress_m: "<< astress_n <<"  "<< astress_m<<std::endl;
         
         if (!used_for_differentiation) {
@@ -1384,8 +1475,6 @@ void ChElementCurvilinearBeamBezier::ComputeInternalForces_impl(ChVectorDynamic<
     // Add also inertial quadratic terms: gyroscopic and centrifugal	
 	
 }
-
-
 
 
 void ChElementCurvilinearBeamBezier::ComputeGravityForces(ChVectorDynamic<>& Fg, const ChVector3d& G_acc) {
@@ -1527,7 +1616,36 @@ std::vector<double> ChElementCurvilinearBeamBezier::ComputeSectionModifiers( con
     }
 
 
+ChVector3d ChElementCurvilinearBeamBezier::GetGaussPointPos(int ig) {
+    const double eta = ChQuadrature::GetStaticTables()->Lroots[int_order_b - 1][ig];
 
+    ChVectorDynamic<> N(this->order + 1);
+    ChVectorDynamic<> dNdu(this->order + 1);
+    ChBasisToolsBeziers::BasisEvaluateDeriv(eta, N, dNdu);
+
+    ChVector3d Xg(0, 0, 0);
+    for (int i = 0; i < (int)nodes.size(); ++i) {
+        Xg += nodes[i]->GetPos() * N(i);  // current configuration
+    }
+    return Xg;
+}
+
+
+ChVector3d ChElementCurvilinearBeamBezier::GetGaussPointPosRef(int ig) {
+    const double eta =     ChQuadrature::GetStaticTables()->Lroots[int_order_b - 1][ig];
+
+    ChVectorDynamic<> N(this->order + 1);
+    ChVectorDynamic<> dNdu(this->order + 1);
+    ChBasisToolsBeziers::BasisEvaluateDeriv( eta,N,dNdu);
+
+    ChVector3d Xg_ref(0, 0, 0);
+
+    for (int i = 0; i < (int)nodes.size(); ++i) {
+        Xg_ref +=  nodes[i]->GetX0().GetPos() * N(i);
+    }
+
+    return Xg_ref;
+}
 
 /// Initial setup. Precompute mass and matrices that do not change during the simulation. In particular, compute the
 /// arc-length parametrization.
@@ -1535,13 +1653,13 @@ std::vector<double> ChElementCurvilinearBeamBezier::ComputeSectionModifiers( con
 void ChElementCurvilinearBeamBezier::SetupInitial(ChSystem* system) {
     assert(section);
 	
+	m_system = system;
+	
     if (this->section->GetPlasticity()) {
         this->section->GetPlasticity()->CreatePlasticityData(int_order_b, this->plastic_data_old);
         this->section->GetPlasticity()->CreatePlasticityData(int_order_b, this->plastic_data);
     }
 	
-	
-
     this->length = 0;
 
     // get two values of absyssa at extreme of span
@@ -1657,10 +1775,20 @@ void ChElementCurvilinearBeamBezier::SetupInitial(ChSystem* system) {
     }
     this->sectionModifiers=sectionMultiplier;
     //
-    ChVectorDynamic<> displ(6*nodes.size());
-    this->GetStateBlock_NEW(displ);
-    Un_1=displ;
-    DUn_1.setZero(6*nodes.size());
+    ChVectorDynamic<> displ(6 * nodes.size());
+	this->GetStateBlock_NEW(displ);
+
+	Un_1 = displ;
+	DUn_1.setZero(6 * nodes.size());
+	DUn_trial.setZero(6 * nodes.size());
+
+	// These are the committed strain states.
+	strain_e_old = strain_e;
+	strain_k_old = strain_k;
+	stress_n_old = stress_n;  
+    stress_m_old = stress_m;
+
+	m_Wint = 0.0;
     //exit(9);
     // as a byproduct, also compute total mass
     this->mass = this->length * this->section->GetInertia()->GetMassPerUnitLength();
@@ -1670,6 +1798,37 @@ void ChElementCurvilinearBeamBezier::SetupInitial(ChSystem* system) {
 		this->mprojection_matrix.resize(int_order_b);
 		this->ComputeProjectionMatrix();
 	}
+	auto visco = this->section->Get_ViscoElasticity();
+	int nkelv = visco ? visco->GetNkelv() : 0;
+
+	this->m_num_statevars = visco ? (24 + 3 * nkelv) : 0;
+
+	m_statevars_old.clear();
+	m_statevars.clear();
+
+	m_statevars_old.resize(int_order_b);
+	m_statevars.resize(int_order_b);
+
+	if (m_num_statevars > 0) {
+		for (int ig = 0; ig < int_order_b; ++ig) {
+			m_statevars_old[ig].setZero(m_num_statevars);
+			m_statevars[ig].setZero(m_num_statevars);
+		}
+	}
+	
+    // Viscoelastic environment state
+    m_visco_states.clear();
+    m_visco_states.resize(int_order_b);
+    if (visco) {
+        for (int ig = 0; ig < int_order_b; ++ig) {
+            m_visco_states[ig].UpdateFromGlobalFunctions(
+                system->GetChTime(), system->GetStep(),
+                visco->GetRHFunction(),   visco->GetInitialRH(),
+                visco->GetTempFunction(), visco->GetInitialTemp());
+            m_visco_states[ig].dt    = system->GetStep();
+            m_visco_states[ig].CTime = system->GetChTime();
+        }
+    }	
 	//
     this->ComputeStiffnessMatrix();
 	
@@ -1729,6 +1888,7 @@ ChMatrixNM<double, 1, 9> ChElementCurvilinearBeamBezier::ComputeMacroStressContr
 	}
 	return macro_stress;
 }
+
 
 /*
 void ChElementCurvilinearBeamBezier::BasisEvaluateDeriv(

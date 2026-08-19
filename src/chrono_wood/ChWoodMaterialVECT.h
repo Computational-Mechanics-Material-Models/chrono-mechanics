@@ -22,6 +22,7 @@
 #include "chrono/core/ChMatrix.h"
 #include "chrono/core/ChVector3.h"
 #include "chrono_wood/ChWoodApi.h"
+#include "chrono_wood/ChWoodViscoelasticity.h" 
 #include "chrono/core/ChMatrix33.h"
 #include <vector>
 #include <string>
@@ -98,10 +99,17 @@ class ChWoodApi ChWoodMaterialVECT {
 	
 	/// Return the tensile unloading.
     double GetElasticAnalysisFlag() const { return m_ElasticAnalysis; }
-    void SetElasticAnalysisFlag(double ElasticAnalysis) { m_ElasticAnalysis = ElasticAnalysis; }	
+    void SetElasticAnalysisFlag(double ElasticAnalysis) { m_ElasticAnalysis = ElasticAnalysis; }
+
+	double GetCreepAnalysisFlag() const { return m_CreepAnalysis; }
+    void SetCreepAnalysisFlag(double CreepAnalysis) { m_CreepAnalysis = CreepAnalysis; }	
 
     /// Return the number of state variable required by this constitutive model
-    int GetNumberOfStateVariables() { return m_num_state_var; }
+    int GetNumberOfStateVariables() { return m_num_state_var + (m_nkelv_for_sizing > 0 ? (9 + 3 * m_nkelv_for_sizing) : 9); }
+		
+	void SetNkelvForSizing(int nkelv) { m_nkelv_for_sizing = nkelv; }
+    int  GetNkelvForSizing() const { return m_nkelv_for_sizing; }
+
 	
 	
 	/// Return the tensile unloading.
@@ -115,6 +123,10 @@ class ChWoodApi ChWoodMaterialVECT {
     double FractureBC(ChVector3d& mstrain, double& random_field, double& len, double& epsQ, double& epsQN,  double& epsT, const ChVectorDynamic<>& statev_old, double eps_max);
 
 	double CompressBC(ChVector3d& mstrain, double& random_field, double& len, double& epsQ, double& epsT, double& epsQN, const ChVectorDynamic<>& statev_old);
+	
+    double StressBC(ChVector3d& mstrain, double& random_field, double& len, double& epsQ, double& epsQN,  double& epsT, const ChVectorDynamic<>& statev_old, double eps_max);
+	    
+	void ComputeStress(const std::shared_ptr<ChViscoelasticity>& visco_params, ChViscoelasticityState& visco_state, ChVector3d& strain, ChVector3d& curvature, ChVector3d& eigeinstrain, double &len, const ChVectorDynamic<>& statev_old, ChVectorDynamic<>& statev_new, double& area, double& width, double& height, double& random_field, ChVector3d& mstress, ChVector3d& mcouple);
     
   private:
     
@@ -131,8 +143,10 @@ class ChWoodApi ChWoodMaterialVECT {
     double RayleighDampingM=0;
     double mcouple_mult=0; ///<  influence factor for rotational DOF: beta_N = beta_M = beta_B
 	bool m_ElasticAnalysis=false;
+	bool m_CreepAnalysis   = false; 
+	int  m_nkelv_for_sizing = 0;
 	bool m_CoupleContrib2EquStrain=false;
-    const int m_num_state_var = 18;
+    const int m_num_state_var = 19;
   //public:
   //EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
