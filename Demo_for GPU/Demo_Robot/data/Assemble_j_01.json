@@ -1,0 +1,4581 @@
+{ 
+	"sys"	: 
+	{
+		"_version_ChSystemNSC"	: 0,
+		"_version_class_chrono__ChSystem"	: 0,
+		"assembly"	: 
+		{
+			"_version_ChAssembly"	: 0,
+			"_version_ChPhysicsItem"	: 0,
+			"_version_class_chrono__ChObj"	: 0,
+			"m_name"	: "",
+			"m_tag"	: -1,
+			"ChTime"	: 0,
+			"visual_model"	: 
+			{ 
+				"_reference_ID"	: 0
+			},
+			"cameras"	: 
+			[ 
+			],
+			"bodies"	: 
+			[ 
+				{ 
+					"_type"	: "ChBodyAuxRef",
+					"_object_ID"	: 1,
+					"_version_ChBodyAuxRef"	: 0,
+					"_version_ChBody"	: 0,
+					"m_name"	: "SLDW_GROUND",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"_version_class_chrono__ChBodyFrame"	: 0,
+					"_version_class_chrono__ChFrameMoving_double_"	: 0,
+					"_version_class_chrono__ChFrame_double_"	: 0,
+					"m_csys"	: 
+					{
+						"_version_class_chrono__ChCoordsys_double_"	: 0,
+						"pos"	: 
+						{
+							"_version_class_chrono__ChVector3_double_"	: 0,
+							"x"	: 0,
+							"y"	: 0,
+							"z"	: 0
+						},
+						"rot"	: 
+						{
+							"_version_class_chrono__ChQuaternion_double_"	: 0,
+							"e0"	: 1,
+							"e1"	: 0,
+							"e2"	: 0,
+							"e3"	: 0
+						}
+					},
+					"m_csys_dt"	: 
+					{
+						"pos"	: 
+						{
+							"x"	: 0,
+							"y"	: 0,
+							"z"	: 0
+						},
+						"rot"	: 
+						{
+							"e0"	: 0,
+							"e1"	: 0,
+							"e2"	: 0,
+							"e3"	: 0
+						}
+					},
+					"m_csys_dtdt"	: 
+					{
+						"pos"	: 
+						{
+							"x"	: 0,
+							"y"	: 0,
+							"z"	: 0
+						},
+						"rot"	: 
+						{
+							"e0"	: 0,
+							"e1"	: 0,
+							"e2"	: 0,
+							"e3"	: 0
+						}
+					},
+					"fixed"	: true,
+					"collide"	: false,
+					"limit_speed"	: false,
+					"disable_gyrotorque"	: false,
+					"is_sleeping"	: false,
+					"allow_sleeping"	: true,
+					"candidate_sleeping"	: false,
+					"markers"	: 
+					[ 
+						{ 
+							"_type"	: "ChMarker",
+							"_object_ID"	: 2,
+							"_version_ChMarker"	: 0,
+							"m_name"	: "Link03",
+							"m_tag"	: -1,
+							"ChTime"	: 0,
+							"m_csys"	: 
+							{
+								"pos"	: 
+								{
+									"x"	: 1.22011,
+									"y"	: 1.17108,
+									"z"	: 0.480174
+								},
+								"rot"	: 
+								{
+									"e0"	: 0.99945,
+									"e1"	: 7.84559e-15,
+									"e2"	: -0.0331675,
+									"e3"	: -2.60362e-16
+								}
+							},
+							"m_csys_dt"	: 
+							{
+								"pos"	: 
+								{
+									"x"	: 0,
+									"y"	: 0,
+									"z"	: 0
+								},
+								"rot"	: 
+								{
+									"e0"	: 0,
+									"e1"	: 0,
+									"e2"	: 0,
+									"e3"	: 0
+								}
+							},
+							"m_csys_dtdt"	: 
+							{
+								"pos"	: 
+								{
+									"x"	: 0,
+									"y"	: 0,
+									"z"	: 0
+								},
+								"rot"	: 
+								{
+									"e0"	: 0,
+									"e1"	: 0,
+									"e2"	: 0,
+									"e3"	: 0
+								}
+							},
+							"m_motion_type"	: "MotionType::FUNCTIONS",
+							"m_motion_X"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 3,
+								"_version_ChFunctionConst"	: 0,
+								"_version_class_chrono__ChFunction"	: 0,
+								"m_constant"	: 0
+							},
+							"m_motion_Y"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 4,
+								"m_constant"	: 0
+							},
+							"m_motion_Z"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 5,
+								"m_constant"	: 0
+							},
+							"m_motion_ang"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 6,
+								"m_constant"	: 0
+							},
+							"m_motion_axis"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 1
+							},
+							"m_body"	: 
+							{ 
+								"_type"	: "ChBodyAuxRef",
+								"_reference_ID"	: 1
+							}
+						},
+						{ 
+							"_type"	: "ChMarker",
+							"_object_ID"	: 7,
+							"m_name"	: "Link04",
+							"m_tag"	: -1,
+							"ChTime"	: 0,
+							"m_csys"	: 
+							{
+								"pos"	: 
+								{
+									"x"	: 1.22191,
+									"y"	: 1.51228,
+									"z"	: 0.186647
+								},
+								"rot"	: 
+								{
+									"e0"	: 0.649181,
+									"e1"	: -0.684701,
+									"e2"	: -0.227934,
+									"e3"	: 0.240405
+								}
+							},
+							"m_csys_dt"	: 
+							{
+								"pos"	: 
+								{
+									"x"	: 0,
+									"y"	: 0,
+									"z"	: 0
+								},
+								"rot"	: 
+								{
+									"e0"	: 0,
+									"e1"	: 0,
+									"e2"	: 0,
+									"e3"	: 0
+								}
+							},
+							"m_csys_dtdt"	: 
+							{
+								"pos"	: 
+								{
+									"x"	: 0,
+									"y"	: 0,
+									"z"	: 0
+								},
+								"rot"	: 
+								{
+									"e0"	: 0,
+									"e1"	: 0,
+									"e2"	: 0,
+									"e3"	: 0
+								}
+							},
+							"m_motion_type"	: "MotionType::FUNCTIONS",
+							"m_motion_X"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 8,
+								"m_constant"	: 0
+							},
+							"m_motion_Y"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 9,
+								"m_constant"	: 0
+							},
+							"m_motion_Z"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 10,
+								"m_constant"	: 0
+							},
+							"m_motion_ang"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 11,
+								"m_constant"	: 0
+							},
+							"m_motion_axis"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 1
+							},
+							"m_body"	: 
+							{ 
+								"_type"	: "ChBodyAuxRef",
+								"_reference_ID"	: 1
+							}
+						},
+						{ 
+							"_type"	: "ChMarker",
+							"_object_ID"	: 12,
+							"m_name"	: "Link05",
+							"m_tag"	: -1,
+							"ChTime"	: 0,
+							"m_csys"	: 
+							{
+								"pos"	: 
+								{
+									"x"	: 2.27025,
+									"y"	: 0.209912,
+									"z"	: 0.164119
+								},
+								"rot"	: 
+								{
+									"e0"	: 0.999694,
+									"e1"	: -0.00778442,
+									"e2"	: -0.0234906,
+									"e3"	: 0.000182917
+								}
+							},
+							"m_csys_dt"	: 
+							{
+								"pos"	: 
+								{
+									"x"	: 0,
+									"y"	: 0,
+									"z"	: 0
+								},
+								"rot"	: 
+								{
+									"e0"	: 0,
+									"e1"	: 0,
+									"e2"	: 0,
+									"e3"	: 0
+								}
+							},
+							"m_csys_dtdt"	: 
+							{
+								"pos"	: 
+								{
+									"x"	: 0,
+									"y"	: 0,
+									"z"	: 0
+								},
+								"rot"	: 
+								{
+									"e0"	: 0,
+									"e1"	: 0,
+									"e2"	: 0,
+									"e3"	: 0
+								}
+							},
+							"m_motion_type"	: "MotionType::FUNCTIONS",
+							"m_motion_X"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 13,
+								"m_constant"	: 0
+							},
+							"m_motion_Y"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 14,
+								"m_constant"	: 0
+							},
+							"m_motion_Z"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 15,
+								"m_constant"	: 0
+							},
+							"m_motion_ang"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 16,
+								"m_constant"	: 0
+							},
+							"m_motion_axis"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 1
+							},
+							"m_body"	: 
+							{ 
+								"_type"	: "ChBodyAuxRef",
+								"_reference_ID"	: 1
+							}
+						},
+						{ 
+							"_type"	: "ChMarker",
+							"_object_ID"	: 17,
+							"m_name"	: "Link01",
+							"m_tag"	: -1,
+							"ChTime"	: 0,
+							"m_csys"	: 
+							{
+								"pos"	: 
+								{
+									"x"	: -0.00349143,
+									"y"	: 0.125378,
+									"z"	: 0.105226
+								},
+								"rot"	: 
+								{
+									"e0"	: -5.40843e-17,
+									"e1"	: 5.40843e-17,
+									"e2"	: 0.707107,
+									"e3"	: -0.707107
+								}
+							},
+							"m_csys_dt"	: 
+							{
+								"pos"	: 
+								{
+									"x"	: 0,
+									"y"	: 0,
+									"z"	: 0
+								},
+								"rot"	: 
+								{
+									"e0"	: 0,
+									"e1"	: 0,
+									"e2"	: 0,
+									"e3"	: 0
+								}
+							},
+							"m_csys_dtdt"	: 
+							{
+								"pos"	: 
+								{
+									"x"	: 0,
+									"y"	: 0,
+									"z"	: 0
+								},
+								"rot"	: 
+								{
+									"e0"	: 0,
+									"e1"	: 0,
+									"e2"	: 0,
+									"e3"	: 0
+								}
+							},
+							"m_motion_type"	: "MotionType::FUNCTIONS",
+							"m_motion_X"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 18,
+								"m_constant"	: 0
+							},
+							"m_motion_Y"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 19,
+								"m_constant"	: 0
+							},
+							"m_motion_Z"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 20,
+								"m_constant"	: 0
+							},
+							"m_motion_ang"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 21,
+								"m_constant"	: 0
+							},
+							"m_motion_axis"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 1
+							},
+							"m_body"	: 
+							{ 
+								"_type"	: "ChBodyAuxRef",
+								"_reference_ID"	: 1
+							}
+						},
+						{ 
+							"_type"	: "ChMarker",
+							"_object_ID"	: 22,
+							"m_name"	: "Link02",
+							"m_tag"	: -1,
+							"ChTime"	: 0,
+							"m_csys"	: 
+							{
+								"pos"	: 
+								{
+									"x"	: 0.306523,
+									"y"	: 0.531878,
+									"z"	: 0.266134
+								},
+								"rot"	: 
+								{
+									"e0"	: 0.99945,
+									"e1"	: 7.94632e-15,
+									"e2"	: -0.0331675,
+									"e3"	: 2.63704e-16
+								}
+							},
+							"m_csys_dt"	: 
+							{
+								"pos"	: 
+								{
+									"x"	: 0,
+									"y"	: 0,
+									"z"	: 0
+								},
+								"rot"	: 
+								{
+									"e0"	: 0,
+									"e1"	: 0,
+									"e2"	: 0,
+									"e3"	: 0
+								}
+							},
+							"m_csys_dtdt"	: 
+							{
+								"pos"	: 
+								{
+									"x"	: 0,
+									"y"	: 0,
+									"z"	: 0
+								},
+								"rot"	: 
+								{
+									"e0"	: 0,
+									"e1"	: 0,
+									"e2"	: 0,
+									"e3"	: 0
+								}
+							},
+							"m_motion_type"	: "MotionType::FUNCTIONS",
+							"m_motion_X"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 23,
+								"m_constant"	: 0
+							},
+							"m_motion_Y"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 24,
+								"m_constant"	: 0
+							},
+							"m_motion_Z"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 25,
+								"m_constant"	: 0
+							},
+							"m_motion_ang"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 26,
+								"m_constant"	: 0
+							},
+							"m_motion_axis"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 1
+							},
+							"m_body"	: 
+							{ 
+								"_type"	: "ChBodyAuxRef",
+								"_reference_ID"	: 1
+							}
+						},
+						{ 
+							"_type"	: "ChMarker",
+							"_object_ID"	: 27,
+							"m_name"	: "Link06",
+							"m_tag"	: -1,
+							"ChTime"	: 0,
+							"m_csys"	: 
+							{
+								"pos"	: 
+								{
+									"x"	: 2.2506,
+									"y"	: 0.046859,
+									"z"	: 0.265857
+								},
+								"rot"	: 
+								{
+									"e0"	: 0.553995,
+									"e1"	: 0.506513,
+									"e2"	: -0.487619,
+									"e3"	: 0.445826
+								}
+							},
+							"m_csys_dt"	: 
+							{
+								"pos"	: 
+								{
+									"x"	: 0,
+									"y"	: 0,
+									"z"	: 0
+								},
+								"rot"	: 
+								{
+									"e0"	: 0,
+									"e1"	: 0,
+									"e2"	: 0,
+									"e3"	: 0
+								}
+							},
+							"m_csys_dtdt"	: 
+							{
+								"pos"	: 
+								{
+									"x"	: 0,
+									"y"	: 0,
+									"z"	: 0
+								},
+								"rot"	: 
+								{
+									"e0"	: 0,
+									"e1"	: 0,
+									"e2"	: 0,
+									"e3"	: 0
+								}
+							},
+							"m_motion_type"	: "MotionType::FUNCTIONS",
+							"m_motion_X"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 28,
+								"m_constant"	: 0
+							},
+							"m_motion_Y"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 29,
+								"m_constant"	: 0
+							},
+							"m_motion_Z"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 30,
+								"m_constant"	: 0
+							},
+							"m_motion_ang"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 31,
+								"m_constant"	: 0
+							},
+							"m_motion_axis"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 1
+							},
+							"m_body"	: 
+							{ 
+								"_type"	: "ChBodyAuxRef",
+								"_reference_ID"	: 1
+							}
+						},
+						{ 
+							"_type"	: "ChMarker",
+							"_object_ID"	: 32,
+							"m_name"	: "Link07",
+							"m_tag"	: -1,
+							"ChTime"	: 0,
+							"m_csys"	: 
+							{
+								"pos"	: 
+								{
+									"x"	: 2.24756,
+									"y"	: 0.0119933,
+									"z"	: 0.266241
+								},
+								"rot"	: 
+								{
+									"e0"	: 0.553995,
+									"e1"	: 0.506513,
+									"e2"	: -0.487619,
+									"e3"	: 0.445826
+								}
+							},
+							"m_csys_dt"	: 
+							{
+								"pos"	: 
+								{
+									"x"	: 0,
+									"y"	: 0,
+									"z"	: 0
+								},
+								"rot"	: 
+								{
+									"e0"	: 0,
+									"e1"	: 0,
+									"e2"	: 0,
+									"e3"	: 0
+								}
+							},
+							"m_csys_dtdt"	: 
+							{
+								"pos"	: 
+								{
+									"x"	: 0,
+									"y"	: 0,
+									"z"	: 0
+								},
+								"rot"	: 
+								{
+									"e0"	: 0,
+									"e1"	: 0,
+									"e2"	: 0,
+									"e3"	: 0
+								}
+							},
+							"m_motion_type"	: "MotionType::FUNCTIONS",
+							"m_motion_X"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 33,
+								"m_constant"	: 0
+							},
+							"m_motion_Y"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 34,
+								"m_constant"	: 0
+							},
+							"m_motion_Z"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 35,
+								"m_constant"	: 0
+							},
+							"m_motion_ang"	: 
+							{ 
+								"_type"	: "ChFunctionConst",
+								"_object_ID"	: 36,
+								"m_constant"	: 0
+							},
+							"m_motion_axis"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 1
+							},
+							"m_body"	: 
+							{ 
+								"_type"	: "ChBodyAuxRef",
+								"_reference_ID"	: 1
+							}
+						}
+					],
+					"forces"	: 
+					[ 
+					],
+					"collision_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"gyro"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"Xforce"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"Xtorque"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"variables"	: 
+					{
+						"_version_ChVariablesBodyOwnMass"	: 0,
+						"_version_class_chrono__ChVariables"	: 0,
+						"ndof"	: 6,
+						"disabled"	: true,
+						"offset"	: 0,
+						"mass"	: 1,
+						"inertia"	: 
+						{
+							"_version_class_chrono__ChMatrix_dense_version_tag"	: 1,
+							"rows"	: 3,
+							"columns"	: 3,
+							"data"	: 
+							[ 
+								1,
+								0,
+								0,
+								0,
+								1,
+								0,
+								0,
+								0,
+								1
+							]
+						}
+					},
+					"max_speed"	: 0.5,
+					"max_wvel"	: 6.28319,
+					"sleep_time"	: 0.6,
+					"sleep_minspeed"	: 0.1,
+					"sleep_minwvel"	: 0.04,
+					"sleep_starttime"	: 0,
+					"ref_to_com"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 1,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dtdt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						}
+					},
+					"ref_to_abs"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 1,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dtdt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						}
+					}
+				},
+				{ 
+					"_type"	: "ChBodyAuxRef",
+					"_object_ID"	: 37,
+					"m_name"	: "IRB6700-MH3_150-320_IRC5_rev01_BASE_CAD-1",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_type"	: "ChVisualModel",
+						"_object_ID"	: 38,
+						"_version_ChVisualModel"	: 0,
+						"m_shapes"	: 
+						[ 
+							{
+								"first"	: 
+								{ 
+									"_type"	: "ChVisualShapeModelFile",
+									"_object_ID"	: 39,
+									"_version_ChVisualShapeModelFile"	: 0,
+									"_version_class_chrono__ChVisualShape"	: 0,
+									"visible"	: true,
+									"is_mutable"	: false,
+									"material_list"	: 
+									[ 
+									],
+									"filename"	: "Assemble_j_01_shapes/body_1_1.obj",
+									"scale"	: 
+									{
+										"x"	: 1,
+										"y"	: 1,
+										"z"	: 1
+									}
+								},
+								"second"	: 
+								{
+									"m_csys"	: 
+									{
+										"pos"	: 
+										{
+											"x"	: 0,
+											"y"	: 0,
+											"z"	: 0
+										},
+										"rot"	: 
+										{
+											"e0"	: 1,
+											"e1"	: 0,
+											"e2"	: 0,
+											"e3"	: 0
+										}
+									}
+								}
+							}
+						]
+					},
+					"cameras"	: 
+					[ 
+					],
+					"m_csys"	: 
+					{
+						"pos"	: 
+						{
+							"x"	: -0.111644,
+							"y"	: -0.108463,
+							"z"	: 0.105187
+						},
+						"rot"	: 
+						{
+							"e0"	: 0.707107,
+							"e1"	: -0.707107,
+							"e2"	: 0,
+							"e3"	: 0
+						}
+					},
+					"m_csys_dt"	: 
+					{
+						"pos"	: 
+						{
+							"x"	: 0,
+							"y"	: 0,
+							"z"	: 0
+						},
+						"rot"	: 
+						{
+							"e0"	: 0,
+							"e1"	: 0,
+							"e2"	: 0,
+							"e3"	: 0
+						}
+					},
+					"m_csys_dtdt"	: 
+					{
+						"pos"	: 
+						{
+							"x"	: 0,
+							"y"	: 0,
+							"z"	: 0
+						},
+						"rot"	: 
+						{
+							"e0"	: 0,
+							"e1"	: 0,
+							"e2"	: 0,
+							"e3"	: 0
+						}
+					},
+					"fixed"	: true,
+					"collide"	: false,
+					"limit_speed"	: false,
+					"disable_gyrotorque"	: false,
+					"is_sleeping"	: false,
+					"allow_sleeping"	: true,
+					"candidate_sleeping"	: false,
+					"markers"	: 
+					[ 
+					],
+					"forces"	: 
+					[ 
+					],
+					"collision_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"gyro"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"Xforce"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"Xtorque"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"variables"	: 
+					{
+						"ndof"	: 6,
+						"disabled"	: true,
+						"offset"	: 0,
+						"mass"	: 118.182,
+						"inertia"	: 
+						{
+							"rows"	: 3,
+							"columns"	: 3,
+							"data"	: 
+							[ 
+								4.01946,
+								0.359926,
+								-0.00410469,
+								0.359926,
+								9.91268,
+								4.61458e-05,
+								-0.00410469,
+								4.61458e-05,
+								7.77857
+							]
+						}
+					},
+					"max_speed"	: 0.5,
+					"max_wvel"	: 6.28319,
+					"sleep_time"	: 0.6,
+					"sleep_minspeed"	: 0.1,
+					"sleep_minwvel"	: 0.04,
+					"sleep_starttime"	: 0,
+					"ref_to_com"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0.108153,
+								"y"	: -3.97635e-05,
+								"z"	: -0.139658
+							},
+							"rot"	: 
+							{
+								"e0"	: 1,
+								"e1"	: -0,
+								"e2"	: -0,
+								"e3"	: -0
+							}
+						},
+						"m_csys_dt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dtdt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						}
+					},
+					"ref_to_abs"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 1,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dtdt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						}
+					}
+				},
+				{ 
+					"_type"	: "ChBodyAuxRef",
+					"_object_ID"	: 40,
+					"m_name"	: "IRB6700_155-285_IRC5_rev03_LINK01_CAD-1",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_type"	: "ChVisualModel",
+						"_object_ID"	: 41,
+						"m_shapes"	: 
+						[ 
+							{
+								"first"	: 
+								{ 
+									"_type"	: "ChVisualShapeModelFile",
+									"_object_ID"	: 42,
+									"visible"	: true,
+									"is_mutable"	: false,
+									"material_list"	: 
+									[ 
+									],
+									"filename"	: "Assemble_j_01_shapes/body_2_1.obj",
+									"scale"	: 
+									{
+										"x"	: 1,
+										"y"	: 1,
+										"z"	: 1
+									}
+								},
+								"second"	: 
+								{
+									"m_csys"	: 
+									{
+										"pos"	: 
+										{
+											"x"	: 0,
+											"y"	: 0,
+											"z"	: 0
+										},
+										"rot"	: 
+										{
+											"e0"	: 1,
+											"e1"	: 0,
+											"e2"	: 0,
+											"e3"	: 0
+										}
+									}
+								}
+							}
+						]
+					},
+					"cameras"	: 
+					[ 
+					],
+					"m_csys"	: 
+					{
+						"pos"	: 
+						{
+							"x"	: 0.155532,
+							"y"	: 0.369108,
+							"z"	: 0.0910373
+						},
+						"rot"	: 
+						{
+							"e0"	: 0.706718,
+							"e1"	: -0.706718,
+							"e2"	: -0.0234529,
+							"e3"	: -0.0234529
+						}
+					},
+					"m_csys_dt"	: 
+					{
+						"pos"	: 
+						{
+							"x"	: 0,
+							"y"	: 0,
+							"z"	: 0
+						},
+						"rot"	: 
+						{
+							"e0"	: 0,
+							"e1"	: 0,
+							"e2"	: 0,
+							"e3"	: 0
+						}
+					},
+					"m_csys_dtdt"	: 
+					{
+						"pos"	: 
+						{
+							"x"	: 0,
+							"y"	: 0,
+							"z"	: 0
+						},
+						"rot"	: 
+						{
+							"e0"	: 0,
+							"e1"	: 0,
+							"e2"	: 0,
+							"e3"	: 0
+						}
+					},
+					"fixed"	: false,
+					"collide"	: false,
+					"limit_speed"	: false,
+					"disable_gyrotorque"	: false,
+					"is_sleeping"	: false,
+					"allow_sleeping"	: true,
+					"candidate_sleeping"	: false,
+					"markers"	: 
+					[ 
+					],
+					"forces"	: 
+					[ 
+					],
+					"collision_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"gyro"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"Xforce"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"Xtorque"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"variables"	: 
+					{
+						"ndof"	: 6,
+						"disabled"	: false,
+						"offset"	: 0,
+						"mass"	: 70.7359,
+						"inertia"	: 
+						{
+							"rows"	: 3,
+							"columns"	: 3,
+							"data"	: 
+							[ 
+								3.34766,
+								1.44335,
+								-0.581054,
+								1.44335,
+								5.01142,
+								0.152794,
+								-0.581054,
+								0.152794,
+								5.60576
+							]
+						}
+					},
+					"max_speed"	: 0.5,
+					"max_wvel"	: 6.28319,
+					"sleep_time"	: 0.6,
+					"sleep_minspeed"	: 0.1,
+					"sleep_minwvel"	: 0.04,
+					"sleep_starttime"	: 0,
+					"ref_to_com"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.157733,
+								"y"	: -0.0247008,
+								"z"	: -0.617229
+							},
+							"rot"	: 
+							{
+								"e0"	: 1,
+								"e1"	: -0,
+								"e2"	: -0,
+								"e3"	: -0
+							}
+						},
+						"m_csys_dt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dtdt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						}
+					},
+					"ref_to_abs"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 1,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dtdt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						}
+					}
+				},
+				{ 
+					"_type"	: "ChBodyAuxRef",
+					"_object_ID"	: 43,
+					"m_name"	: "IRB6700_155-285_IRC5_rev01_LINK02_CAD-1",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_type"	: "ChVisualModel",
+						"_object_ID"	: 44,
+						"m_shapes"	: 
+						[ 
+							{
+								"first"	: 
+								{ 
+									"_type"	: "ChVisualShapeModelFile",
+									"_object_ID"	: 45,
+									"visible"	: true,
+									"is_mutable"	: false,
+									"material_list"	: 
+									[ 
+									],
+									"filename"	: "Assemble_j_01_shapes/body_3_1.obj",
+									"scale"	: 
+									{
+										"x"	: 1,
+										"y"	: 1,
+										"z"	: 1
+									}
+								},
+								"second"	: 
+								{
+									"m_csys"	: 
+									{
+										"pos"	: 
+										{
+											"x"	: 0,
+											"y"	: 0,
+											"z"	: 0
+										},
+										"rot"	: 
+										{
+											"e0"	: 1,
+											"e1"	: 0,
+											"e2"	: 0,
+											"e3"	: 0
+										}
+									}
+								}
+							}
+						]
+					},
+					"cameras"	: 
+					[ 
+					],
+					"m_csys"	: 
+					{
+						"pos"	: 
+						{
+							"x"	: 0.762655,
+							"y"	: 0.798619,
+							"z"	: 0.422806
+						},
+						"rot"	: 
+						{
+							"e0"	: 0.636688,
+							"e1"	: -0.614892,
+							"e2"	: 0.307618,
+							"e3"	: -0.349153
+						}
+					},
+					"m_csys_dt"	: 
+					{
+						"pos"	: 
+						{
+							"x"	: 0,
+							"y"	: 0,
+							"z"	: 0
+						},
+						"rot"	: 
+						{
+							"e0"	: 0,
+							"e1"	: 0,
+							"e2"	: 0,
+							"e3"	: 0
+						}
+					},
+					"m_csys_dtdt"	: 
+					{
+						"pos"	: 
+						{
+							"x"	: 0,
+							"y"	: 0,
+							"z"	: 0
+						},
+						"rot"	: 
+						{
+							"e0"	: 0,
+							"e1"	: 0,
+							"e2"	: 0,
+							"e3"	: 0
+						}
+					},
+					"fixed"	: false,
+					"collide"	: false,
+					"limit_speed"	: false,
+					"disable_gyrotorque"	: false,
+					"is_sleeping"	: false,
+					"allow_sleeping"	: true,
+					"candidate_sleeping"	: false,
+					"markers"	: 
+					[ 
+					],
+					"forces"	: 
+					[ 
+					],
+					"collision_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"gyro"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"Xforce"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"Xtorque"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"variables"	: 
+					{
+						"ndof"	: 6,
+						"disabled"	: false,
+						"offset"	: 0,
+						"mass"	: 64.801,
+						"inertia"	: 
+						{
+							"rows"	: 3,
+							"columns"	: 3,
+							"data"	: 
+							[ 
+								6.58124,
+								0.589579,
+								-0.148625,
+								0.589579,
+								0.895677,
+								-0.197276,
+								-0.148625,
+								-0.197276,
+								6.57291
+							]
+						}
+					},
+					"max_speed"	: 0.5,
+					"max_wvel"	: 6.28319,
+					"sleep_time"	: 0.6,
+					"sleep_minspeed"	: 0.1,
+					"sleep_minwvel"	: 0.04,
+					"sleep_starttime"	: 0,
+					"ref_to_com"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.364993,
+								"y"	: 0.266086,
+								"z"	: -1.31463
+							},
+							"rot"	: 
+							{
+								"e0"	: 1,
+								"e1"	: -0,
+								"e2"	: -0,
+								"e3"	: -0
+							}
+						},
+						"m_csys_dt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dtdt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						}
+					},
+					"ref_to_abs"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 1,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dtdt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						}
+					}
+				},
+				{ 
+					"_type"	: "ChBodyAuxRef",
+					"_object_ID"	: 46,
+					"m_name"	: "IRB6700_155-285_IRC5_rev02_LINK03_CAD-1",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_type"	: "ChVisualModel",
+						"_object_ID"	: 47,
+						"m_shapes"	: 
+						[ 
+							{
+								"first"	: 
+								{ 
+									"_type"	: "ChVisualShapeModelFile",
+									"_object_ID"	: 48,
+									"visible"	: true,
+									"is_mutable"	: false,
+									"material_list"	: 
+									[ 
+									],
+									"filename"	: "Assemble_j_01_shapes/body_4_1.obj",
+									"scale"	: 
+									{
+										"x"	: 1,
+										"y"	: 1,
+										"z"	: 1
+									}
+								},
+								"second"	: 
+								{
+									"m_csys"	: 
+									{
+										"pos"	: 
+										{
+											"x"	: 0,
+											"y"	: 0,
+											"z"	: 0
+										},
+										"rot"	: 
+										{
+											"e0"	: 1,
+											"e1"	: 0,
+											"e2"	: 0,
+											"e3"	: 0
+										}
+									}
+								}
+							}
+						]
+					},
+					"cameras"	: 
+					[ 
+					],
+					"m_csys"	: 
+					{
+						"pos"	: 
+						{
+							"x"	: 1.29869,
+							"y"	: 1.27604,
+							"z"	: 0.190164
+						},
+						"rot"	: 
+						{
+							"e0"	: 0.647461,
+							"e1"	: -0.627192,
+							"e2"	: 0.284242,
+							"e3"	: -0.326543
+						}
+					},
+					"m_csys_dt"	: 
+					{
+						"pos"	: 
+						{
+							"x"	: 0,
+							"y"	: 0,
+							"z"	: 0
+						},
+						"rot"	: 
+						{
+							"e0"	: 0,
+							"e1"	: 0,
+							"e2"	: 0,
+							"e3"	: 0
+						}
+					},
+					"m_csys_dtdt"	: 
+					{
+						"pos"	: 
+						{
+							"x"	: 0,
+							"y"	: 0,
+							"z"	: 0
+						},
+						"rot"	: 
+						{
+							"e0"	: 0,
+							"e1"	: 0,
+							"e2"	: 0,
+							"e3"	: 0
+						}
+					},
+					"fixed"	: false,
+					"collide"	: false,
+					"limit_speed"	: false,
+					"disable_gyrotorque"	: false,
+					"is_sleeping"	: false,
+					"allow_sleeping"	: true,
+					"candidate_sleeping"	: false,
+					"markers"	: 
+					[ 
+					],
+					"forces"	: 
+					[ 
+					],
+					"collision_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"gyro"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"Xforce"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"Xtorque"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"variables"	: 
+					{
+						"ndof"	: 6,
+						"disabled"	: false,
+						"offset"	: 0,
+						"mass"	: 51.1051,
+						"inertia"	: 
+						{
+							"rows"	: 3,
+							"columns"	: 3,
+							"data"	: 
+							[ 
+								1.47898,
+								-0.403531,
+								0.134984,
+								-0.403531,
+								1.94901,
+								0.0790315,
+								0.134984,
+								0.0790315,
+								2.03414
+							]
+						}
+					},
+					"max_speed"	: 0.5,
+					"max_wvel"	: 6.28319,
+					"sleep_time"	: 0.6,
+					"sleep_minspeed"	: 0.1,
+					"sleep_minwvel"	: 0.04,
+					"sleep_starttime"	: 0,
+					"ref_to_com"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.275271,
+								"y"	: -0.00158209,
+								"z"	: -2.01689
+							},
+							"rot"	: 
+							{
+								"e0"	: 1,
+								"e1"	: -0,
+								"e2"	: -0,
+								"e3"	: -0
+							}
+						},
+						"m_csys_dt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dtdt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						}
+					},
+					"ref_to_abs"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 1,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dtdt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						}
+					}
+				},
+				{ 
+					"_type"	: "ChBodyAuxRef",
+					"_object_ID"	: 49,
+					"m_name"	: "IRB6700-MH3_150-320_IRC5_rev04_LINK05_CAD.step-1",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_type"	: "ChVisualModel",
+						"_object_ID"	: 50,
+						"m_shapes"	: 
+						[ 
+							{
+								"first"	: 
+								{ 
+									"_type"	: "ChVisualShapeModelFile",
+									"_object_ID"	: 51,
+									"visible"	: true,
+									"is_mutable"	: false,
+									"material_list"	: 
+									[ 
+									],
+									"filename"	: "Assemble_j_01_shapes/body_5_1.obj",
+									"scale"	: 
+									{
+										"x"	: 1,
+										"y"	: 1,
+										"z"	: 1
+									}
+								},
+								"second"	: 
+								{
+									"m_csys"	: 
+									{
+										"pos"	: 
+										{
+											"x"	: 0,
+											"y"	: 0,
+											"z"	: 0
+										},
+										"rot"	: 
+										{
+											"e0"	: 1,
+											"e1"	: 0,
+											"e2"	: 0,
+											"e3"	: 0
+										}
+									}
+								}
+							}
+						]
+					},
+					"cameras"	: 
+					[ 
+					],
+					"m_csys"	: 
+					{
+						"pos"	: 
+						{
+							"x"	: 2.26525,
+							"y"	: 0.19504,
+							"z"	: 0.267686
+						},
+						"rot"	: 
+						{
+							"e0"	: -0.468709,
+							"e1"	: -0.485788,
+							"e2"	: 0.53674,
+							"e3"	: 0.506193
+						}
+					},
+					"m_csys_dt"	: 
+					{
+						"pos"	: 
+						{
+							"x"	: 0,
+							"y"	: 0,
+							"z"	: 0
+						},
+						"rot"	: 
+						{
+							"e0"	: 0,
+							"e1"	: 0,
+							"e2"	: 0,
+							"e3"	: 0
+						}
+					},
+					"m_csys_dtdt"	: 
+					{
+						"pos"	: 
+						{
+							"x"	: 0,
+							"y"	: 0,
+							"z"	: 0
+						},
+						"rot"	: 
+						{
+							"e0"	: 0,
+							"e1"	: 0,
+							"e2"	: 0,
+							"e3"	: 0
+						}
+					},
+					"fixed"	: false,
+					"collide"	: false,
+					"limit_speed"	: false,
+					"disable_gyrotorque"	: false,
+					"is_sleeping"	: false,
+					"allow_sleeping"	: true,
+					"candidate_sleeping"	: false,
+					"markers"	: 
+					[ 
+					],
+					"forces"	: 
+					[ 
+					],
+					"collision_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"gyro"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"Xforce"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"Xtorque"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"variables"	: 
+					{
+						"ndof"	: 6,
+						"disabled"	: false,
+						"offset"	: 0,
+						"mass"	: 7.60659,
+						"inertia"	: 
+						{
+							"rows"	: 3,
+							"columns"	: 3,
+							"data"	: 
+							[ 
+								0.0753312,
+								-0.000634822,
+								-0.00196299,
+								-0.000634822,
+								0.0804156,
+								-0.00349035,
+								-0.00196299,
+								-0.00349035,
+								0.031708
+							]
+						}
+					},
+					"max_speed"	: 0.5,
+					"max_wvel"	: 6.28319,
+					"sleep_time"	: 0.6,
+					"sleep_minspeed"	: 0.1,
+					"sleep_minwvel"	: 0.04,
+					"sleep_starttime"	: 0,
+					"ref_to_com"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -1.92863,
+								"y"	: -0.00344406,
+								"z"	: -2.25838
+							},
+							"rot"	: 
+							{
+								"e0"	: 1,
+								"e1"	: -0,
+								"e2"	: -0,
+								"e3"	: -0
+							}
+						},
+						"m_csys_dt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dtdt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						}
+					},
+					"ref_to_abs"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 1,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dtdt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						}
+					}
+				},
+				{ 
+					"_type"	: "ChBodyAuxRef",
+					"_object_ID"	: 52,
+					"m_name"	: "IRB6700_155-285_IRC5_rev01_LINK06_CAD-1",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_type"	: "ChVisualModel",
+						"_object_ID"	: 53,
+						"m_shapes"	: 
+						[ 
+							{
+								"first"	: 
+								{ 
+									"_type"	: "ChVisualShapeModelFile",
+									"_object_ID"	: 54,
+									"visible"	: true,
+									"is_mutable"	: false,
+									"material_list"	: 
+									[ 
+									],
+									"filename"	: "Assemble_j_01_shapes/body_6_1.obj",
+									"scale"	: 
+									{
+										"x"	: 1,
+										"y"	: 1,
+										"z"	: 1
+									}
+								},
+								"second"	: 
+								{
+									"m_csys"	: 
+									{
+										"pos"	: 
+										{
+											"x"	: 0,
+											"y"	: 0,
+											"z"	: 0
+										},
+										"rot"	: 
+										{
+											"e0"	: 1,
+											"e1"	: 0,
+											"e2"	: 0,
+											"e3"	: 0
+										}
+									}
+								}
+							}
+						]
+					},
+					"cameras"	: 
+					[ 
+					],
+					"m_csys"	: 
+					{
+						"pos"	: 
+						{
+							"x"	: 2.24873,
+							"y"	: 0.0293715,
+							"z"	: 0.265943
+						},
+						"rot"	: 
+						{
+							"e0"	: 0.525944,
+							"e1"	: 0.423156,
+							"e2"	: -0.469004,
+							"e3"	: -0.569524
+						}
+					},
+					"m_csys_dt"	: 
+					{
+						"pos"	: 
+						{
+							"x"	: 0,
+							"y"	: 0,
+							"z"	: 0
+						},
+						"rot"	: 
+						{
+							"e0"	: 0,
+							"e1"	: 0,
+							"e2"	: 0,
+							"e3"	: 0
+						}
+					},
+					"m_csys_dtdt"	: 
+					{
+						"pos"	: 
+						{
+							"x"	: 0,
+							"y"	: 0,
+							"z"	: 0
+						},
+						"rot"	: 
+						{
+							"e0"	: 0,
+							"e1"	: 0,
+							"e2"	: 0,
+							"e3"	: 0
+						}
+					},
+					"fixed"	: false,
+					"collide"	: false,
+					"limit_speed"	: false,
+					"disable_gyrotorque"	: false,
+					"is_sleeping"	: false,
+					"allow_sleeping"	: true,
+					"candidate_sleeping"	: false,
+					"markers"	: 
+					[ 
+					],
+					"forces"	: 
+					[ 
+					],
+					"collision_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"gyro"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"Xforce"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"Xtorque"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"variables"	: 
+					{
+						"ndof"	: 6,
+						"disabled"	: false,
+						"offset"	: 0,
+						"mass"	: 0.787913,
+						"inertia"	: 
+						{
+							"rows"	: 3,
+							"columns"	: 3,
+							"data"	: 
+							[ 
+								0.00212083,
+								-2.5241e-05,
+								0.00017103,
+								-2.5241e-05,
+								0.00219533,
+								-0.000386967,
+								0.00017103,
+								-0.000386967,
+								0.00397102
+							]
+						}
+					},
+					"max_speed"	: 0.5,
+					"max_wvel"	: 6.28319,
+					"sleep_time"	: 0.6,
+					"sleep_minspeed"	: 0.1,
+					"sleep_minwvel"	: 0.04,
+					"sleep_starttime"	: 0,
+					"ref_to_com"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -1.89508,
+								"y"	: 0.000172453,
+								"z"	: -2.10527
+							},
+							"rot"	: 
+							{
+								"e0"	: 1,
+								"e1"	: -0,
+								"e2"	: -0,
+								"e3"	: -0
+							}
+						},
+						"m_csys_dt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dtdt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						}
+					},
+					"ref_to_abs"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 1,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dtdt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						}
+					}
+				},
+				{ 
+					"_type"	: "ChBodyAuxRef",
+					"_object_ID"	: 55,
+					"m_name"	: "IRB6700_155-285_IRC5_rev01_LINK04_CAD-1",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_type"	: "ChVisualModel",
+						"_object_ID"	: 56,
+						"m_shapes"	: 
+						[ 
+							{
+								"first"	: 
+								{ 
+									"_type"	: "ChVisualShapeModelFile",
+									"_object_ID"	: 57,
+									"visible"	: true,
+									"is_mutable"	: false,
+									"material_list"	: 
+									[ 
+									],
+									"filename"	: "Assemble_j_01_shapes/body_7_1.obj",
+									"scale"	: 
+									{
+										"x"	: 1,
+										"y"	: 1,
+										"z"	: 1
+									}
+								},
+								"second"	: 
+								{
+									"m_csys"	: 
+									{
+										"pos"	: 
+										{
+											"x"	: 0,
+											"y"	: 0,
+											"z"	: 0
+										},
+										"rot"	: 
+										{
+											"e0"	: 1,
+											"e1"	: 0,
+											"e2"	: 0,
+											"e3"	: 0
+										}
+									}
+								}
+							}
+						]
+					},
+					"cameras"	: 
+					[ 
+					],
+					"m_csys"	: 
+					{
+						"pos"	: 
+						{
+							"x"	: 1.87857,
+							"y"	: 0.693673,
+							"z"	: 0.228038
+						},
+						"rot"	: 
+						{
+							"e0"	: 0.635182,
+							"e1"	: 0.639625,
+							"e2"	: -0.322989,
+							"e3"	: -0.288274
+						}
+					},
+					"m_csys_dt"	: 
+					{
+						"pos"	: 
+						{
+							"x"	: 0,
+							"y"	: 0,
+							"z"	: 0
+						},
+						"rot"	: 
+						{
+							"e0"	: 0,
+							"e1"	: 0,
+							"e2"	: 0,
+							"e3"	: 0
+						}
+					},
+					"m_csys_dtdt"	: 
+					{
+						"pos"	: 
+						{
+							"x"	: 0,
+							"y"	: 0,
+							"z"	: 0
+						},
+						"rot"	: 
+						{
+							"e0"	: 0,
+							"e1"	: 0,
+							"e2"	: 0,
+							"e3"	: 0
+						}
+					},
+					"fixed"	: false,
+					"collide"	: false,
+					"limit_speed"	: false,
+					"disable_gyrotorque"	: false,
+					"is_sleeping"	: false,
+					"allow_sleeping"	: true,
+					"candidate_sleeping"	: false,
+					"markers"	: 
+					[ 
+					],
+					"forces"	: 
+					[ 
+					],
+					"collision_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"gyro"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"Xforce"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"Xtorque"	: 
+					{
+						"x"	: 0,
+						"y"	: 0,
+						"z"	: 0
+					},
+					"variables"	: 
+					{
+						"ndof"	: 6,
+						"disabled"	: false,
+						"offset"	: 0,
+						"mass"	: 63.2865,
+						"inertia"	: 
+						{
+							"rows"	: 3,
+							"columns"	: 3,
+							"data"	: 
+							[ 
+								9.48247,
+								0.445934,
+								7.12144,
+								0.445934,
+								15.5756,
+								-0.539948,
+								7.12144,
+								-0.539948,
+								6.53719
+							]
+						}
+					},
+					"max_speed"	: 0.5,
+					"max_wvel"	: 6.28319,
+					"sleep_time"	: 0.6,
+					"sleep_minspeed"	: 0.1,
+					"sleep_minwvel"	: 0.04,
+					"sleep_starttime"	: 0,
+					"ref_to_com"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -1.09325,
+								"y"	: 0.00223728,
+								"z"	: -2.10501
+							},
+							"rot"	: 
+							{
+								"e0"	: 1,
+								"e1"	: -0,
+								"e2"	: -0,
+								"e3"	: -0
+							}
+						},
+						"m_csys_dt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dtdt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						}
+					},
+					"ref_to_abs"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 1,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						},
+						"m_csys_dtdt"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0,
+								"y"	: 0,
+								"z"	: 0
+							},
+							"rot"	: 
+							{
+								"e0"	: 0,
+								"e1"	: 0,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						}
+					}
+				}
+			],
+			"shafts"	: 
+			[ 
+			],
+			"links"	: 
+			[ 
+				{ 
+					"_type"	: "ChLinkMateDistanceZ",
+					"_object_ID"	: 58,
+					"_version_ChLinkMateDistanceZ"	: 0,
+					"_version_ChLinkMateGeneric"	: 0,
+					"_version_ChLinkMate"	: 0,
+					"_version_class_chrono__ChLink"	: 0,
+					"_version_class_chrono__ChLinkBase"	: 0,
+					"m_name"	: "Coincident1",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 40
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 37
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.157733,
+								"y"	: -0.0247008,
+								"z"	: -0.243729
+							},
+							"rot"	: 
+							{
+								"e0"	: 1,
+								"e1"	: 6.54535e-16,
+								"e2"	: 1.93932e-16,
+								"e3"	: 1.26935e-31
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.0631393,
+								"y"	: 0.055269,
+								"z"	: 0.233842
+							},
+							"rot"	: 
+							{
+								"e0"	: 1,
+								"e1"	: 1.7841e-15,
+								"e2"	: 5.94288e-17,
+								"e3"	: 1.06027e-31
+							}
+						}
+					},
+					"c_x"	: false,
+					"c_y"	: false,
+					"c_z"	: true,
+					"c_rx"	: false,
+					"c_ry"	: false,
+					"c_rz"	: false,
+					"m_distance"	: -0
+				},
+				{ 
+					"_type"	: "ChLinkMateParallel",
+					"_object_ID"	: 59,
+					"_version_ChLinkMateParallel"	: 0,
+					"m_name"	: "Coincident1",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 40
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 37
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.157733,
+								"y"	: -0.0247008,
+								"z"	: -0.243729
+							},
+							"rot"	: 
+							{
+								"e0"	: 1,
+								"e1"	: 1.62242e-15,
+								"e2"	: 7.08272e-19,
+								"e3"	: 1.14911e-33
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.0631393,
+								"y"	: 0.055269,
+								"z"	: 0.233842
+							},
+							"rot"	: 
+							{
+								"e0"	: 1,
+								"e1"	: 1.7841e-15,
+								"e2"	: 5.94288e-17,
+								"e3"	: 1.06027e-31
+							}
+						}
+					},
+					"c_x"	: false,
+					"c_y"	: false,
+					"c_z"	: false,
+					"c_rx"	: true,
+					"c_ry"	: true,
+					"c_rz"	: false,
+					"m_flipped"	: true
+				},
+				{ 
+					"_type"	: "ChLinkMateParallel",
+					"_object_ID"	: 60,
+					"m_name"	: "Concentric1",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 37
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 40
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0.108153,
+								"y"	: -3.97635e-05,
+								"z"	: 0.110342
+							},
+							"rot"	: 
+							{
+								"e0"	: -1.78961e-15,
+								"e1"	: 1,
+								"e2"	: 1.36882e-31,
+								"e3"	: -7.64868e-17
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.157733,
+								"y"	: -0.0247008,
+								"z"	: -0.243729
+							},
+							"rot"	: 
+							{
+								"e0"	: -1.62242e-15,
+								"e1"	: 1,
+								"e2"	: -2.07297e-34,
+								"e3"	: 1.2777e-19
+							}
+						}
+					},
+					"c_x"	: false,
+					"c_y"	: false,
+					"c_z"	: false,
+					"c_rx"	: true,
+					"c_ry"	: true,
+					"c_rz"	: false,
+					"m_flipped"	: false
+				},
+				{ 
+					"_type"	: "ChLinkMateGeneric",
+					"_object_ID"	: 61,
+					"m_name"	: "Concentric1",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 37
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 40
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0.108153,
+								"y"	: -3.97635e-05,
+								"z"	: 0.110342
+							},
+							"rot"	: 
+							{
+								"e0"	: -1.78961e-15,
+								"e1"	: 1,
+								"e2"	: 1.36882e-31,
+								"e3"	: -7.64868e-17
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.157733,
+								"y"	: -0.0247008,
+								"z"	: -0.243729
+							},
+							"rot"	: 
+							{
+								"e0"	: -1.62242e-15,
+								"e1"	: 1,
+								"e2"	: -2.07297e-34,
+								"e3"	: 1.2777e-19
+							}
+						}
+					},
+					"c_x"	: true,
+					"c_y"	: true,
+					"c_z"	: false,
+					"c_rx"	: false,
+					"c_ry"	: false,
+					"c_rz"	: false
+				},
+				{ 
+					"_type"	: "ChLinkMateParallel",
+					"_object_ID"	: 62,
+					"m_name"	: "Concentric2",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 40
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 43
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0.162267,
+								"y"	: -0.164701,
+								"z"	: 0.162771
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: 0.707107,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.0449934,
+								"y"	: 0.139086,
+								"z"	: -0.534632
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: 0.707107,
+								"e2"	: -2.87033e-16,
+								"e3"	: -2.87033e-16
+							}
+						}
+					},
+					"c_x"	: false,
+					"c_y"	: false,
+					"c_z"	: false,
+					"c_rx"	: true,
+					"c_ry"	: true,
+					"c_rz"	: false,
+					"m_flipped"	: false
+				},
+				{ 
+					"_type"	: "ChLinkMateGeneric",
+					"_object_ID"	: 63,
+					"m_name"	: "Concentric2",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 40
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 43
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0.162267,
+								"y"	: -0.164701,
+								"z"	: 0.162771
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: 0.707107,
+								"e2"	: 0,
+								"e3"	: 0
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.0449934,
+								"y"	: 0.139086,
+								"z"	: -0.534632
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: 0.707107,
+								"e2"	: -2.87033e-16,
+								"e3"	: -2.87033e-16
+							}
+						}
+					},
+					"c_x"	: true,
+					"c_y"	: true,
+					"c_z"	: false,
+					"c_rx"	: false,
+					"c_ry"	: false,
+					"c_rz"	: false
+				},
+				{ 
+					"_type"	: "ChLinkMateParallel",
+					"_object_ID"	: 64,
+					"m_name"	: "Concentric3",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 43
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 46
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.0449934,
+								"y"	: 0.126086,
+								"z"	: 0.590368
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: -0.707107,
+								"e2"	: 2.50233e-16,
+								"e3"	: -2.50233e-16
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0.044729,
+								"y"	: -0.173582,
+								"z"	: -0.111886
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: -0.707107,
+								"e2"	: -7.35981e-18,
+								"e3"	: 7.35981e-18
+							}
+						}
+					},
+					"c_x"	: false,
+					"c_y"	: false,
+					"c_z"	: false,
+					"c_rx"	: true,
+					"c_ry"	: true,
+					"c_rz"	: false,
+					"m_flipped"	: false
+				},
+				{ 
+					"_type"	: "ChLinkMateGeneric",
+					"_object_ID"	: 65,
+					"m_name"	: "Concentric3",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 43
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 46
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.0449934,
+								"y"	: 0.126086,
+								"z"	: 0.590368
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: -0.707107,
+								"e2"	: 2.50233e-16,
+								"e3"	: -2.50233e-16
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0.044729,
+								"y"	: -0.173582,
+								"z"	: -0.111886
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: -0.707107,
+								"e2"	: -7.35981e-18,
+								"e3"	: 7.35981e-18
+							}
+						}
+					},
+					"c_x"	: true,
+					"c_y"	: true,
+					"c_z"	: false,
+					"c_rx"	: false,
+					"c_ry"	: false,
+					"c_rz"	: false
+				},
+				{ 
+					"_type"	: "ChLinkMateDistanceZ",
+					"_object_ID"	: 66,
+					"m_name"	: "Coincident3",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 43
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 46
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.0449934,
+								"y"	: -0.00491362,
+								"z"	: 0.712868
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: 0.707107,
+								"e2"	: -3.23832e-16,
+								"e3"	: -3.23832e-16
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0.0296859,
+								"y"	: -0.272582,
+								"z"	: 0.00237804
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: 0.707107,
+								"e2"	: 7.35981e-18,
+								"e3"	: 7.35981e-18
+							}
+						}
+					},
+					"c_x"	: false,
+					"c_y"	: false,
+					"c_z"	: true,
+					"c_rx"	: false,
+					"c_ry"	: false,
+					"c_rz"	: false,
+					"m_distance"	: -0
+				},
+				{ 
+					"_type"	: "ChLinkMateParallel",
+					"_object_ID"	: 67,
+					"m_name"	: "Coincident3",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 43
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 46
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.0449934,
+								"y"	: -0.00491362,
+								"z"	: 0.712868
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: 0.707107,
+								"e2"	: -2.87033e-16,
+								"e3"	: -2.87033e-16
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0.0296859,
+								"y"	: -0.272582,
+								"z"	: 0.00237804
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: 0.707107,
+								"e2"	: 7.35981e-18,
+								"e3"	: 7.35981e-18
+							}
+						}
+					},
+					"c_x"	: false,
+					"c_y"	: false,
+					"c_z"	: false,
+					"c_rx"	: true,
+					"c_ry"	: true,
+					"c_rz"	: false,
+					"m_flipped"	: true
+				},
+				{ 
+					"_type"	: "ChLinkMateParallel",
+					"_object_ID"	: 68,
+					"m_name"	: "Concentric4",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 46
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 55
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.235371,
+								"y"	: -0.00158209,
+								"z"	: 0.088114
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.699053,
+								"e1"	: -0.106419,
+								"e2"	: 0.699053,
+								"e3"	: -0.106419
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.112751,
+								"y"	: 0.00223728,
+								"z"	: -1.01478e-05
+							},
+							"rot"	: 
+							{
+								"e0"	: -0.0438531,
+								"e1"	: 0.705746,
+								"e2"	: -0.0438531,
+								"e3"	: 0.705746
+							}
+						}
+					},
+					"c_x"	: false,
+					"c_y"	: false,
+					"c_z"	: false,
+					"c_rx"	: true,
+					"c_ry"	: true,
+					"c_rz"	: false,
+					"m_flipped"	: false
+				},
+				{ 
+					"_type"	: "ChLinkMateGeneric",
+					"_object_ID"	: 69,
+					"m_name"	: "Concentric4",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 46
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 55
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.235371,
+								"y"	: -0.00158209,
+								"z"	: 0.088114
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.699053,
+								"e1"	: -0.106419,
+								"e2"	: 0.699053,
+								"e3"	: -0.106419
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.112751,
+								"y"	: 0.00223728,
+								"z"	: -1.01478e-05
+							},
+							"rot"	: 
+							{
+								"e0"	: -0.0438531,
+								"e1"	: 0.705746,
+								"e2"	: -0.0438531,
+								"e3"	: 0.705746
+							}
+						}
+					},
+					"c_x"	: true,
+					"c_y"	: true,
+					"c_z"	: false,
+					"c_rx"	: false,
+					"c_ry"	: false,
+					"c_rz"	: false
+				},
+				{ 
+					"_type"	: "ChLinkMateDistanceZ",
+					"_object_ID"	: 70,
+					"m_name"	: "Coincident4",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 46
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 55
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0.278416,
+								"y"	: -0.00158209,
+								"z"	: 0.088114
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.0471529,
+								"e1"	: 0.705533,
+								"e2"	: -0.0471529,
+								"e3"	: -0.705533
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.539565,
+								"y"	: 0.00223728,
+								"z"	: -1.01478e-05
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.705746,
+								"e1"	: 0.0438531,
+								"e2"	: -0.705746,
+								"e3"	: -0.0438531
+							}
+						}
+					},
+					"c_x"	: false,
+					"c_y"	: false,
+					"c_z"	: true,
+					"c_rx"	: false,
+					"c_ry"	: false,
+					"c_rz"	: false,
+					"m_distance"	: -0
+				},
+				{ 
+					"_type"	: "ChLinkMateParallel",
+					"_object_ID"	: 71,
+					"m_name"	: "Coincident4",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 46
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 55
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0.278416,
+								"y"	: -0.00158209,
+								"z"	: 0.088114
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.106419,
+								"e1"	: 0.699053,
+								"e2"	: -0.106419,
+								"e3"	: -0.699053
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.539565,
+								"y"	: 0.00223728,
+								"z"	: -1.01478e-05
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.705746,
+								"e1"	: 0.0438531,
+								"e2"	: -0.705746,
+								"e3"	: -0.0438531
+							}
+						}
+					},
+					"c_x"	: false,
+					"c_y"	: false,
+					"c_z"	: false,
+					"c_rx"	: true,
+					"c_ry"	: true,
+					"c_rz"	: false,
+					"m_flipped"	: true
+				},
+				{ 
+					"_type"	: "ChLinkMateDistanceZ",
+					"_object_ID"	: 72,
+					"m_name"	: "Coincident10",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 55
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 49
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0.586773,
+								"y"	: -0.0847627,
+								"z"	: -0.0187601
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: 0.707107,
+								"e2"	: 2.03621e-16,
+								"e3"	: 2.03621e-16
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.074134,
+								"y"	: -0.0984441,
+								"z"	: 0.00162324
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: 0.707107,
+								"e2"	: 1.32967e-15,
+								"e3"	: 1.32967e-15
+							}
+						}
+					},
+					"c_x"	: false,
+					"c_y"	: false,
+					"c_z"	: true,
+					"c_rx"	: false,
+					"c_ry"	: false,
+					"c_rz"	: false,
+					"m_distance"	: -0
+				},
+				{ 
+					"_type"	: "ChLinkMateParallel",
+					"_object_ID"	: 73,
+					"m_name"	: "Coincident10",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 55
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 49
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0.586773,
+								"y"	: -0.0847627,
+								"z"	: -0.0187601
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: 0.707107,
+								"e2"	: 3.6799e-17,
+								"e3"	: 3.6799e-17
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.074134,
+								"y"	: -0.0984441,
+								"z"	: 0.00162324
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: 0.707107,
+								"e2"	: 1.32967e-15,
+								"e3"	: 1.32967e-15
+							}
+						}
+					},
+					"c_x"	: false,
+					"c_y"	: false,
+					"c_z"	: false,
+					"c_rx"	: true,
+					"c_ry"	: true,
+					"c_rz"	: false,
+					"m_flipped"	: true
+				},
+				{ 
+					"_type"	: "ChLinkMateParallel",
+					"_object_ID"	: 74,
+					"m_name"	: "Concentric7",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 55
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 49
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0.619249,
+								"y"	: -0.104763,
+								"z"	: -1.01478e-05
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: -0.707107,
+								"e2"	: -4.41589e-17,
+								"e3"	: 4.41589e-17
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.016134,
+								"y"	: -0.00344406,
+								"z"	: 0.00162324
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: -0.707107,
+								"e2"	: -1.32967e-15,
+								"e3"	: 1.32967e-15
+							}
+						}
+					},
+					"c_x"	: false,
+					"c_y"	: false,
+					"c_z"	: false,
+					"c_rx"	: true,
+					"c_ry"	: true,
+					"c_rz"	: false,
+					"m_flipped"	: false
+				},
+				{ 
+					"_type"	: "ChLinkMateGeneric",
+					"_object_ID"	: 75,
+					"m_name"	: "Concentric7",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 55
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 49
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0.619249,
+								"y"	: -0.104763,
+								"z"	: -1.01478e-05
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: -0.707107,
+								"e2"	: -4.41589e-17,
+								"e3"	: 4.41589e-17
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.016134,
+								"y"	: -0.00344406,
+								"z"	: 0.00162324
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: -0.707107,
+								"e2"	: -1.32967e-15,
+								"e3"	: 1.32967e-15
+							}
+						}
+					},
+					"c_x"	: true,
+					"c_y"	: true,
+					"c_z"	: false,
+					"c_rx"	: false,
+					"c_ry"	: false,
+					"c_rz"	: false
+				},
+				{ 
+					"_type"	: "ChLinkMateParallel",
+					"_object_ID"	: 76,
+					"m_name"	: "Concentric8",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 49
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 52
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0.147366,
+								"y"	: -0.00344406,
+								"z"	: 0.00162324
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.167245,
+								"e1"	: 0.687044,
+								"e2"	: 0.167245,
+								"e3"	: 0.687044
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.0192835,
+								"y"	: 0.000172453,
+								"z"	: -0.000274952
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.406701,
+								"e1"	: 0.578441,
+								"e2"	: 0.406701,
+								"e3"	: 0.578441
+							}
+						}
+					},
+					"c_x"	: false,
+					"c_y"	: false,
+					"c_z"	: false,
+					"c_rx"	: true,
+					"c_ry"	: true,
+					"c_rz"	: false,
+					"m_flipped"	: false
+				},
+				{ 
+					"_type"	: "ChLinkMateGeneric",
+					"_object_ID"	: 77,
+					"m_name"	: "Concentric8",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 49
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 52
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0.147366,
+								"y"	: -0.00344406,
+								"z"	: 0.00162324
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.167245,
+								"e1"	: 0.687044,
+								"e2"	: 0.167245,
+								"e3"	: 0.687044
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.0192835,
+								"y"	: 0.000172453,
+								"z"	: -0.000274952
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.406701,
+								"e1"	: 0.578441,
+								"e2"	: 0.406701,
+								"e3"	: 0.578441
+							}
+						}
+					},
+					"c_x"	: true,
+					"c_y"	: true,
+					"c_z"	: false,
+					"c_rx"	: false,
+					"c_ry"	: false,
+					"c_rz"	: false
+				},
+				{ 
+					"_type"	: "ChLinkMateDistanceZ",
+					"_object_ID"	: 78,
+					"m_name"	: "Coincident12",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 40
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 43
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0.162267,
+								"y"	: -0.164701,
+								"z"	: 0.311771
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: -0.707107,
+								"e2"	: 1.47196e-17,
+								"e3"	: -1.47196e-17
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.0449934,
+								"y"	: 0.126086,
+								"z"	: -0.682832
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: -0.707107,
+								"e2"	: 2.87033e-16,
+								"e3"	: -2.87033e-16
+							}
+						}
+					},
+					"c_x"	: false,
+					"c_y"	: false,
+					"c_z"	: true,
+					"c_rx"	: false,
+					"c_ry"	: false,
+					"c_rz"	: false,
+					"m_distance"	: -0
+				},
+				{ 
+					"_type"	: "ChLinkMateParallel",
+					"_object_ID"	: 79,
+					"m_name"	: "Coincident12",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 40
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 43
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0.162267,
+								"y"	: -0.164701,
+								"z"	: 0.311771
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: -0.707107,
+								"e2"	: 0,
+								"e3"	: -0
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.0449934,
+								"y"	: 0.126086,
+								"z"	: -0.682832
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.707107,
+								"e1"	: -0.707107,
+								"e2"	: 2.87033e-16,
+								"e3"	: -2.87033e-16
+							}
+						}
+					},
+					"c_x"	: false,
+					"c_y"	: false,
+					"c_z"	: false,
+					"c_rx"	: true,
+					"c_ry"	: true,
+					"c_rz"	: false,
+					"m_flipped"	: true
+				},
+				{ 
+					"_type"	: "ChLinkMateDistanceZ",
+					"_object_ID"	: 80,
+					"m_name"	: "Coincident13",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 49
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 52
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0.148866,
+								"y"	: -0.00344406,
+								"z"	: -0.0218768
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.667371,
+								"e1"	: -0.233702,
+								"e2"	: -0.667371,
+								"e3"	: 0.233702
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.0175835,
+								"y"	: 0.000172453,
+								"z"	: -0.000274952
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.578441,
+								"e1"	: -0.406701,
+								"e2"	: -0.578441,
+								"e3"	: 0.406701
+							}
+						}
+					},
+					"c_x"	: false,
+					"c_y"	: false,
+					"c_z"	: true,
+					"c_rx"	: false,
+					"c_ry"	: false,
+					"c_rz"	: false,
+					"m_distance"	: -0
+				},
+				{ 
+					"_type"	: "ChLinkMateParallel",
+					"_object_ID"	: 81,
+					"m_name"	: "Coincident13",
+					"m_tag"	: -1,
+					"ChTime"	: 0,
+					"visual_model"	: 
+					{ 
+						"_reference_ID"	: 0
+					},
+					"cameras"	: 
+					[ 
+					],
+					"disabled"	: false,
+					"valid"	: true,
+					"broken"	: false,
+					"m_body1"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 49
+					},
+					"m_body2"	: 
+					{ 
+						"_type"	: "ChBodyAuxRef",
+						"_reference_ID"	: 52
+					},
+					"frame1"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: 0.148866,
+								"y"	: -0.00344406,
+								"z"	: -0.0218768
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.705721,
+								"e1"	: -0.044251,
+								"e2"	: -0.705721,
+								"e3"	: 0.044251
+							}
+						}
+					},
+					"frame2"	: 
+					{
+						"m_csys"	: 
+						{
+							"pos"	: 
+							{
+								"x"	: -0.0175835,
+								"y"	: 0.000172453,
+								"z"	: -0.000274952
+							},
+							"rot"	: 
+							{
+								"e0"	: 0.578441,
+								"e1"	: -0.406701,
+								"e2"	: -0.578441,
+								"e3"	: 0.406701
+							}
+						}
+					},
+					"c_x"	: false,
+					"c_y"	: false,
+					"c_z"	: false,
+					"c_rx"	: true,
+					"c_ry"	: true,
+					"c_rz"	: false,
+					"m_flipped"	: true
+				}
+			],
+			"meshes"	: 
+			[ 
+			],
+			"other_physics_items"	: 
+			[ 
+			]
+		},
+		"G_acc"	: 
+		{
+			"x"	: 0,
+			"y"	: -9.81,
+			"z"	: 0
+		},
+		"ch_time"	: 0,
+		"step"	: 0.04,
+		"stepcount"	: 0,
+		"write_matrix"	: false,
+		"use_sleeping"	: false,
+		"descriptor"	: 
+		{ 
+			"_type"	: "ChSystemDescriptor",
+			"_object_ID"	: 82,
+			"_version_ChSystemDescriptor"	: 0
+		},
+		"solver"	: 
+		{ 
+			"_type"	: "ChSolverPSOR",
+			"_object_ID"	: 83,
+			"_version_class_chrono__ChIterativeSolverVI"	: 0,
+			"_version_class_chrono__ChSolver"	: 0,
+			"solver_type"	: "Type::PSOR",
+			"verbose"	: false,
+			"m_max_iterations"	: 50,
+			"m_warm_start"	: false,
+			"m_tolerance"	: 0,
+			"m_omega"	: 1,
+			"m_shlambda"	: 1
+		},
+		"max_penetration_recovery_speed"	: 0.6,
+		"composition_strategy"	: 
+		{
+		}
+	}
+}
