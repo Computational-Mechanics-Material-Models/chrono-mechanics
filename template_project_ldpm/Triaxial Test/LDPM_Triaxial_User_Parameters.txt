@@ -1,0 +1,248 @@
+LDPM Triaxial Compression Example
+=================================
+
+This file summarizes the main user-defined parameters that may need to be changed when running the triaxial compression example with a different cylindrical specimen or loading protocol.
+
+1. LDPM Geometry Files
+----------------------
+
+Update the folder containing the LDPM geometry files:
+
+    std::string LDPM_data_path =
+        current_dir + "LDPMgeo000Cylinder000/";
+
+Example:
+
+    std::string LDPM_data_path =
+        current_dir + "MyCylinderGeometry/";
+
+Update the geometry file prefix only if the names of the .dat files use a different prefix:
+
+    std::string LDPM_GeoName = "LDPMgeo000";
+
+For example, if the files are named:
+
+    Cylinder01-data-nodes.dat
+    Cylinder01-data-tets.dat
+    ...
+
+use:
+
+    std::string LDPM_GeoName = "Cylinder01";
+
+
+2. Specimen Dimensions
+----------------------
+
+The cylinder dimensions are calculated automatically from the LDPM mesh:
+
+    double D = std::max(xmax - xmin, ymax - ymin);
+    double R = D / 2.0;
+    double H = zmax - zmin;
+    double A_specimen = CH_PI * R * R;
+
+The code also detects the specimen center and the top and bottom coordinates automatically using:
+
+    center_x
+    center_y
+    zmin
+    zmax
+
+The top and bottom boundaries are selected using:
+
+    std::abs(p.z() - zmin) < tol_z     // bottom surface
+    std::abs(p.z() - zmax) < tol_z     // top surface
+
+The reference nodes are selected relative to:
+
+    center_x
+    center_y
+
+Therefore, the user does not need to manually enter the diameter, height, center coordinates, or top and bottom coordinates for a different cylindrical specimen.
+
+
+3. Target Confining Pressure
+----------------------------
+
+Set the target confining pressure using:
+
+    double P0 = 100.0;
+
+The pressure unit is MPa when the model uses N and mm.
+
+Example:
+
+    double P0 = 200.0;
+
+During Stage 1:
+
+    P_lateral = P0 * t / t0;
+    P_axial   = P_lateral;
+
+During Stage 2:
+
+    P_lateral = P0;
+
+
+4. Hydrostatic Loading Duration
+-------------------------------
+
+Set the time required to reach the target confining pressure using:
+
+    double t0 = 0.2;
+
+The Stage 1 pressure increases linearly:
+
+    P_lateral = P0 * t / t0;
+
+The transition to Stage 2 occurs when:
+
+    t > t0
+
+
+5. Total Analysis Duration
+--------------------------
+
+Set the total simulation time using:
+
+    double Tfinal = 1.6;
+
+The analysis loop uses:
+
+    while (sys.GetChTime() <= Tfinal)
+
+Tfinal must be long enough to complete both the hydrostatic confinement stage and the displacement-controlled axial loading stage.
+
+
+6. Axial Loading Velocity
+-------------------------
+
+Set the final downward axial velocity during Stage 2 using:
+
+    double v_axial_final = -50.0;
+
+The unit is mm/s when the model uses mm and seconds.
+
+The negative sign applies compression in the negative z-direction.
+
+Example:
+
+    double v_axial_final = -10.0;
+
+A slower velocity may require a larger Tfinal.
+
+
+7. Velocity-Ramp Duration
+-------------------------
+
+Set the duration of the smooth transition from the measured top-plate velocity to the prescribed Stage 2 velocity using:
+
+    double t_vel_ramp = 0.2;
+
+The acceleration is calculated automatically:
+
+    double a_vel =
+        (v_axial_final - v_phase2_initial) / t_vel_ramp;
+
+The displacement accumulated during the ramp is also calculated automatically:
+
+    double disp_ramp_end =
+        v_phase2_initial * t_vel_ramp
+        + 0.5 * a_vel * t_vel_ramp * t_vel_ramp;
+
+A very small t_vel_ramp may introduce an abrupt velocity change and increase kinetic energy.
+
+
+8. Time Step
+------------
+
+Set the time-integration step using:
+
+    double timestep = 1.0e-4;
+
+A smaller time step may improve numerical stability but increases computational cost.
+
+Example:
+
+    double timestep = 5.0e-5;
+
+
+9. Boundary-Detection Tolerances
+--------------------------------
+
+The code uses tolerances to identify the top, bottom, and lateral surfaces:
+
+    double tol_z = 0.001 * H;
+    double tol_r = 0.02 * R;
+
+Normally, these values do not need to be changed.
+
+They may require adjustment if the mesh is much coarser, irregular, or if the boundary nodes or lateral boundary faces are not detected correctly.
+
+The user should check the printed values:
+
+    TOP nodes number
+    BOT nodes number
+    Surround nodes number
+    Lateral boundary faces number
+
+Increasing the tolerances excessively may incorrectly select internal nodes or faces.
+
+
+10. Material Parameters
+-----------------------
+
+Changing only the cylinder dimensions or loading protocol does not require changing the LDPM material parameters.
+
+Material parameters should be modified only when a different concrete material or calibration is used.
+
+
+11. Loading-Control Transition
+------------------------------
+
+The code switches automatically between the two loading stages.
+
+Stage 1 uses pressure/force control:
+
+    if (t <= t0) {
+        P_lateral = P0 * t / t0;
+        P_axial   = P_lateral;
+        F_top = P_axial * A_specimen;
+        top_plate_force->SetMforce(F_top);
+    }
+
+Stage 2 maintains constant confinement and switches the top plate to displacement control:
+
+    else {
+        P_lateral = P0;
+        top_plate_force->SetMforce(0.0);
+    }
+
+The motor is initialized only once using:
+
+    bool phase2_initialized = false;
+
+The user normally does not need to change:
+
+    phase2_initialized
+    z_phase2_start
+    vz_phase2_start
+
+
+Quick User Checklist
+--------------------
+
+For a new cylindrical specimen or loading case, check or modify:
+
+    1. LDPM_data_path
+    2. LDPM_GeoName, only if the file prefix changes
+    3. P0
+    4. t0
+    5. Tfinal
+    6. v_axial_final
+    7. t_vel_ramp
+    8. timestep, only if needed
+    9. tol_z and tol_r, only if boundary detection is unsuccessful
+    10. Material parameters, only if a different concrete is used
+
+The cylinder diameter, height, radius, top area, center coordinates, top and bottom surfaces, and lateral geometry are obtained automatically from the imported LDPM mesh.
