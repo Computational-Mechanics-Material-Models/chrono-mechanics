@@ -17,6 +17,10 @@
 namespace chrono {
 namespace fea {
 
+CH_FACTORY_REGISTER(ChNodeFEAxyz)
+CH_UPCASTING(ChNodeFEAxyz, ChNodeFEAbase)
+CH_UPCASTING(ChNodeFEAxyz, ChNodeBase)
+
 ChNodeFEAxyz::ChNodeFEAxyz(ChVector3d initial_pos) : ChNodeXYZ(initial_pos), X0(initial_pos), Force(VNULL) {
     variables.SetNodeMass(0);
 }

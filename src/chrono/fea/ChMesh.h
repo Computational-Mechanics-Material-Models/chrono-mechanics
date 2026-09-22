@@ -62,6 +62,12 @@ class ChApi ChMesh : public ChIndexedNodes {
     void ClearNodes();
     void ClearElements();
 
+    /// Remove node from the mesh (O(n) time complexity)
+    void RemoveNode(std::shared_ptr<ChNodeFEAbase> node);
+
+    /// Remove element from the mesh (O(n) time complexity)
+    void RemoveElement(std::shared_ptr<ChElementBase> element);
+
     /// Get the array of nodes of this mesh.
     const std::vector<std::shared_ptr<ChNodeFEAbase>>& GetNodes() const { return vnodes; }
 
@@ -274,6 +280,12 @@ class ChApi ChMesh : public ChIndexedNodes {
 
     /// Register with the given system descriptor any ChVariable objects associated with this item.
     virtual void InjectVariables(ChSystemDescriptor& descriptor) override;
+
+    /// Method to allow serialization of transient data to archives.
+    virtual void ArchiveOut(ChArchiveOut& archive_out) override;
+
+    /// Method to allow de-serialization of transient data from archives.
+    virtual void ArchiveIn(ChArchiveIn& archive_in) override;
 
   private:
     /// Initial setup (before analysis).

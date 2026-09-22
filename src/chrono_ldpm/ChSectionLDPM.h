@@ -33,6 +33,7 @@
 #include "chrono_ldpm/ChLdpmApi.h"
 #include "chrono_ldpm/ChMaterialVECT.h"
 #include "chrono/fea/ChBeamSection.h"
+#include "chrono/serialization/ChArchive.h"
 
 
 #include "chrono/core/ChQuaternion.h"
@@ -88,9 +89,13 @@ class ChLdpmApi ChSectionLDPM  : public chrono::fea::ChBeamSection {
     // Setter & Getter for facet state variables
     ChVectorDynamic<>  Get_StateVar() const { return m_state; };
     void Set_StateVar(ChVectorDynamic<>  state) { m_state=state; }  
+	const ChVectorDynamic<>& Get_StateVarRef() const { return m_state; }
+	ChVectorDynamic<>& Get_StateVarRef() { return m_state; }
 	// Setter & Getter for facet state variables
     ChVectorDynamic<>  Get_nonMechanicStrain() const { return m_nonMechanicStrain; };
     void Set_nonMechanicStrain(ChVectorDynamic<>  nonMechanicStrain) { m_nonMechanicStrain=nonMechanicStrain; } 
+	const ChVectorDynamic<>& Get_nonMechanicStrainRef() const { return m_nonMechanicStrain; }
+	ChVectorDynamic<>& Get_nonMechanicStrainRef() { return m_nonMechanicStrain; }
     // Setter & Getter for rotation of the lattice
     ChQuaternion<> Get_ref_rot() const { return mq_lattice_ref_rot; }
     void Set_ref_rot(ChQuaternion<> q_element_ref_rot) { mq_lattice_ref_rot=q_element_ref_rot; }
@@ -104,6 +109,14 @@ class ChLdpmApi ChSectionLDPM  : public chrono::fea::ChBeamSection {
     void SetProjectionMatrix( ChMatrixNM<double,3,9> projection_matrix) { mprojection_matrix=projection_matrix; }
 	
 	void ComputeEigenStrain(std::shared_ptr<ChMatrixNM<double,1,9>> macro_strain);
+
+    /// Set/get the stable tag used to rebind shared objects after migration.
+    void SetTag(int tag) { m_tag = tag; }
+    int GetTag() const { return m_tag; }
+
+    /// Serialize facet data for multidomain migration.
+    void ArchiveOut(ChArchiveOut& archive_out);
+    void ArchiveIn(ChArchiveIn& archive_in);
 	
   protected:
     std::shared_ptr<ChMaterialVECT> m_material;
@@ -120,6 +133,7 @@ class ChLdpmApi ChSectionLDPM  : public chrono::fea::ChBeamSection {
 	double m_length=1.0;
     //
     ChMatrixNM<double,3,9> mprojection_matrix;
+    int m_tag = -1;
     // 
     //double rdamping_beta;
     //double rdamping_alpha;

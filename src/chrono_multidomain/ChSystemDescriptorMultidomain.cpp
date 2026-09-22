@@ -1,0 +1,1219 @@
+// =============================================================================
+// PROJECT CHRONO - http://projectchrono.org
+//
+// Copyright (c) 2014 projectchrono.org
+// All rights reserved.
+//
+// Use of this source code is governed by a BSD-style license that can be found
+// in the LICENSE file at the top level of the distribution and at
+// http://projectchrono.org/license-chrono.txt.
+//
+// =============================================================================
+// Authors: Alessandro Tasora
+// =============================================================================
+
+
+#include "chrono/core/ChMatrix.h"
+#include "chrono/serialization/ChArchiveJSON.h"
+#include "chrono/serialization/ChArchiveXML.h"
+#include "chrono/serialization/ChArchiveBinary.h"
+#include <cstdint>
+#include <unordered_map>
+#include <unordered_set>
+
+#include "chrono_multidomain/ChSystemDescriptorMultidomain.h"
+#include "chrono_multidomain/ChDomain.h"
+
+namespace chrono {
+namespace multidomain {
+
+// Register into the object factory, to enable run-time
+// dynamic creation and persistence
+CH_FACTORY_REGISTER(ChSystemDescriptorMultidomain)
+
+namespace {
+constexpr bool kUseSharedKeyPacket = true;
+
+int SharedVarKeyDOF(std::uint64_t key) {
+    return static_cast<int>(key & 0x7FFFull);
+}
+
+class SharedVectsPacket {
+  public:
+    std::vector<std::uint64_t> keys;
+    ChVectorDynamic<> values;
+
+    void ArchiveOut(ChArchiveOut& archive_out) {
+        archive_out << CHNVP(keys);
+        archive_out << CHNVP(values);
+    }
+    void ArchiveIn(ChArchiveIn& archive_in) {
+        archive_in >> CHNVP(keys);
+        archive_in >> CHNVP(values);
+    }
+};
+}  // namespace
+
+ChSystemDescriptorMultidomain::ChSystemDescriptorMultidomain(std::shared_ptr<ChDomain> mdomain, ChDomainManager* mdomain_manager) {
+    this->domain = mdomain;
+    this->domain_manager = mdomain_manager;
+}
+
+
+void ChSystemDescriptorMultidomain::UpdateCountsAndOffsets() {
+
+    // parent class update
+    ChSystemDescriptor::UpdateCountsAndOffsets();
+
+    shared_vects.clear();
+    shared_vects.reserve(this->domain->GetInterfaces().size() * 5);
+    for (auto& interf : this->domain->GetInterfaces()) {
+        int nsharedv = 0;
+        for (auto* avar : interf.second.shared_vars) {
+            if (!avar || !avar->IsActive()) {
+                continue;
+            }
+            nsharedv += avar->GetDOF();
+        }
+
+        shared_vects[interf.second.side_OUT->GetRank()].setZero(nsharedv);
+    }
+
+    // Shared-variable offsets can change after repartition/migration; rebuild weights
+    // after counts/offsets are refreshed.
+    this->domain->ComputeSharedCoordsWeights(this->domain->CoordWeightsWv());
+}
+
+double ChSystemDescriptorMultidomain::globalVdot(const ChVectorDynamic<>& avector, const ChVectorDynamic<>& bvector, ChVectorDynamic<>* Wv_partition) {
+    double domaindot = 0;
+    if (Wv_partition)
+        domaindot= avector.dot(bvector.cwiseProduct(*Wv_partition));  // s_j = va_j' * (vb_j *. Wv_j)
+    else
+        domaindot = avector.dot(bvector);  // s_j = va_j' * (vb_j)
+    double result = 0;
+    this->domain_manager->ReduceAll(this->domain->GetRank(), domaindot, result); // s = \sum s_j
+    return result;
+}
+
+double ChSystemDescriptorMultidomain::globalVnorm(const ChVectorDynamic<>& avector, ChVectorDynamic<>* Wv_partition) {
+    double domainsqnorm = 0;
+    if (Wv_partition)
+        domainsqnorm = avector.dot(avector.cwiseProduct(*Wv_partition)); // s_j = v_j' * (v_j *. Wv_j)
+    else
+        domainsqnorm = avector.dot(avector); // s_j = v_j' * (v_j)
+    double result = 0;
+    this->domain_manager->ReduceAll(this->domain->GetRank(), domainsqnorm, result); // s = \sum s_j
+    return sqrt(result);
+}
+
+double ChSystemDescriptorMultidomain::globalMax(const double val) {
+    double global_maxviolation = 0;
+    this->domain_manager->ReduceAll(this->domain->GetRank(), val, global_maxviolation,
+        chrono::multidomain::ChDomainManager::eCh_domainsReduceOperation::max);
+    return global_maxviolation;
+}
+
+
+
+void ChSystemDescriptorMultidomain::globalSchurComplementProduct(ChVectorDynamic<>& result,
+    const ChVectorDynamic<>& lvector,
+    std::vector<bool>* enabled) {
+    // currently, the case with ChKRMBlock items is not supported (only diagonal M is supported, no K)
+    assert(m_KRMblocks.size() == 0);
+    assert(lvector.size() == CountActiveConstraints());
+
+    // =====ENTER scaling of masses in ChVariables because of Wv weights
+    // ***NO!! THIS ALGO ASSUMES MASS IN CLIPPED FORMAT, CLIPPED M^1_j OK FOR SCHUR COMPLEMENT CAUSE BLOCK PATTERN (NO FEA)
+    //this->MassesScaledInPlace_EnterSection();
+
+    result.setZero(lvector.size());
+
+    // Performs the sparse product    result = [N]*l = [ [Cq][M^(-1)][Cq'] - [E] ] *l
+    // in different phases:
+
+    // 1 - set the qb vector (aka speeds, in each ChVariable sparse data) as zero
+
+    for (const auto& var : m_variables) {
+        if (var->IsActive())
+            var->State().setZero();
+    }
+    // MULTIDOMAIN******************
+    // aux data for multidomain
+    this->SharedVectsToZero();
+
+    // 2 - performs    qb=[M^(-1)][Cq']*l  by
+    //     iterating over all constraints (when implemented in parallel this
+    //     could be non-trivial because race conditions might occur -> reduction buffer etc.)
+    //     Also, begin to add the cfm term ( -[E]*l ) to the result.
+
+    // ATTENTION:  this loop cannot be parallelized! Concurrent write to some q may happen
+    for (const auto& constr : m_constraints) {
+        if (constr->IsActive()) {
+            int s_c = constr->GetOffset();
+
+            bool process = (!enabled) || (*enabled)[s_c];
+
+            if (process) {
+                double li = lvector(s_c);
+
+                // Compute qb += [M^(-1)][Cq']*l_i
+                //  NOTE! concurrent update to same q data, risk of collision if parallel.
+                constr->IncrementState(li);  // computationally intensive
+
+                // Add constraint force mixing term  result = cfm * l_i = [E]*l_i
+                result(s_c) = constr->GetComplianceTerm() * li;
+            }
+        }
+    }
+
+    // MULTIDOMAIN******************
+    // fetch and add the Dv that was computed by neighbouring domains and add it to shared vars
+    this->SharedStatesDeltaAddToMultidomainAndSync(1.0);
+
+    // 3 - performs    result=[Cq']*qb    by
+    //     iterating over all constraints
+
+    for (const auto& constr : m_constraints) {
+        if (constr->IsActive()) {
+            bool process = (!enabled) || (*enabled)[constr->GetOffset()];
+
+            if (process)
+                result(constr->GetOffset()) += constr->ComputeJacobianTimesState();  // computationally intensive
+            else
+                result(constr->GetOffset()) = 0;  // not enabled constraints, just set to 0 result
+        }
+    }
+
+    // =====EXIT scaling of masses in ChVariables because of Wv weights, restore to original
+    // ***NO!! THIS ALGO ASSUMES MASS IN CLIPPED FORMAT, CLIPPED M^1_j OK FOR SCHUR COMPLEMENT CAUSE BLOCK PATTERN (NO FEA)
+    //this->MassesScaledInPlace_ExitSection();
+}
+
+
+void ChSystemDescriptorMultidomain::globalSystemProduct(ChVectorDynamic<>& result, const ChVectorDynamic<>& x) {
+
+    assert(x.size() == CountActiveVariables() + CountActiveConstraints());
+
+    // =====ENTER scaling of masses in ChVariables because of Wv weights
+    this->MassesScaledInPlace_EnterSection();
+
+    int mn_q = CountActiveVariables();
+    //n_c = CountActiveConstraints();
+
+    result.setZero(x.size());
+
+    // 1) First row: result.q part =  [M + H]*x.q + [Cq']*x.l
+
+    // 1.1)  do  M*x.q
+    for (const auto& var : m_variables) {
+        if (var->IsActive()) {
+            var->AddMassTimesVectorInto(result, x, c_a);
+        }
+    }
+
+    // 1.2)  add also H*x.q  (NON straight parallelizable - risk of concurrency in writing)
+    for (const auto& krm_block : m_KRMblocks) {
+        krm_block->AddMatrixTimesVectorInto(result, x);
+    }
+
+    // 1.3)  add also [Cq]'*x.l  (NON straight parallelizable - risk of concurrency in writing)
+    for (const auto& constr : m_constraints) {
+        if (constr->IsActive()) {
+            constr->AddJacobianTransposedTimesScalarInto(result, x(constr->GetOffset() + mn_q));
+        }
+    }
+
+    // 2) Second row: result.l part =  [C_q]*x.q + [E]*x.l
+    for (const auto& constr : m_constraints) {
+        if (constr->IsActive()) {
+            int s_c = constr->GetOffset() + mn_q;
+            constr->AddJacobianTimesVectorInto(result(s_c), x);  // result.l_i += [C_q_i]*x.q
+            result(s_c) += constr->GetComplianceTerm() * x(s_c);         // result.l_i += [E]*x.l_i
+        }
+    }
+
+    // MULTIDOMAIN******************
+    VectAdditiveToClipped(result);
+
+    // =====EXIT scaling of masses in ChVariables because of Wv weights, restore to original
+    this->MassesScaledInPlace_ExitSection();
+}
+
+
+
+void ChSystemDescriptorMultidomain::SharedVectsToZero() {
+    for (auto& interf : this->domain->GetInterfaces()) {
+        shared_vects[interf.second.side_OUT->GetRank()].setZero();
+    }
+}
+
+void ChSystemDescriptorMultidomain::SharedVectsFromCurrentDomainStates() {
+    for (auto& interf : this->domain->GetInterfaces()) {
+        int nrank = interf.second.side_OUT->GetRank();
+        int offset = 0;
+        for (auto avar : interf.second.shared_vars) {
+            if (avar->IsActive()) {
+                shared_vects[nrank].segment(offset, avar->GetDOF()) = avar->State();
+                offset += avar->GetDOF();
+            }
+        }
+        //***DEBUG**
+        /*
+        std::stringstream msg;
+        msg << std::string("\nVAR SYNC shared_vect domain ") << this->domain->GetRank() << " to interface " << interf.second.side_OUT->GetRank() << "\n";
+        for (int i = 0; i < shared_vects[nrank].size(); ++i)
+            msg << "    " << shared_vects[nrank][i] << "\n";
+        this->domain_manager->ConsoleOutSerialized(msg.str());
+        */
+    }
+}
+
+void ChSystemDescriptorMultidomain::SharedVectsFromDomainVector(const ChVectorDynamic<>& vect) {
+    for (auto& interf : this->domain->GetInterfaces()) {
+        int nrank = interf.second.side_OUT->GetRank();
+        int offset = 0;
+        for (auto avar : interf.second.shared_vars) {
+            if (avar->IsActive()) {
+                shared_vects[nrank].segment(offset, avar->GetDOF()) = vect.segment(avar->GetOffset(), avar->GetDOF());
+                offset += avar->GetDOF();
+            }
+        }
+    }
+}
+
+void ChSystemDescriptorMultidomain::SharedVectsAddToDomainVector(ChVectorDynamic<>& vect, double use_average) {
+    std::unordered_map<ChVariables*, int> sharing_count;
+    if (use_average) {
+        // initialize avg counters to 1
+        for (auto gvar : this->m_variables)
+            sharing_count[gvar] = 1;
+    }
+
+    for (auto& interf : this->domain->GetInterfaces()) {
+        int nrank = interf.second.side_OUT->GetRank();
+        int offset = 0;
+        for (auto avar : interf.second.shared_vars) {
+            if (avar->IsActive()) {
+                if (use_average)
+                    sharing_count[avar] += 1;
+                vect.segment(avar->GetOffset(), avar->GetDOF()) += shared_vects[nrank].segment(offset, avar->GetDOF());
+                offset += avar->GetDOF();
+            }
+        }
+    }
+
+    if (use_average) {
+        // initialize avg counters to 1
+        for (auto gvar : this->m_variables)
+            if (gvar->IsActive()) {
+                vect.segment(gvar->GetOffset(), gvar->GetDOF()) *= (use_average / (double)sharing_count[gvar]);
+            }
+    }
+}
+
+void ChSystemDescriptorMultidomain::SharedStatesDeltaAddToMultidomainAndSync(double omega) {
+
+    if (!(domain->IsMaster() && !domain_manager->master_domain_enabled))
+     for (auto& interf : this->domain->GetInterfaces()) {
+        if (interf.second.side_OUT->IsMaster() && !this->domain_manager->master_domain_enabled)
+            continue;
+        // prepare the serializer
+        interf.second.buffer_sending.str("");
+        interf.second.buffer_sending.clear();
+        interf.second.buffer_receiving.str("");
+        interf.second.buffer_receiving.clear();
+
+        int nrank = interf.second.side_OUT->GetRank();
+        ChVectorDynamic<> Dv_shared(shared_vects[nrank].size());
+        std::vector<std::uint64_t> active_keys;
+        active_keys.reserve(interf.second.shared_var_keys.size());
+        int offset = 0;
+        for (size_t i = 0; i < interf.second.shared_vars.size() && i < interf.second.shared_var_keys.size(); ++i) {
+            auto* avar = interf.second.shared_vars[i];
+            if (avar && avar->IsActive()) {
+                // compute delta as current variable state - last synced shared_state
+                Dv_shared.segment(offset, avar->GetDOF()) = avar->State() - shared_vects[nrank].segment(offset, avar->GetDOF());
+                active_keys.push_back(interf.second.shared_var_keys[i]);
+                offset += avar->GetDOF();
+            }
+        }
+
+        std::shared_ptr<ChArchiveOut> serializer;
+        switch (this->domain_manager->serializer_type) {
+        case DomainSerializerFormat::BINARY:
+            serializer = chrono_types::make_shared<ChArchiveOutBinary>(interf.second.buffer_sending); break;
+        case DomainSerializerFormat::JSON:
+            serializer = chrono_types::make_shared<ChArchiveOutXML>(interf.second.buffer_sending); break;
+        case DomainSerializerFormat::XML:
+            serializer = chrono_types::make_shared<ChArchiveOutXML>(interf.second.buffer_sending); break;
+        default: break;
+        }
+        serializer->SetUseVersions(false);
+
+        if (kUseSharedKeyPacket) {
+            SharedVectsPacket packet;
+            packet.keys = active_keys;
+            packet.values = Dv_shared;
+            *serializer << CHNVP(packet, "packet");
+        } else {
+            *serializer << CHNVP(Dv_shared);
+        }
+
+        //***DEBUG***
+        /*
+        std::stringstream msg;
+        msg << "\nVAR SERIALIZE from domain " << this->domain->GetRank() << " to interface " << interf.second.side_OUT->GetRank() << "\n"; //***DEBUG
+        msg << interf.second.buffer_sending.str(); //***DEBUG
+        this->domain_manager->ConsoleOutSerialized(msg.str());
+        */
+    }
+
+    this->domain_manager->DoDomainSendReceive(this->domain->GetRank());   // *** COMM + MULTITHREAD BARRIER ***
+
+    if (!(domain->IsMaster() && !domain_manager->master_domain_enabled))
+        for (auto& interf : this->domain->GetInterfaces()) {
+            if (interf.second.side_OUT->IsMaster() && !this->domain_manager->master_domain_enabled)
+                continue;
+            int nrank = interf.second.side_OUT->GetRank();
+            ChVectorDynamic<> Dv_shared(shared_vects[nrank].size());
+//        std::cout << "\nVAR DESERIALIZE to domain " << this->domain->GetRank() << " from interface " << interf.second.side_OUT->GetRank() << "\n"; //***DEBUG
+//        std::cout << interf.second.buffer_receiving.str(); //***DEBUG
+
+            // prepare the deserializer
+            std::shared_ptr<ChArchiveIn> deserializer;
+            switch (this->domain_manager->serializer_type) {
+            case DomainSerializerFormat::BINARY:
+                deserializer = chrono_types::make_shared<ChArchiveInBinary>(interf.second.buffer_receiving); break;
+            case DomainSerializerFormat::JSON:
+                deserializer = chrono_types::make_shared<ChArchiveInXML>(interf.second.buffer_receiving); break;
+            case DomainSerializerFormat::XML:
+                deserializer = chrono_types::make_shared<ChArchiveInXML>(interf.second.buffer_receiving); break;
+            default: break;
+            }
+            deserializer->SetUseVersions(false);
+
+            if (kUseSharedKeyPacket) {
+                SharedVectsPacket packet;
+                *deserializer >> CHNVP(packet, "packet");
+                Dv_shared = packet.values;
+
+                std::vector<std::uint64_t> local_active_keys;
+                local_active_keys.reserve(interf.second.shared_var_keys.size());
+                for (size_t i = 0; i < interf.second.shared_vars.size() && i < interf.second.shared_var_keys.size(); ++i) {
+                    auto* avar = interf.second.shared_vars[i];
+                    if (avar && avar->IsActive())
+                        local_active_keys.push_back(interf.second.shared_var_keys[i]);
+                }
+
+                if (!(packet.keys == local_active_keys && Dv_shared.size() == shared_vects[nrank].size())) {
+                    ChVectorDynamic<> reordered(shared_vects[nrank].size());
+                    reordered.setZero();
+                    std::unordered_map<std::uint64_t, int> incoming_offsets;
+                    int in_off = 0;
+                    bool incoming_layout_ok = true;
+                    for (auto key : packet.keys) {
+                        const int dof = SharedVarKeyDOF(key);
+                        if (dof <= 0 || in_off + dof > Dv_shared.size()) {
+                            incoming_layout_ok = false;
+                            break;
+                        }
+                        incoming_offsets[key] = in_off;
+                        in_off += dof;
+                    }
+
+                    int local_off = 0;
+                    if (incoming_layout_ok) {
+                        for (auto key : local_active_keys) {
+                            const int dof = SharedVarKeyDOF(key);
+                            auto it = incoming_offsets.find(key);
+                            if (it != incoming_offsets.end() && it->second + dof <= Dv_shared.size() &&
+                                local_off + dof <= reordered.size()) {
+                                reordered.segment(local_off, dof) = Dv_shared.segment(it->second, dof);
+                            }
+                            local_off += dof;
+                        }
+                    }
+                    Dv_shared = reordered;
+                }
+            } else {
+                *deserializer >> CHNVP(Dv_shared);
+            }
+
+            // add to active variables, to recover global multibody state
+            int offset = 0;
+            for (auto avar : interf.second.shared_vars) {
+                if (avar->IsActive()) {
+                    avar->State() += omega * Dv_shared.segment(offset, avar->GetDOF());
+                    // update temporary buffer with latest values for subsequent interfaces
+                    shared_vects[nrank].segment(offset, avar->GetDOF()) = avar->State();
+                    offset += avar->GetDOF();
+                }
+            }
+        }
+}
+void ChSystemDescriptorMultidomain::SharedVectsSwap() {
+
+    if (!(domain->IsMaster() && !domain_manager->master_domain_enabled))
+     for (auto& interf : this->domain->GetInterfaces()) {
+
+        if (interf.second.side_OUT->IsMaster() && !this->domain_manager->master_domain_enabled)
+            continue;
+
+        // prepare the serializer
+        interf.second.buffer_sending.str("");
+        interf.second.buffer_sending.clear();
+        interf.second.buffer_receiving.str("");
+        interf.second.buffer_receiving.clear();
+
+        std::shared_ptr<ChArchiveOut> serializer;
+        switch (this->domain_manager->serializer_type) {
+        case DomainSerializerFormat::BINARY:
+            serializer = chrono_types::make_shared<ChArchiveOutBinary>(interf.second.buffer_sending); break;
+        case DomainSerializerFormat::JSON:
+            serializer = chrono_types::make_shared<ChArchiveOutXML>(interf.second.buffer_sending); break;
+        case DomainSerializerFormat::XML:
+            serializer = chrono_types::make_shared<ChArchiveOutXML>(interf.second.buffer_sending); break;
+        default: break;
+        }
+
+        int nrank = interf.second.side_OUT->GetRank();
+        if (kUseSharedKeyPacket) {
+            SharedVectsPacket packet;
+            packet.values = this->shared_vects[nrank];
+            packet.keys.reserve(interf.second.shared_var_keys.size());
+            for (size_t i = 0; i < interf.second.shared_vars.size() && i < interf.second.shared_var_keys.size(); ++i) {
+                auto* avar = interf.second.shared_vars[i];
+                if (avar && avar->IsActive())
+                    packet.keys.push_back(interf.second.shared_var_keys[i]);
+            }
+            *serializer << CHNVP(packet, "packet");
+        } else {
+            *serializer << CHNVP(this->shared_vects[nrank], "v");
+        }
+    }
+
+    this->domain_manager->DoDomainSendReceive(this->domain->GetRank());   // *** COMM + MULTITHREAD BARRIER ***
+
+    if (!(domain->IsMaster() && !domain_manager->master_domain_enabled))
+     for (auto& interf : this->domain->GetInterfaces()) {
+
+        if (interf.second.side_OUT->IsMaster() && !this->domain_manager->master_domain_enabled)
+            continue;
+
+        int nrank = interf.second.side_OUT->GetRank();
+        ChVectorDynamic<> incoming_vect(shared_vects[nrank].size());
+
+        // prepare the deserializer
+        std::shared_ptr<ChArchiveIn> deserializer;
+        switch (this->domain_manager->serializer_type) {
+        case DomainSerializerFormat::BINARY:
+            deserializer = chrono_types::make_shared<ChArchiveInBinary>(interf.second.buffer_receiving); break;
+        case DomainSerializerFormat::JSON:
+            deserializer = chrono_types::make_shared<ChArchiveInXML>(interf.second.buffer_receiving); break;
+        case DomainSerializerFormat::XML:
+            deserializer = chrono_types::make_shared<ChArchiveInXML>(interf.second.buffer_receiving); break;
+        default: break;
+        }
+
+        if (kUseSharedKeyPacket) {
+            SharedVectsPacket packet;
+            *deserializer >> CHNVP(packet, "packet");
+            incoming_vect = packet.values;
+
+            std::vector<std::uint64_t> local_active_keys;
+            local_active_keys.reserve(interf.second.shared_var_keys.size());
+            for (size_t i = 0; i < interf.second.shared_vars.size() && i < interf.second.shared_var_keys.size(); ++i) {
+                auto* avar = interf.second.shared_vars[i];
+                if (avar && avar->IsActive())
+                    local_active_keys.push_back(interf.second.shared_var_keys[i]);
+            }
+
+            if (packet.keys == local_active_keys && incoming_vect.size() == this->shared_vects[nrank].size()) {
+                this->shared_vects[nrank] = incoming_vect;
+                continue;
+            }
+
+            // Fallback: remap by stable shared-variable keys when local/remote order differs.
+            ChVectorDynamic<> reordered(this->shared_vects[nrank].size());
+            reordered.setZero();
+
+            std::unordered_map<std::uint64_t, int> incoming_offsets;
+            int in_off = 0;
+            bool incoming_layout_ok = true;
+            for (auto key : packet.keys) {
+                const int dof = SharedVarKeyDOF(key);
+                if (dof <= 0 || in_off + dof > incoming_vect.size()) {
+                    incoming_layout_ok = false;
+                    break;
+                }
+                incoming_offsets[key] = in_off;
+                in_off += dof;
+            }
+
+            int local_off = 0;
+            int missing_keys = 0;
+            if (incoming_layout_ok) {
+                for (auto key : local_active_keys) {
+                    const int dof = SharedVarKeyDOF(key);
+                    auto it = incoming_offsets.find(key);
+                    if (it != incoming_offsets.end() && it->second + dof <= incoming_vect.size() &&
+                        local_off + dof <= reordered.size()) {
+                        reordered.segment(local_off, dof) = incoming_vect.segment(it->second, dof);
+                    } else {
+                        missing_keys++;
+                    }
+                    local_off += dof;
+                }
+            } else {
+                missing_keys = static_cast<int>(local_active_keys.size());
+            }
+
+            this->shared_vects[nrank] = reordered;
+
+            static std::unordered_set<std::uint64_t> warned_pairs;
+            const std::uint64_t pair_id =
+                (static_cast<std::uint64_t>(static_cast<std::uint32_t>(this->domain->GetRank())) << 32) |
+                static_cast<std::uint64_t>(static_cast<std::uint32_t>(nrank));
+            if (warned_pairs.insert(pair_id).second) {
+                std::stringstream msg;
+                msg << "Multidomain shared-vector key remap activated on interface " << this->domain->GetRank()
+                    << " <-> " << nrank << " (missing_keys=" << missing_keys
+                    << ", local_active_keys=" << local_active_keys.size()
+                    << ", remote_active_keys=" << packet.keys.size() << ")\n";
+                this->domain_manager->ConsoleOutSerialized(msg.str());
+            }
+        } else {
+            *deserializer >> CHNVP(incoming_vect, "v");
+            this->shared_vects[nrank] = incoming_vect;
+        }
+    }
+}
+
+void ChSystemDescriptorMultidomain::VectAdditiveToClipped(ChVectorDynamic<>& vect, double use_average) {
+    this->SharedVectsFromDomainVector(vect);
+    this->SharedVectsSwap();                        // *** COMM + MULTITHREAD BARRIER ***
+    this->SharedVectsAddToDomainVector(vect, use_average);
+}
+
+
+double ChSystemDescriptorMultidomain::SyncSharedStates(bool return_max_correction_error) {
+    ChVectorDynamic<> state;
+    this->FromVariablesToVector(state, true);
+
+    ChVectorDynamic<> state_before;
+    if (return_max_correction_error) {
+        state_before = state;
+    }
+
+    // Average shared coordinates across interfaces and write back.
+    this->VectAdditiveToClipped(state, 1.0);
+    this->FromVectorToVariables(state);
+
+    if (!return_max_correction_error || state.size() == 0) {
+        return 0.0;
+    }
+
+    return (state - state_before).cwiseAbs().maxCoeff();
+}
+
+
+void ChSystemDescriptorMultidomain::MassesScaledInPlace_EnterSection() {
+
+    this->section_scaledmass_count += 1;
+
+    if (this->section_scaledmass_count == 1)
+        MassesDoScaleInPlace();
+}
+
+void ChSystemDescriptorMultidomain::MassesScaledInPlace_ExitSection() {
+
+    assert(this->section_scaledmass_count > 0);
+
+    this->section_scaledmass_count -= 1;
+
+    if (this->section_scaledmass_count == 0)
+        MassesUndoScaleInPlace();
+}
+
+
+void ChSystemDescriptorMultidomain::MassesDoScaleInPlace() {
+    // NOTE:
+    // This code path requires ChVariables::MultiplyMass(...) support, which is not available
+    // in this Chrono branch. Keep the multidomain descriptor functional for explicit/lumped
+    // workflows by treating this scaling section as a no-op.
+}
+
+void ChSystemDescriptorMultidomain::MassesUndoScaleInPlace() {
+    // See note in MassesDoScaleInPlace().
+}
+
+
+/*
+ChSystemDescriptor::ChSystemDescriptor() : n_q(0), n_c(0), c_a(1.0), freeze_count(false) {
+    m_constraints.clear();
+    m_variables.clear();
+    m_KRMblocks.clear();
+}
+
+ChSystemDescriptor::~ChSystemDescriptor() {
+    m_constraints.clear();
+    m_variables.clear();
+    m_KRMblocks.clear();
+}
+
+void ChSystemDescriptor::ComputeFeasabilityViolation(double& resulting_maxviolation, double& resulting_feasability) {
+    resulting_maxviolation = 0;
+    resulting_feasability = 0;
+
+    for (const auto& constr : m_constraints) {
+        // the the residual of the constraint..
+        double mres_i = constr->ComputeResidual();
+
+        double candidate_violation = fabs(constr->Violation(mres_i));
+
+        if (candidate_violation > resulting_maxviolation)
+            resulting_maxviolation = candidate_violation;
+
+        if (constr->IsUnilateral()) {
+            double candidate_feas = fabs(mres_i * constr->GetLagrangeMultiplier());  // =|c*l|
+            if (candidate_feas > resulting_feasability)
+                resulting_feasability = candidate_feas;
+        }
+    }
+}
+
+unsigned int ChSystemDescriptor::CountActiveVariables() const {
+    if (freeze_count)  // optimization, avoid list count all times
+        return n_q;
+
+    n_q = 0;
+    for (auto& var : m_variables) {
+        if (var->IsActive()) {
+            var->SetOffset(n_q);  // also store offsets in state and MC matrix
+            n_q += var->GetDOF();
+        }
+    }
+    return n_q;
+}
+
+unsigned int ChSystemDescriptor::CountActiveConstraints() const {
+    if (freeze_count)  // optimization, avoid list count all times
+        return n_c;
+
+    n_c = 0;
+    for (auto& constr : m_constraints) {
+        if (constr->IsActive()) {
+            constr->SetOffset(n_c);  // also store offsets in state and MC matrix
+            n_c++;
+        }
+    }
+    return n_c;
+}
+
+
+
+void ChSystemDescriptor::PasteMassKRMMatrixInto(ChSparseMatrix& Z,
+                                                unsigned int start_row,
+                                                unsigned int start_col) const {
+
+    //// Contribution of mass or rigid bodies and node-concentrated masses
+    for (const auto& var : m_variables) {
+        if (var->IsActive()) {
+            var->PasteMassInto(Z, start_row, start_col, c_a);
+        }
+    }
+
+    // Contribution of stiffness, damping and mass matrices
+    for (const auto& KRMBlock : m_KRMblocks) {
+        KRMBlock->PasteMatrixInto(Z, start_row, start_col, false);
+    }
+}
+
+unsigned int ChSystemDescriptor::PasteConstraintsJacobianMatrixInto(ChSparseMatrix& Z,
+                                                                    unsigned int start_row,
+                                                                    unsigned int start_col,
+                                                                    bool only_bilateral) const {
+    unsigned int s_c = 0;
+    for (const auto& constr : m_constraints) {
+        if (constr->IsActive() && !(only_bilateral && constr->GetMode() != ChConstraint::Mode::LOCK)) {
+            constr->PasteJacobianInto(Z, s_c + start_row, start_col);
+            s_c++;
+        }
+    }
+
+    return s_c;
+}
+
+unsigned int ChSystemDescriptor::PasteConstraintsJacobianMatrixTransposedInto(ChSparseMatrix& Z,
+                                                                              unsigned int start_row,
+                                                                              unsigned int start_col,
+                                                                              bool only_bilateral) const {
+    unsigned int s_c = 0;
+    for (const auto& constr : m_constraints) {
+        if (constr->IsActive() && !(only_bilateral && constr->GetMode() != ChConstraint::Mode::LOCK)) {
+            constr->PasteJacobianTransposedInto(Z, start_row, s_c + start_col);
+            s_c++;
+        }
+    }
+
+    return s_c;
+}
+
+void ChSystemDescriptor::PasteComplianceMatrixInto(ChSparseMatrix& Z,
+                                                   unsigned int start_row,
+                                                   unsigned int start_col,
+                                                   bool only_bilateral) const {
+    int s_c = 0;
+    for (const auto& constr : m_constraints) {
+        if (constr->IsActive() && !(only_bilateral && constr->GetMode() != ChConstraint::Mode::LOCK)) {
+            Z.SetElement(start_row + s_c, start_col + s_c, constr->GetComplianceTerm());
+            s_c++;
+        }
+    }
+}
+
+void ChSystemDescriptor::BuildSystemMatrix(ChSparseMatrix* Z, ChVectorDynamic<>* rhs) const {
+    n_q = CountActiveVariables();
+
+    n_c = CountActiveConstraints();
+
+    if (Z) {
+        Z->conservativeResize(n_q + n_c, n_q + n_c);
+
+        Z->setZeroValues();
+
+        PasteMassKRMMatrixInto(*Z, 0, 0);
+
+        PasteConstraintsJacobianMatrixInto(*Z, n_q, 0);
+
+        PasteConstraintsJacobianMatrixTransposedInto(*Z, 0, n_q);
+
+        PasteComplianceMatrixInto(*Z, n_q, n_q);
+    }
+
+    if (rhs) {
+        rhs->setZero(n_q + n_c, 1);
+
+        BuildDiVector(*rhs);
+    }
+}
+
+unsigned int ChSystemDescriptor::BuildFbVector(ChVectorDynamic<>& Fvector, unsigned int start_row) const {
+    n_q = CountActiveVariables();
+    Fvector.setZero(n_q);
+
+    // Fills the 'f' vector
+    for (const auto& var : m_variables) {
+        if (var->IsActive()) {
+            Fvector.segment(start_row + var->GetOffset(), var->GetDOF()) = var->Force();
+        }
+    }
+    return n_q;
+}
+
+unsigned int ChSystemDescriptor::BuildBiVector(ChVectorDynamic<>& Bvector, unsigned int start_row) const {
+    n_c = CountActiveConstraints();
+    Bvector.setZero(n_c);
+
+    // Fill the 'b' vector
+    for (const auto& constr : m_constraints) {
+        if (constr->IsActive()) {
+            Bvector(start_row + constr->GetOffset()) = constr->GetRightHandSide();
+        }
+    }
+
+    return n_c;
+}
+
+unsigned int ChSystemDescriptor::BuildDiVector(ChVectorDynamic<>& Dvector) const {
+    n_q = CountActiveVariables();
+    n_c = CountActiveConstraints();
+    Dvector.setZero(n_q + n_c);
+
+    // Fills the 'f' vector part
+    for (const auto& var : m_variables) {
+        if (var->IsActive()) {
+            Dvector.segment(var->GetOffset(), var->GetDOF()) = var->Force();
+        }
+    }
+
+    // Fill the '-b' vector (with flipped sign!)
+    for (const auto& constr : m_constraints) {
+        if (constr->IsActive()) {
+            Dvector(constr->GetOffset() + n_q) = -constr->GetRightHandSide();
+        }
+    }
+
+    return n_q + n_c;
+}
+
+unsigned int ChSystemDescriptor::BuildDiagonalVector(ChVectorDynamic<>& Diagonal_vect) const {
+    n_q = CountActiveVariables();
+    n_c = CountActiveConstraints();
+    Diagonal_vect.setZero(n_q + n_c);
+
+    // Fill the diagonal values given by ChKRMBlock objects , if any
+    // (This cannot be easily parallelized because of possible write concurrency).
+    for (const auto& krm_block : m_KRMblocks) {
+        krm_block->DiagonalAdd(Diagonal_vect);
+    }
+
+    // Get the 'M' diagonal terms given by ChVariables objects
+    for (const auto& var : m_variables) {
+        if (var->IsActive()) {
+            var->AddMassDiagonalInto(Diagonal_vect, c_a);
+        }
+    }
+
+    // Get the 'E' diagonal terms (E_i = cfm_i )
+    for (const auto& constr : m_constraints) {
+        if (constr->IsActive()) {
+            Diagonal_vect(constr->GetOffset() + n_q) = constr->GetComplianceTerm();
+        }
+    }
+
+    return n_q + n_c;
+}
+
+unsigned int ChSystemDescriptor::FromVariablesToVector(ChVectorDynamic<>& mvector, bool resize_vector) const {
+    // Count active variables and resize vector if necessary
+    if (resize_vector) {
+        n_q = CountActiveVariables();
+        mvector.setZero(n_q);
+    }
+
+    // Fill the vector
+    for (const auto& var : m_variables) {
+        if (var->IsActive()) {
+            mvector.segment(var->GetOffset(), var->GetDOF()) = var->State();
+        }
+    }
+
+    return n_q;
+}
+
+unsigned int ChSystemDescriptor::FromVectorToVariables(const ChVectorDynamic<>& mvector) {
+    assert(CountActiveVariables() == mvector.rows());
+
+    // fetch from the vector
+    for (const auto& var : m_variables) {
+        if (var->IsActive()) {
+            var->State() = mvector.segment(var->GetOffset(), var->GetDOF());
+        }
+    }
+
+    return n_q;
+}
+
+unsigned int ChSystemDescriptor::FromConstraintsToVector(ChVectorDynamic<>& mvector, bool resize_vector) const {
+    // Count active constraints and resize vector if necessary
+    if (resize_vector) {
+        n_c = CountActiveConstraints();
+        mvector.setZero(n_c);
+    }
+
+    // Fill the vector
+    for (const auto& constr : m_constraints) {
+        if (constr->IsActive()) {
+            mvector(constr->GetOffset()) = constr->GetLagrangeMultiplier();
+        }
+    }
+
+    return n_c;
+}
+
+unsigned int ChSystemDescriptor::FromVectorToConstraints(const ChVectorDynamic<>& mvector) {
+    n_c = CountActiveConstraints();
+
+    assert(n_c == mvector.size());
+
+    // Fill the vector
+    for (const auto& constr : m_constraints) {
+        if (constr->IsActive()) {
+            constr->SetLagrangeMultiplier(mvector(constr->GetOffset()));
+        }
+    }
+
+    return n_c;
+}
+
+unsigned int ChSystemDescriptor::FromUnknownsToVector(ChVectorDynamic<>& mvector, bool resize_vector) const {
+    // Count active variables & constraints and resize vector if necessary
+    n_q = CountActiveVariables();
+    n_c = CountActiveConstraints();
+
+    if (resize_vector) {
+        mvector.setZero(n_q + n_c);
+    }
+
+    // Fill the first part of vector, x.q ,with variables q
+    for (const auto& var : m_variables) {
+        if (var->IsActive()) {
+            mvector.segment(var->GetOffset(), var->GetDOF()) = var->State();
+        }
+    }
+
+    // Fill the second part of vector, x.l, with constraint multipliers -l (with flipped sign!)
+    for (const auto& constr : m_constraints) {
+        if (constr->IsActive()) {
+            mvector(constr->GetOffset() + n_q) = -constr->GetLagrangeMultiplier();
+        }
+    }
+
+    return n_q + n_c;
+}
+
+unsigned int ChSystemDescriptor::FromVectorToUnknowns(const ChVectorDynamic<>& mvector) {
+    n_q = CountActiveVariables();
+    n_c = CountActiveConstraints();
+
+    assert((n_q + n_c) == mvector.size());
+
+    // Fetch from the first part of vector (x.q = q)
+    for (const auto& var : m_variables) {
+        if (var->IsActive()) {
+            var->State() = mvector.segment(var->GetOffset(), var->GetDOF());
+        }
+    }
+
+    // Fetch from the second part of vector (x.l = -l), with flipped sign!
+    for (const auto& constr : m_constraints) {
+        if (constr->IsActive()) {
+            constr->SetLagrangeMultiplier(-mvector(constr->GetOffset() + n_q));
+        }
+    }
+
+    return n_q + n_c;
+}
+
+void ChSystemDescriptor::SchurComplementProduct(ChVectorDynamic<>& result,
+                                                const ChVectorDynamic<>& lvector,
+                                                std::vector<bool>* enabled) {
+    // currently, the case with ChKRMBlock items is not supported (only diagonal M is supported, no K)
+    assert(m_KRMblocks.size() == 0);
+    assert(lvector.size() == CountActiveConstraints());
+
+    result.setZero(n_c);
+
+    // Performs the sparse product    result = [N]*l = [ [Cq][M^(-1)][Cq'] - [E] ] *l
+    // in different phases:
+
+    // 1 - set the qb vector (aka speeds, in each ChVariable sparse data) as zero
+
+    for (const auto& var : m_variables) {
+        if (var->IsActive())
+            var->State().setZero();
+    }
+
+    // 2 - performs    qb=[M^(-1)][Cq']*l  by
+    //     iterating over all constraints (when implemented in parallel this
+    //     could be non-trivial because race conditions might occur -> reduction buffer etc.)
+    //     Also, begin to add the cfm term ( -[E]*l ) to the result.
+
+    // ATTENTION:  this loop cannot be parallelized! Concurrent write to some q may happen
+    for (const auto& constr : m_constraints) {
+        if (constr->IsActive()) {
+            int s_c = constr->GetOffset();
+
+            bool process = (!enabled) || (*enabled)[s_c];
+
+            if (process) {
+                double li = lvector(s_c);
+
+                // Compute qb += [M^(-1)][Cq']*l_i
+                //  NOTE! concurrent update to same q data, risk of collision if parallel.
+                constr->IncrementState(li);  // computationally intensive
+
+                // Add constraint force mixing term  result = cfm * l_i = [E]*l_i
+                result(s_c) = constr->GetComplianceTerm() * li;
+            }
+        }
+    }
+
+    // 3 - performs    result=[Cq']*qb    by
+    //     iterating over all constraints
+
+    for (const auto& constr : m_constraints) {
+        if (constr->IsActive()) {
+            bool process = (!enabled) || (*enabled)[constr->GetOffset()];
+
+            if (process)
+                result(constr->GetOffset()) += constr->ComputeJacobianTimesState();  // computationally intensive
+            else
+                result(constr->GetOffset()) = 0;  // not enabled constraints, just set to 0 result
+        }
+    }
+}
+
+void ChSystemDescriptor::SystemProduct(ChVectorDynamic<>& result, const ChVectorDynamic<>& x) {
+    n_q = CountActiveVariables();
+    n_c = CountActiveConstraints();
+
+    result.setZero(n_q + n_c);
+
+    // 1) First row: result.q part =  [M + K]*x.q + [Cq']*x.l
+
+    // 1.1)  do  M*x.q
+    for (const auto& var : m_variables) {
+        if (var->IsActive()) {
+            var->AddMassTimesVectorInto(result, x, c_a);
+        }
+    }
+
+    // 1.2)  add also K*x.q  (NON straight parallelizable - risk of concurrency in writing)
+    for (const auto& krm_block : m_KRMblocks) {
+        krm_block->AddMatrixTimesVectorInto(result, x);
+    }
+
+    // 1.3)  add also [Cq]'*x.l  (NON straight parallelizable - risk of concurrency in writing)
+    for (const auto& constr : m_constraints) {
+        if (constr->IsActive()) {
+            constr->AddJacobianTransposedTimesScalarInto(result, x(constr->GetOffset() + n_q));
+        }
+    }
+
+    // 2) Second row: result.l part =  [C_q]*x.q + [E]*x.l
+    for (const auto& constr : m_constraints) {
+        if (constr->IsActive()) {
+            int s_c = constr->GetOffset() + n_q;
+            constr->AddJacobianTimesVectorInto(result(s_c), x);  // result.l_i += [C_q_i]*x.q
+            result(s_c) += constr->GetComplianceTerm() * x(s_c);         // result.l_i += [E]*x.l_i
+        }
+    }
+}
+
+void ChSystemDescriptor::ConstraintsProject(ChVectorDynamic<>& multipliers) {
+    FromVectorToConstraints(multipliers);
+
+    for (const auto& constr : m_constraints) {
+        if (constr->IsActive())
+            constr->Project();
+    }
+
+    FromConstraintsToVector(multipliers, false);
+}
+
+void ChSystemDescriptor::UnknownsProject(ChVectorDynamic<>& mx) {
+    n_q = CountActiveVariables();
+
+    // vector -> constraints
+    // Fetch from the second part of vector (x.l = -l), with flipped sign!
+    for (const auto& constr : m_constraints) {
+        if (constr->IsActive()) {
+            constr->SetLagrangeMultiplier(-mx(constr->GetOffset() + n_q));
+        }
+    }
+
+    // constraint projection!
+    for (const auto& constr : m_constraints) {
+        if (constr->IsActive())
+            constr->Project();
+    }
+
+    // constraints -> vector
+    // Fill the second part of vector, x.l, with constraint multipliers -l (with flipped sign!)
+    for (const auto& constr : m_constraints) {
+        if (constr->IsActive()) {
+            mx(constr->GetOffset() + n_q) = -constr->GetLagrangeMultiplier();
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+void ChSystemDescriptor::WriteMatrixBlocks(const std::string& path, const std::string& prefix, bool one_indexed) {
+    ChSparseMatrix mass_matrix(CountActiveVariables(), CountActiveVariables());
+    ChSparseMatrix jacob_matrix(CountActiveConstraints(), CountActiveVariables());
+    ChSparseMatrix compl_matrix(CountActiveConstraints(), CountActiveConstraints());
+    ChVectorDynamic<double> f;
+    ChVectorDynamic<double> b;
+
+    mass_matrix.setZeroValues();
+    jacob_matrix.setZeroValues();
+    f.setZero(CountActiveVariables());
+    b.setZero(CountActiveConstraints());
+
+    PasteMassKRMMatrixInto(mass_matrix);
+    PasteConstraintsJacobianMatrixInto(jacob_matrix);
+    PasteComplianceMatrixInto(compl_matrix);
+    BuildFbVector(f);
+    BuildBiVector(b);
+
+    std::ofstream file_H(path + "/" + prefix + "_H.dat");
+    file_H << std::setprecision(12) << std::scientific;
+    StreamOut(mass_matrix, file_H, one_indexed);
+
+    std::ofstream file_Cq(path + "/" + prefix + "_Cq.dat");
+    file_Cq << std::setprecision(12) << std::scientific;
+    StreamOut(jacob_matrix, file_Cq, one_indexed);
+
+    std::ofstream file_E(path + "/" + prefix + "_E.dat");
+    file_E << std::setprecision(12) << std::scientific;
+    StreamOut(compl_matrix, file_E, one_indexed);
+
+    std::ofstream file_f(path + "/" + prefix + "_f.dat");
+    file_f << std::setprecision(12) << std::scientific;
+    StreamOut(f, file_f);
+
+    std::ofstream file_b(path + "/" + prefix + "_b.dat");
+    file_b << std::setprecision(12) << std::scientific;
+    StreamOut(b, file_b);
+}
+
+void ChSystemDescriptor::WriteMatrix(const std::string& path, const std::string& prefix, bool one_indexed) {
+    ChSparseMatrix Z;
+    ChVectorDynamic<double> rhs;
+    BuildSystemMatrix(&Z, &rhs);
+
+    std::ofstream file_Z(path + "/" + prefix + "_Z.dat");
+    file_Z << std::setprecision(12) << std::scientific;
+    StreamOut(Z, file_Z, one_indexed);
+
+    std::ofstream file_rhs(path + "/" + prefix + "_rhs.dat");
+    file_rhs << std::setprecision(12) << std::scientific;
+    StreamOut(rhs, file_rhs);
+}
+
+void ChSystemDescriptor::WriteMatrixSpmv(const std::string& path, const std::string& prefix, bool one_indexed) {
+    // Count constraints.
+    int mn_c = 0;
+    for (auto& cnstr : m_constraints) {
+        if (cnstr->IsActive())
+            mn_c++;
+    }
+
+    // Generate dense system matrix, column by column
+    int size = n_q + mn_c;
+    ChMatrixDynamic<> A(size, size);
+    ChVectorDynamic<> v(size);
+    ChVectorDynamic<> e(size);
+    e.setZero();
+
+    for (int i = 0; i < size; i++) {
+        e[i] = 1;
+        SystemProduct(v, e);
+        A.col(i) = v;
+        e[i] = 0;
+    }
+
+    // Convert to Eigen sparse matrix
+    ChSparseMatrix Z = A.sparseView();
+
+    // Write sparse matrix to file
+    std::ofstream file_Z(path + "/" + prefix + "_Z.dat");
+    file_Z << std::setprecision(12) << std::scientific;
+    StreamOut(Z, file_Z, one_indexed);
+
+    // Write RHS to file
+    ChVectorDynamic<double> rhs;
+    BuildSystemMatrix(nullptr, &rhs);
+    std::ofstream file_rhs(path + "/" + prefix + "_rhs.dat");
+    file_rhs << std::setprecision(12) << std::scientific;
+    StreamOut(rhs, file_rhs);
+}
+
+*/
+
+
+}  // end namespace multidomain
+}  // end namespace chrono

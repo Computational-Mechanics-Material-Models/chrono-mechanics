@@ -21,6 +21,9 @@
 namespace chrono {
 namespace fea {
 
+CH_FACTORY_REGISTER(ChElementBeamEuler)
+CH_UPCASTING(ChElementBeamEuler, ChElementBase)
+
 ChElementBeamEuler::ChElementBeamEuler()
     : q_refrotA(QUNIT),
       q_refrotB(QUNIT),

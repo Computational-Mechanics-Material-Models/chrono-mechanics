@@ -13,9 +13,14 @@
 // =============================================================================
 
 #include "chrono/fea/ChNodeFEAxyzrot.h"
+#include <cmath>
 
 namespace chrono {
 namespace fea {
+
+CH_FACTORY_REGISTER(ChNodeFEAxyzrot)
+CH_UPCASTING(ChNodeFEAxyzrot, ChNodeFEAbase)
+CH_UPCASTING(ChNodeFEAxyzrot, ChNodeBase)
 
 ChNodeFEAxyzrot::ChNodeFEAxyzrot(ChFrame<> initialf) : Force(VNULL), Torque(VNULL) {
     this->Frame() = initialf;
@@ -238,9 +243,15 @@ void ChNodeFEAxyzrot::VariablesQbIncrementPosition(double step) {
     ChQuaternion<> mdeltarot;
     ChQuaternion<> moldrot = this->GetRot();
     ChVector3d newwel_abs = this->GetRotMat() * newwel;
-    double mangle = newwel_abs.Length() * step;
-    newwel_abs.Normalize();
-    mdeltarot.SetFromAngleAxis(mangle, newwel_abs);
+    const double wnorm = newwel_abs.Length();
+    const double mangle = wnorm * step;
+    if (wnorm > 1e-30 && std::abs(mangle) > 0.0) {
+        newwel_abs /= wnorm;
+        mdeltarot.SetFromAngleAxis(mangle, newwel_abs);
+    } else {
+        // Avoid NaN axis normalization when angular velocity is effectively zero.
+        mdeltarot.SetFromAngleAxis(0.0, ChVector3d(1, 0, 0));
+    }
     ChQuaternion<> mnewrot = mdeltarot * moldrot;
     this->SetRot(mnewrot);
 }

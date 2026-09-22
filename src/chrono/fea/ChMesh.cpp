@@ -104,6 +104,33 @@ void ChMesh::AddElement(std::shared_ptr<ChElementBase> elem) {
     }
 }
 
+void ChMesh::RemoveNode(std::shared_ptr<ChNodeFEAbase> node) {
+    auto it = std::remove(vnodes.begin(), vnodes.end(), node);
+    if (it != vnodes.end()) {
+        vnodes.erase(it, vnodes.end());
+        for (size_t i = 0; i < vnodes.size(); ++i) {
+            vnodes[i]->SetIndex(static_cast<unsigned int>(i) + 1);
+        }
+    }
+
+    if (system) {
+        system->is_initialized = false;
+        system->is_updated = false;
+    }
+}
+
+void ChMesh::RemoveElement(std::shared_ptr<ChElementBase> elem) {
+    auto it = std::remove(velements.begin(), velements.end(), elem);
+    if (it != velements.end()) {
+        velements.erase(it, velements.end());
+    }
+
+    if (system) {
+        system->is_initialized = false;
+        system->is_updated = false;
+    }
+}
+
 void ChMesh::ClearElements() {
     velements.clear();
     vcontactsurfaces.clear();
@@ -540,6 +567,20 @@ void ChMesh::VariablesQbIncrementPosition(double step) {
 void ChMesh::InjectVariables(ChSystemDescriptor& descriptor) {
     for (unsigned int ie = 0; ie < vnodes.size(); ie++)
         vnodes[ie]->InjectVariables(descriptor);
+}
+
+void ChMesh::ArchiveOut(ChArchiveOut& archive_out) {
+    archive_out.VersionWrite<ChMesh>();
+    ChIndexedNodes::ArchiveOut(archive_out);
+    archive_out << CHNVP(automatic_gravity_load);
+    archive_out << CHNVP(num_points_gravity);
+}
+
+void ChMesh::ArchiveIn(ChArchiveIn& archive_in) {
+    archive_in.VersionRead<ChMesh>();
+    ChIndexedNodes::ArchiveIn(archive_in);
+    archive_in >> CHNVP(automatic_gravity_load);
+    archive_in >> CHNVP(num_points_gravity);
 }
 
 }  // end namespace fea

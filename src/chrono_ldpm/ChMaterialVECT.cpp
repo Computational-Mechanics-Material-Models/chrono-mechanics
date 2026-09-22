@@ -22,6 +22,8 @@
 namespace chrono {
 namespace ldpm {
 
+CH_FACTORY_REGISTER(ChMaterialVECT)
+
 // Construct an isotropic material.
 
 ChMaterialVECT::ChMaterialVECT(double rho,  // material density
@@ -55,6 +57,62 @@ ChMaterialVECT::ChMaterialVECT(const ChMaterialVECT& my_material)
 
 // Destructor
 ChMaterialVECT::~ChMaterialVECT()	{};
+
+void ChMaterialVECT::ArchiveOut(ChArchiveOut& archive_out) {
+    archive_out << CHNVP(m_tag);
+    archive_out << CHNVP(m_rho);
+    archive_out << CHNVP(m_E0);
+    archive_out << CHNVP(m_alpha);
+    archive_out << CHNVP(m_sigmat);
+    archive_out << CHNVP(m_sigmas);
+    archive_out << CHNVP(m_nt);
+    archive_out << CHNVP(m_lt);
+    archive_out << CHNVP(m_Ed);
+    archive_out << CHNVP(m_sigmac0);
+    archive_out << CHNVP(m_beta);
+    archive_out << CHNVP(m_Hc0);
+    archive_out << CHNVP(m_Hc1);
+    archive_out << CHNVP(m_kc0);
+    archive_out << CHNVP(m_kc1);
+    archive_out << CHNVP(m_kc2);
+    archive_out << CHNVP(m_kc3);
+    archive_out << CHNVP(m_mu0);
+    archive_out << CHNVP(m_muinf);
+    archive_out << CHNVP(m_sigmaN0);
+    archive_out << CHNVP(m_kt);
+    archive_out << CHNVP(m_rs);
+    archive_out << CHNVP(m_ela);
+    archive_out << CHNVP(RayleighDampingK);
+    archive_out << CHNVP(RayleighDampingM);
+}
+
+void ChMaterialVECT::ArchiveIn(ChArchiveIn& archive_in) {
+    archive_in >> CHNVP(m_tag);
+    archive_in >> CHNVP(m_rho);
+    archive_in >> CHNVP(m_E0);
+    archive_in >> CHNVP(m_alpha);
+    archive_in >> CHNVP(m_sigmat);
+    archive_in >> CHNVP(m_sigmas);
+    archive_in >> CHNVP(m_nt);
+    archive_in >> CHNVP(m_lt);
+    archive_in >> CHNVP(m_Ed);
+    archive_in >> CHNVP(m_sigmac0);
+    archive_in >> CHNVP(m_beta);
+    archive_in >> CHNVP(m_Hc0);
+    archive_in >> CHNVP(m_Hc1);
+    archive_in >> CHNVP(m_kc0);
+    archive_in >> CHNVP(m_kc1);
+    archive_in >> CHNVP(m_kc2);
+    archive_in >> CHNVP(m_kc3);
+    archive_in >> CHNVP(m_mu0);
+    archive_in >> CHNVP(m_muinf);
+    archive_in >> CHNVP(m_sigmaN0);
+    archive_in >> CHNVP(m_kt);
+    archive_in >> CHNVP(m_rs);
+    archive_in >> CHNVP(m_ela);
+    archive_in >> CHNVP(RayleighDampingK);
+    archive_in >> CHNVP(RayleighDampingM);
+}
 
 // statev(0): normal N strain
 // statev(1): shear M strain

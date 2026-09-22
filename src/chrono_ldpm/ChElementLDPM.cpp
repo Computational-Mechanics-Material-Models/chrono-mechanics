@@ -23,10 +23,17 @@
 
 #include "chrono_ldpm/ChElementLDPM.h"
 
+#include <algorithm>
+#include <cmath>
+#include <unordered_map>
+
 
 namespace chrono {
 namespace ldpm {
 
+CH_FACTORY_REGISTER(ChElementLDPM)
+using fea::ChElementBase;
+CH_UPCASTING(ChElementLDPM, ChElementBase)
 
 
 ChElementLDPM::ChElementLDPM() : Volume(0) {
@@ -51,10 +58,107 @@ void ChElementLDPM::SetNodes(std::shared_ptr<fea::ChNodeFEAxyzrot> nodeA,
     mvars.push_back(&nodes[2]->Variables());
     mvars.push_back(&nodes[3]->Variables());    
     Kmatr.SetVariables(mvars);    
+    pending_node_tags.clear();
     
 }
 
+void ChElementLDPM::ArchiveOut(ChArchiveOut& archive_out) {
+    archive_out.VersionWrite<ChElementLDPM>();
+    ChElementBase::ArchiveOut(archive_out);
+
+    std::vector<int> node_tags(nodes.size(), -1);
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        if (nodes[i])
+            node_tags[i] = nodes[i]->GetTag();
+    }
+
+    archive_out << CHNVP(node_tags);
+    archive_out << CHNVP(my_section);
+    archive_out << CHNVP(Material);
+    archive_out << CHNVP(Volume);
+    archive_out << CHNVP(LargeDeflection);
+    // Facet-vertex nodes are auxiliary objects outside ChMesh. Reconstructing
+    // their full pointer graph is intentionally avoided during migration.
+    archive_out << CHNVP(DUn_1);
+    archive_out << CHNVP(Un_1);
+    archive_out << CHNVP(macro_strain);
+}
+
+void ChElementLDPM::ArchiveIn(ChArchiveIn& archive_in) {
+    /*int version =*/archive_in.VersionRead<ChElementLDPM>();
+    ChElementBase::ArchiveIn(archive_in);
+
+    std::vector<int> node_tags;
+    archive_in >> CHNVP(node_tags);
+    pending_node_tags = node_tags;
+    nodes.assign(4, nullptr);
+    archive_in >> CHNVP(my_section);
+    archive_in >> CHNVP(Material);
+    archive_in >> CHNVP(Volume);
+    archive_in >> CHNVP(LargeDeflection);
+    V_vert_nodes.clear();
+    archive_in >> CHNVP(DUn_1);
+    archive_in >> CHNVP(Un_1);
+    archive_in >> CHNVP(macro_strain);
+
+    MatrB.setZero(6, 24);
+    StiffnessMatrix.setZero(24, 24);
+}
+
+bool ChElementLDPM::BindNodesFromTags(ChSystem* system) {
+    if (nodes.size() != 4)
+        nodes.assign(4, nullptr);
+
+    bool all_bound = true;
+    if (!pending_node_tags.empty() && system) {
+        std::unordered_map<int, std::shared_ptr<fea::ChNodeFEAxyzrot>> nodes_by_tag;
+        for (const auto& mesh : system->GetMeshes()) {
+            for (const auto& node_base : mesh->GetNodes()) {
+                auto node = std::dynamic_pointer_cast<fea::ChNodeFEAxyzrot>(node_base);
+                if (node)
+                    nodes_by_tag[node->GetTag()] = node;
+            }
+        }
+
+        const size_t count = std::min<size_t>(4, pending_node_tags.size());
+        for (size_t i = 0; i < count; ++i) {
+            auto found = nodes_by_tag.find(pending_node_tags[i]);
+            if (found != nodes_by_tag.end())
+                nodes[i] = found->second;
+            else
+                all_bound = false;
+        }
+        for (size_t i = count; i < 4; ++i) {
+            if (!nodes[i])
+                all_bound = false;
+        }
+    } else {
+        for (const auto& node : nodes) {
+            if (!node) {
+                all_bound = false;
+                break;
+            }
+        }
+    }
+
+    if (all_bound) {
+        std::vector<ChVariables*> variables;
+        variables.reserve(4);
+        for (const auto& node : nodes)
+            variables.push_back(&node->Variables());
+        Kmatr.SetVariables(variables);
+        pending_node_tags.clear();
+    }
+
+    return all_bound;
+}
+
 void ChElementLDPM::Update() {	
+    for (const auto& node : nodes) {
+        if (!node)
+            return;
+    }
+
     // parent class update:
     ChElementGeneric::Update();
     // always keep updated the rotation matrix A:
@@ -433,6 +537,10 @@ void ChElementLDPM::ComputeStiffnessMatrix() {
 }
 
 void ChElementLDPM::SetupInitial(ChSystem* system) {
+    const bool restored_from_archive = !pending_node_tags.empty();
+    if (!BindNodesFromTags(system))
+        return;
+
     //
     //this->mysystem=system;
 
@@ -462,8 +570,10 @@ void ChElementLDPM::SetupInitial(ChSystem* system) {
 	    ///
 		
 		auto statev= facet->Get_StateVar();
-	    statev.resize(26);
-	    statev.setZero();
+	    if (!restored_from_archive || statev.size() != 26) {
+	        statev.resize(26);
+	        statev.setZero();
+	    }
 	    facet->Set_StateVar(statev); 
 
 		statev_old[iface] = statev;
@@ -817,10 +927,29 @@ ChMatrixNM<double,6,6> ChElementLDPM::ComputeTetMassN(std::shared_ptr<ChSectionL
 
 void ChElementLDPM::ComputeMmatrixGlobal(ChMatrixRef M) {
     M.setZero();
-    // Mass Matrix 
-    
-	
-	
+
+    // Migrated elements do not carry the auxiliary facet-vertex graph because
+    // those nodes are not members of ChMesh. Preserve total element mass with
+    // a stable diagonal approximation in that case.
+    if (V_vert_nodes.empty()) {
+        const double density = Material ? Material->Get_density() : 0.0;
+        const double total_mass = std::max(0.0, density * Volume);
+        const double node_mass = total_mass / 4.0;
+        const double characteristic_length = std::cbrt(std::max(Volume, 1e-18));
+        const double node_inertia = node_mass * characteristic_length * characteristic_length / 10.0;
+
+        for (int node = 0; node < 4; ++node) {
+            const int offset = node * 6;
+            M(offset + 0, offset + 0) += node_mass;
+            M(offset + 1, offset + 1) += node_mass;
+            M(offset + 2, offset + 2) += node_mass;
+            M(offset + 3, offset + 3) += node_inertia;
+            M(offset + 4, offset + 4) += node_inertia;
+            M(offset + 5, offset + 5) += node_inertia;
+        }
+        return;
+    }
+
 	auto vertices=this->V_vert_nodes;
 	unsigned int iface=0;
 	for(auto verts: vertices){	
@@ -846,6 +975,13 @@ void ChElementLDPM::ComputeMmatrixGlobal(ChMatrixRef M) {
 
 
 void ChElementLDPM::EleIntLoadLumpedMass_Md(ChVectorDynamic<>& Md, double& error, const double c){
+    for (int node = 0; node < GetNumNodes(); ++node) {
+        if (!GetNode(node)) {
+            error = 0;
+            return;
+        }
+    }
+
         ChMatrixDynamic<> Mloc(GetNumCoordsPosLevel(), GetNumCoordsPosLevel()); 
 	this->ComputeMmatrixGlobal(Mloc);			
 	
@@ -854,10 +990,13 @@ void ChElementLDPM::EleIntLoadLumpedMass_Md(ChVectorDynamic<>& Md, double& error
     	error = Mloc.sum() - Mloc.diagonal().sum();	
 	
     	int stride = 0;
-    	for (int in = 0; in < GetNumNodes(); in++) {
+	for (int in = 0; in < GetNumNodes(); in++) {
+		auto node = GetNode(in);
 		int node_dofs = GetNodeNumCoordsPosLevelActive(in);		
-		if (!GetNode(in)->IsFixed()){		    
-		    Md.segment(GetNode(in)->NodeGetOffsetVelLevel(), node_dofs) += dMi.segment(stride, node_dofs);
+		if (node && !node->IsFixed()) {
+		    const int offset = node->NodeGetOffsetVelLevel();
+		    if (offset >= 0 && offset + node_dofs <= Md.size())
+		        Md.segment(offset, node_dofs) += dMi.segment(stride, node_dofs);
 		}
 		stride += GetNodeNumCoordsPosLevel(in);
     	}      	

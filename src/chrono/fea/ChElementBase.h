@@ -35,7 +35,7 @@ struct ChStrainStress3D {
 /// Base class for all finite elements, that can be used in the ChMesh physics item.
 class ChApi ChElementBase {
   public:
-    ChElementBase() {}
+    ChElementBase() : m_tag(-1) {}
     virtual ~ChElementBase() {}
 
     /// Get the number of nodes used by this element.
@@ -151,6 +151,18 @@ class ChApi ChElementBase {
     /// WILL BE DEPRECATED
     virtual void VariablesFbIncrementMq() {}
 
+    /// Method to allow serialization of transient data to archives.
+    virtual void ArchiveOut(ChArchiveOut& archive_out) { archive_out << CHNVP(m_tag); }
+
+    /// Method to allow de-serialization of transient data from archives.
+    virtual void ArchiveIn(ChArchiveIn& archive_in) { archive_in >> CHNVP(m_tag); }
+
+    /// Set an object integer tag (default: -1).
+    void SetTag(int tag) { m_tag = tag; }
+
+    /// Get the tag of this object.
+    int GetTag() const { return m_tag; }
+
   private:
     /// Initial setup (called once before start of simulation).
     /// This is used mostly to precompute matrices that do not change during the simulation, i.e. the local stiffness of
@@ -158,6 +170,7 @@ class ChApi ChElementBase {
     virtual void SetupInitial(ChSystem* system) {}
 
     friend class ChMesh;
+    int m_tag;
 };
 
 /// @} fea_elements

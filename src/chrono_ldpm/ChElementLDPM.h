@@ -39,6 +39,7 @@
 #include "chrono/core/ChMatrix.h"
 #include "chrono/core/ChTensors.h"
 #include "chrono/physics/ChSystem.h"
+#include "chrono/serialization/ChArchive.h"
 
 namespace chrono {
 namespace ldpm {
@@ -71,6 +72,12 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
     void SetVolume(double Vol) {Volume=Vol;}
 
     virtual std::shared_ptr<fea::ChNodeFEAbase> GetNode(unsigned int n) override { return nodes[n]; }
+
+    /// Serialize the element for multidomain migration.
+    virtual void ArchiveOut(ChArchiveOut& archive_out) override;
+
+    /// Deserialize the element. Node pointers are rebound by tag during setup.
+    virtual void ArchiveIn(ChArchiveIn& archive_in) override;
 
     /// Return the specified tetrahedron node (0 <= n <= 3).
    virtual std::shared_ptr<fea::ChNodeFEAxyzrot> GetTetrahedronNode(unsigned int n) override { return nodes[n]; }
@@ -275,10 +282,14 @@ class ChLdpmApi ChElementLDPM : public ChElementTetrahedron_6DOFs,
 
   private:    
 	
-	/// Initial setup: set up the element's parameters and matrices
+    /// Initial setup: set up the element's parameters and matrices
     virtual void SetupInitial(ChSystem* system) override;
+
+    /// Rebind deserialized node references to nodes in the receiving mesh.
+    bool BindNodesFromTags(ChSystem* system);
 	
     std::vector<std::shared_ptr<fea::ChNodeFEAxyzrot> > nodes;
+    std::vector<int> pending_node_tags;
     std::vector<std::shared_ptr<ChSectionLDPM>> my_section;
     std::shared_ptr<ChMaterialVECT> Material;
 

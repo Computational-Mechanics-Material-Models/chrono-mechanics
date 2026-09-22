@@ -26,6 +26,8 @@
 namespace chrono {
 namespace ldpm {
 
+CH_FACTORY_REGISTER(ChSectionLDPM)
+
 // Construct CSL or LDPM section.
 
 ChSectionLDPM::ChSectionLDPM( std::shared_ptr<ChMaterialVECT> material,  // material 
@@ -40,6 +42,34 @@ ChSectionLDPM::ChSectionLDPM( std::shared_ptr<ChMaterialVECT> material,  // mate
 ChSectionLDPM::ChSectionLDPM() {};
 
 ChSectionLDPM::~ChSectionLDPM() {};
+
+void ChSectionLDPM::ArchiveOut(ChArchiveOut& archive_out) {
+    archive_out << CHNVP(m_tag);
+    archive_out << CHNVP(m_material);
+    archive_out << CHNVP(m_center);
+    archive_out << CHNVP(m_facetFrame);
+    archive_out << CHNVP(m_state);
+    archive_out << CHNVP(m_nonMechanicStrain);
+    archive_out << CHNVP(mq_lattice_abs_rot);
+    archive_out << CHNVP(mq_lattice_ref_rot);
+    archive_out << CHNVP(m_area);
+    archive_out << CHNVP(m_length);
+    archive_out << CHNVP(mprojection_matrix);
+}
+
+void ChSectionLDPM::ArchiveIn(ChArchiveIn& archive_in) {
+    archive_in >> CHNVP(m_tag);
+    archive_in >> CHNVP(m_material);
+    archive_in >> CHNVP(m_center);
+    archive_in >> CHNVP(m_facetFrame);
+    archive_in >> CHNVP(m_state);
+    archive_in >> CHNVP(m_nonMechanicStrain);
+    archive_in >> CHNVP(mq_lattice_abs_rot);
+    archive_in >> CHNVP(mq_lattice_ref_rot);
+    archive_in >> CHNVP(m_area);
+    archive_in >> CHNVP(m_length);
+    archive_in >> CHNVP(mprojection_matrix);
+}
 
 void ChSectionLDPM::ComputeProjectionMatrix() {	
 	mprojection_matrix.setZero();

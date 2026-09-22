@@ -22,6 +22,7 @@
 
 #include "chrono_ldpm/ChLdpmApi.h"
 #include "chrono/core/ChMatrix33.h"
+#include "chrono/serialization/ChArchive.h"
 #include <vector>
 #include <string>
 //#include "chrono/fea/ChElementBeam.h"
@@ -54,6 +55,14 @@ class ChLdpmApi ChMaterialVECT {
 
     // Destructor declared:
     ~ChMaterialVECT();
+
+    /// Set/get the stable tag used to rebind shared objects after migration.
+    void SetTag(int tag) { m_tag = tag; }
+    int GetTag() const { return m_tag; }
+
+    /// Serialize material data for multidomain migration.
+    void ArchiveOut(ChArchiveOut& archive_out);
+    void ArchiveIn(ChArchiveIn& archive_in);
 
     /// Return the material density.
      double Get_density() const { return m_rho; }
@@ -198,6 +207,7 @@ class ChLdpmApi ChMaterialVECT {
     bool m_ela = false;                 ///< elastic analysis or not
     double RayleighDampingK=0;
     double RayleighDampingM=0;
+    int m_tag = -1;
   //public:
   //EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };

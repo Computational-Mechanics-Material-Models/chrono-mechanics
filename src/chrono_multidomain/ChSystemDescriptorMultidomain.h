@@ -1,0 +1,482 @@
+// =============================================================================
+// PROJECT CHRONO - http://projectchrono.org
+//
+// Copyright (c) 2014 projectchrono.org
+// All rights reserved.
+//
+// Use of this source code is governed by a BSD-style license that can be found
+// in the LICENSE file at the top level of the distribution and at
+// http://projectchrono.org/license-chrono.txt.
+//
+// =============================================================================
+// Authors: Alessandro Tasora
+// =============================================================================
+
+#ifndef CHSYSTEMDESCRIPTORMULTIDOMAIN_H
+#define CHSYSTEMDESCRIPTORMULTIDOMAIN_H
+
+#include "chrono/solver/ChSystemDescriptor.h"
+#include "chrono_multidomain/ChApiMultiDomain.h"
+#include "chrono_multidomain/ChDomainManager.h"
+
+namespace chrono {
+namespace multidomain {
+
+/// Class inherited from the conventional system descriptor ChSystemDescriptor,
+/// but here adds the possibility that the system matrices/vectors/variables/constraints etc.
+/// are distributed on multiple domains.
+
+class ChApiMultiDomain ChSystemDescriptorMultidomain : public ChSystemDescriptor {
+  public:
+      ChSystemDescriptorMultidomain(std::shared_ptr<ChDomain> mdomain = nullptr, ChDomainManager* mdomain_manager = nullptr);
+      virtual ~ChSystemDescriptorMultidomain() {};
+    /*
+    /// Access the vector of constraints.
+    std::vector<ChConstraint*>& GetConstraints() { return m_constraints; }
+
+    /// Access the vector of variables.
+    std::vector<ChVariables*>& GetVariables() { return m_variables; }
+
+    /// Access the vector of KRM matrix blocks.
+    std::vector<ChKRMBlock*>& GetKRMBlocks() { return m_KRMblocks; }
+
+    /// Begin insertion of items
+    virtual void BeginInsertion() {
+        m_constraints.clear();
+        m_variables.clear();
+        m_KRMblocks.clear();
+    }
+
+    /// Insert reference to a ChConstraint object.
+    virtual void InsertConstraint(ChConstraint* mc) { m_constraints.push_back(mc); }
+
+    /// Insert reference to a ChVariables object.
+    virtual void InsertVariables(ChVariables* mv) { m_variables.push_back(mv); }
+
+    /// Insert reference to a ChKRMBlock object (a piece of matrix).
+    virtual void InsertKRMBlock(ChKRMBlock* mk) { m_KRMblocks.push_back(mk); }
+
+    /// End insertion of items.
+    /// A derived class should always call UpdateCountsAndOffsets.
+    virtual void EndInsertion() { UpdateCountsAndOffsets(); }
+
+    /// Count & returns the scalar variables in the system.
+    /// This excludes ChVariable object that are set as inactive.
+    /// Notes:
+    /// - the number of scalar variables is not necessarily the number of inserted ChVariable objects, some could be
+    /// inactive.
+    /// - also updates the offsets of all variables in 'q' global vector (see GetOffset() in ChVariables).
+    virtual unsigned int CountActiveVariables() const;
+
+    /// Count & returns the scalar constraints in the system
+    /// This excludes ChConstraint object that are set as inactive.
+    /// Notes:
+    /// - also updates the offsets of all constraints in 'l' global vector (see GetOffset() in ChConstraint).
+    virtual unsigned int CountActiveConstraints() const;
+
+    */
+    /// Update counts of scalar variables and scalar constraints.
+    virtual void UpdateCountsAndOffsets() override;
+
+    /*
+    /// Set the c_a coefficient (default=1) used for scaling the M masses of the m_variables.
+    /// Used when performing SchurComplementProduct(), SystemProduct(), BuildSystemMatrix().
+    virtual void SetMassFactor(const double mc_a) { c_a = mc_a; }
+
+    /// Get the c_a coefficient (default=1) used for scaling the M masses of the m_variables.
+    virtual double GetMassFactor() { return c_a; }
+
+    /// Get a vector with all the 'fb' known terms associated to all variables, ordered into a column vector.
+    /// The column vector must be passed as a ChMatrix<> object, which will be automatically reset and resized to the
+    /// proper length if necessary.
+    virtual unsigned int BuildFbVector(ChVectorDynamic<>& Fvector,  ///< system-level vector 'f'
+                                       unsigned int start_row = 0  ///< offset in global 'f' vector
+    ) const;
+
+    /// Get a vector with all the 'bi' known terms ('constraint residuals') associated to all constraints,
+    /// ordered into a column vector. The column vector must be passed as a ChMatrix<>
+    /// object, which will be automatically reset and resized to the proper length if necessary.
+    virtual unsigned int BuildBiVector(ChVectorDynamic<>& Bvector,  ///< system-level vector 'b'
+                                       unsigned int start_row = 0  ///< offset in global 'b' vector
+    ) const;
+
+    /// Get the d vector = {f; -b} with all the 'fb' and 'bi' known terms, as in  Z*y-d
+    /// (it is the concatenation of BuildFbVector and BuildBiVector) The column vector must be passed as a ChMatrix<>
+    /// object, which will be automatically reset and resized to the proper length if necessary.
+    virtual unsigned int BuildDiVector(ChVectorDynamic<>& Dvector  ///< system-level vector {f;-b}
+    ) const;
+
+    /// Get the D diagonal of the Z system matrix, as a single column vector (it includes all the diagonal
+    /// masses of M, and all the diagonal E (-cfm) terms).
+    /// The Diagonal_vect must already have the size of n. of unknowns, otherwise it will be resized if necessary).
+    virtual unsigned int BuildDiagonalVector(
+        ChVectorDynamic<>& Diagonal_vect  ///< system-level vector of terms on M and E diagonal
+    ) const;
+
+    /// Using this function, one may get a vector with all the variables 'q'
+    /// ordered into a column vector. The column vector must be passed as a ChMatrix<>
+    /// object, which will be automatically reset and resized to the proper length if necessary
+    /// (but if you are sure that the vector has already the proper size, you can optimize
+    /// the performance a bit by setting resize_vector as false).
+    /// \return  the number of scalar variables (i.e. the rows of the column vector).
+    virtual unsigned int FromVariablesToVector(ChVectorDynamic<>& mvector,  ///< system-level vector 'q'
+                                               bool resize_vector = true    ///< if true, resize vector as necessary
+    ) const;
+
+    /// Using this function, one may go in the opposite direction of the FromVariablesToVector()
+    /// function, i.e. one gives a vector with all the variables 'q' ordered into a column vector, and
+    /// the variables objects are updated according to these values.
+    /// NOTE!!! differently from  FromVariablesToVector(), which always works, this
+    /// function will fail if mvector does not match the amount and ordering of
+    /// the variable objects!!! (it is up to the user to check this!) btw: most often,
+    /// this is called after FromVariablesToVector() to do a kind of 'undo', for example.
+    /// \return  the number of scalar variables (i.e. the rows of the column vector).
+    virtual unsigned int FromVectorToVariables(const ChVectorDynamic<>& mvector  ///< system-level vector 'q'
+    );
+
+    /// Using this function, one may get a vector with all the constraint reactions 'l_i'
+    /// ordered into a column vector. The column vector must be passed as a ChMatrix<>
+    /// object, which will be automatically reset and resized to the proper length if necessary
+    /// (but uf you are sure that the vector has already the proper size, you can optimize
+    /// the performance a bit by setting resize_vector as false).
+    /// Optionally, you can pass an 'enabled' vector of bools, that must have the same
+    /// length of the l_i reactions vector; constraints with enabled=false are not handled.
+    /// \return  the number of scalar constr.multipliers (i.e. the rows of the column vector).
+    virtual unsigned int FromConstraintsToVector(ChVectorDynamic<>& mvector,  ///< system-level vector 'l_i'
+                                                 bool resize_vector = true    ///< if true, resize vector as necessary
+    ) const;
+
+    /// Using this function, one may go in the opposite direction of the FromConstraintsToVector()
+    /// function, i.e. one gives a vector with all the constr.reactions 'l_i' ordered into a column vector, and
+    /// the constraint objects are updated according to these values.
+    /// Optionally, you can pass an 'enabled' vector of bools, that must have the same
+    /// length of the l_i reactions vector; constraints with enabled=false are not handled.
+    /// NOTE!!! differently from  FromConstraintsToVector(), which always works, this
+    /// function will fail if mvector does not match the amount and ordering of
+    /// the variable objects!!! (it is up to the user to check this!) btw: most often,
+    /// this is called after FromConstraintsToVector() to do a kind of 'undo', for example.
+    /// \return  the number of scalar constraint multipliers (i.e. the rows of the column vector).
+    virtual unsigned int FromVectorToConstraints(const ChVectorDynamic<>& mvector  ///< system-level vector 'l_i'
+    );
+
+    /// Using this function, one may get a vector with all the unknowns x={q,l} i.e. q variables & l_i constr.
+    /// ordered into a column vector. The column vector must be passed as a ChMatrix<>
+    /// object, which will be automatically reset and resized to the proper length if necessary
+    /// (but if you are sure that the vector has already the proper size, you can optimize
+    /// the performance a bit by setting resize_vector as false).
+    /// \return  the number of scalar unknowns
+    virtual unsigned int FromUnknownsToVector(ChVectorDynamic<>& mvector,  ///< system-level vector x={q,l}
+                                              bool resize_vector = true    ///< if true, resize vector as necessary
+    ) const;
+
+    /// Using this function, one may go in the opposite direction of the FromUnknownsToVector()
+    /// function, i.e. one gives a vector with all the unknowns x={q,l} ordered into a column vector, and
+    /// the variables q and constr.multipliers l objects are updated according to these values.
+    /// NOTE!!! differently from  FromUnknownsToVector(), which always works, this
+    /// function will fail if mvector does not match the amount and ordering of
+    /// the variable and constraint objects!!! (it is up to the user to check this!)
+    virtual unsigned int FromVectorToUnknowns(const ChVectorDynamic<>& mvector  ///< system-level vector x={q,l}
+    );
+
+    // MATHEMATICAL OPERATIONS ON DATA
+
+    /// Performs the product of N, the Schur complement of the KKT matrix, by an 'l' vector
+    /// <pre>
+    ///    result = [N]*l = [ [Cq][M^(-1)][Cq'] - [E] ] * l
+    /// </pre>
+    /// where [Cq] are the jacobians, [M] is the mass matrix, [E] is the matrix
+    /// of the optional cfm 'constraint force mixing' terms for compliant constraints.
+    /// The N matrix is not built explicitly, to exploit sparsity, it is described by the
+    /// inserted constraints and inserted variables.
+    /// Optionally, you can pass an 'enabled' vector of bools, that must have the same
+    /// length of the l_i reactions vector; constraints with enabled=false are not handled.
+    /// NOTE! the 'q' data in the ChVariables of the system descriptor is changed by this
+    /// operation, so it may happen that you need to backup them via FromVariablesToVector()
+    /// NOTE! currently this function does NOT support the cases that use also ChKRMBlock
+    /// objects, because it would need to invert the global M+K, that is not diagonal,
+    /// for doing = [N]*l = [ [Cq][(M+K)^(-1)][Cq'] - [E] ] * l
+    virtual void SchurComplementProduct(
+        ChVectorDynamic<>& result,            ///< result of  N * l_i
+        const ChVectorDynamic<>& lvector,     ///< vector to be multiplied
+        std::vector<bool>* enabled = nullptr  ///< optional: vector of "enabled" flags, one per scalar constraint.
+    );
+
+    /// Performs the product of the entire system matrix (KKT matrix), by a vector x ={q,l}.
+    /// Note that the 'q' data in the ChVariables of the system descriptor is changed by this
+    /// operation, so thay may need to be backed up via FromVariablesToVector()
+    virtual void SystemProduct(ChVectorDynamic<>& result,  ///< result vector (multiplication of system matrix by x)
+                               const ChVectorDynamic<>& x  ///< vector to be multiplied
+    );
+
+    /// Performs projection of constraint multipliers onto allowed set (in case
+    /// of bilateral constraints it does not affect multipliers, but for frictional
+    /// constraints, for example, it projects multipliers onto the friction cones)
+    /// Note! the 'l_i' data in the ChConstraints of the system descriptor are changed
+    /// by this operation (they get the value of 'multipliers' after the projection), so
+    /// it may happen that you need to backup them via FromConstraintToVector().
+    virtual void ConstraintsProject(
+        ChVectorDynamic<>& multipliers  ///< system-level vector of 'l_i' multipliers to be projected
+    );
+
+    /// As ConstraintsProject(), but instead of passing the l vector, the entire
+    /// vector of unknowns x={q,-l} is passed.
+    /// Note! the 'l_i' data in the ChConstraints of the system descriptor are changed
+    /// by this operation (they get the value of 'multipliers' after the projection), so
+    /// it may happen that you need to backup them via FromConstraintToVector().
+    virtual void UnknownsProject(
+        ChVectorDynamic<>& mx  ///< system-level vector of unknowns x={q,-l} (only the l part is projected)
+    );
+
+    /// The following (obsolete) function may be called after a solver's 'Solve()'
+    /// operation has been performed. This gives an estimate of 'how
+    /// good' the solver had been in finding the proper solution.
+    /// Resulting estimates are passed as references in member arguments.
+    virtual void ComputeFeasabilityViolation(
+        double& resulting_maxviolation,  ///< gets the max constraint violation (either bi- and unilateral.)
+        double& resulting_feasability    ///< gets the max feasability as max |l*c| , for unilateral only
+    );
+
+   */
+    /// Compute the GLOBAL dot product of a vector (in multidomain mode, using MPI_AllReduce)
+    /// Here we assume that avector and bvector are both in 'clipped' format.
+    /// If the clipped vectors overlap at some elements, then a Wv_partition vector with same length
+    /// must be passed, where across domains all the Wv_partition define partition of unity for shared elements.
+    virtual double globalVdot(const ChVectorDynamic<>& avector, const ChVectorDynamic<>& bvector, ChVectorDynamic<>* Wv_partition = nullptr);
+
+    /// Compute the GLOBAL norm of a vector (in multidomain mode, using MPI_AllReduce)
+    /// Here we assume that avector is in 'clipped' format.
+    /// If the clipped vectors overlap at some elements, then a Wv_partition vector with same length
+    /// must be passed, where across domains all the Wv_partition define partition of unity for shared elements.
+    virtual double globalVnorm(const ChVectorDynamic<>& avector, ChVectorDynamic<>* Wv_partition = nullptr);
+
+    /// Compute the GLOBAL max among values (in multidomain mode, using MPI_AllReduce)
+    virtual double globalMax(const double val);
+
+    /// Performs the product of N, the Schur complement of the KKT matrix,
+    /// at the global level considering all the domains. The M,N,Cq,E from
+    /// this domain are considered sub-matrices of the global problem.
+    /// -Matrices M,N,Cq,E are assumed in 'additive' format.
+    /// -Vector l and vector result: for them there is no meaning of 'clipped'
+    ///  or 'additive' as they do not share elements with other domains.
+    /// <pre>
+    ///    result = [N]*l = [ [Cq][M^(-1)][Cq'] - [E] ] * l
+    /// </pre>
+    /// NOTE! the 'q' data in the ChVariables of the system descriptor is changed by this
+    /// operation, so it may happen that you need to backup them via FromVariablesToVector()
+    /// NOTE! currently this function does NOT support the cases that use also ChKRMBlock, ex. FEA.
+    virtual void globalSchurComplementProduct(
+        ChVectorDynamic<>& result,            ///< result of  N * l_i
+        const ChVectorDynamic<>& lvector,     ///< vector to be multiplied
+        std::vector<bool>* enabled = nullptr  ///< optional: vector of "enabled" flags, one per scalar constraint.
+    );
+
+    /// Performs the product of the entire system matrix (KKT matrix), by a vector x ={q,l}
+    /// at the global level. The M,N,Cq,E from this domain are considered sub-matrices of
+    /// the global problem.
+    /// -Matrices M,N,Cq,E are assumed in 'additive' format.
+    /// -Vector x is assumed in 'clipped' format.
+    /// -Vector result is assumed in 'clipped' format.
+    /// Note that the 'q' data in the ChVariables of the system descriptor is changed by this
+    /// operation, so they may need to be backed up via FromVariablesToVector().
+    virtual void globalSystemProduct(ChVectorDynamic<>& result,  ///< result vector (multiplication of system matrix by x)
+        const ChVectorDynamic<>& x  ///< vector to be multiplied
+    );
+
+
+    /*
+
+    // LOGGING/OUTPUT/ETC.
+
+    /// Paste the stiffness, damping or mass matrix of the system into a sparse matrix.
+    /// Before calling this function the user needs to:
+    /// - resize Z (and potentially call SetZeroValues if the case)
+    /// - call LoadKRMMatrices with the desired factors
+    /// - call SetMassFactor() with the appropriate value
+    void PasteMassKRMMatrixInto(ChSparseMatrix& Z, unsigned int start_row = 0, unsigned int start_col = 0) const;
+
+    /// Paste the constraints jacobian of the system into a sparse matrix at a given position.
+    /// Before calling this function the user needs to:
+    /// - resize Z (and potentially call SetZeroValues if the case)
+    /// - call LoadConstraintJacobians
+    /// Returns the number of pasted constraints.
+    unsigned int PasteConstraintsJacobianMatrixInto(ChSparseMatrix& Z,
+                                                    unsigned int start_row = 0,
+                                                    unsigned int start_col = 0,
+                                                    bool only_bilateral = false) const;
+
+    /// Paste the _transposed_ constraints jacobian of the system into a sparse matrix at a given position.
+    /// Before calling this function the user needs to:
+    /// - resize Z (and potentially call SetZeroValues if the case)
+    /// - call LoadConstraintJacobians
+    /// Returns the number of pasted constraints.
+    unsigned int PasteConstraintsJacobianMatrixTransposedInto(ChSparseMatrix& Z,
+                                                              unsigned int start_row = 0,
+                                                              unsigned int start_col = 0,
+                                                              bool only_bilateral = false) const;
+
+    /// Paste the compliance matrix of the system into a sparse matrix at a given position.
+    /// Before calling this function the user needs to:
+    /// - resize Z (and potentially call SetZeroValues if the case)
+    /// - call LoadKRMMatrices with the desired factors
+    /// - call SetMassFactor() with the appropriate value
+    void PasteComplianceMatrixInto(ChSparseMatrix& Z,
+                                   unsigned int start_row = 0,
+                                   unsigned int start_col = 0,
+                                   bool only_bilateral = false) const;
+
+    /// Create and return the assembled system matrix and RHS vector at a given position.
+    virtual void BuildSystemMatrix(ChSparseMatrix* Z,      ///< [out] assembled system matrix
+                                   ChVectorDynamic<>* rhs  ///< [out] assembled RHS vector
+    ) const;
+
+    /// Write the current system matrix blocks and right-hand side components.
+    /// The system matrix is formed by calling BuildSystemMatrix() as used with direct linear solvers.
+    /// The following files are written in the directory specified by [path]:
+    /// - [prefix]_H.dat   masses and/or stiffness (Matlab sparse format)
+    /// - [prefix]_Cq.dat  Jacobians (Matlab sparse format)
+    /// - [prefix]_E.dat   constraint compliance (Matlab sparse format)
+    /// - [prefix]_f.dat   applied loads
+    /// - [prefix]_b.dat   constraint rhs
+    /// By default, uses 1-based indices (as in Matlab).
+    virtual void WriteMatrixBlocks(const std::string& path, const std::string& prefix, bool one_indexed = true);
+
+    /// Write the current assembled system matrix and right-hand side vector.
+    /// The system matrix is formed by calling BuildSystemMatrix() as used with direct linear solvers.
+    /// The following files are written in the directory specified by [path]:
+    /// - [prefix]_Z.dat    the assembled optimization matrix (COO sparse format)
+    /// - [prefix]_rhs.dat  the assmbled RHS
+    /// By default, uses 1-based indices (as in Matlab).
+    virtual void WriteMatrix(const std::string& path, const std::string& prefix, bool one_indexed = true);
+
+    /// Write the current assembled system matrix and right-hand side vector.
+    /// The system matrix is formed by multiple calls to SystemProduct() as used with iterative linear solvers.
+    /// The following files are written in the directory specified by [path]:
+    /// - [prefix]_Z.dat    the assembled optimization matrix (Matlab sparse format)
+    /// - [prefix]_rhs.dat  the assmbled RHS
+    /// By default, uses 1-based indices (as in Matlab).
+    virtual void WriteMatrixSpmv(const std::string& path, const std::string& prefix, bool one_indexed = true);
+
+    /// Method to allow serialization of transient data to archives.
+    virtual void ArchiveOut(ChArchiveOut& archive_out) {
+        // version number
+        archive_out.VersionWrite<ChSystemDescriptorMultidomain>();
+        // serialize parent class
+        // serialize all member data:
+    }
+
+    /// Method to allow de-serialization of transient data from archives.
+    virtual void ArchiveIn(ChArchiveIn& archive_in) {
+        // version number
+        archive_in.VersionRead<ChSystemDescriptorMultidomain>();
+        // deserialize parent class
+        // stream in all member data:
+    }
+
+  protected:
+    std::vector<ChConstraint*> m_constraints;  ///< list of all constraints in the current Chrono system
+    std::vector<ChVariables*> m_variables;     ///< list of all variables in the current Chrono system
+    std::vector<ChKRMBlock*> m_KRMblocks;      ///< list of all KRM blocks in the current Chrono system
+
+    double c_a;  ///< coefficient form M mass matrices in m_variables
+
+  private:
+    mutable unsigned int n_q;  ///< number of active variables
+    mutable unsigned int n_c;  ///< number of active constraints
+    bool freeze_count;         ///< cache the number of active variables and constraints
+    */
+
+
+    // MULTIDOMAIN-SPECIFIC FUNCTIONS
+
+
+    /// Set vectors of shared_vects to zero. Each interface of domain has a vector.
+    virtual void SharedVectsToZero();
+
+    /// Set vectors of shared_vects to the current variables State() value.
+    virtual void SharedVectsFromCurrentDomainStates();
+
+    /// Takes a vector vect and spreads it the vectors of this->shared_vects, depending on the
+    /// offsets of shared variables of this domain.
+    /// Note, vect has size and indexing as domain's coordinates.
+    virtual void SharedVectsFromDomainVector(const ChVectorDynamic<>& vect);
+
+    /// Add vectors of this->shared_vects into corresponding slots of vector vect, depending on the
+    /// offsets of shared variables of this domain.
+    /// If use_average = 0, simply sum all contributions, if =1, shared contributions
+    /// are averaged, if >0 multiply the average.
+    /// Note, vect has size and indexing as domain's coordinates.
+    virtual void SharedVectsAddToDomainVector(ChVectorDynamic<>& vect, double use_average = 0);
+
+    /// Send the delta ((current variables State) - (last shared_vects)) to the neighbouring domains,
+    /// and finally all deltas are ADDED to the corresponding variables State() as State()+=deltas;
+    /// The omega parameter can be =1 for default sum, or lower for relaxation State()+=omega*deltas.
+    /// Finally, set vectors of shared_vects to the current variables State() value.
+    /// Note: use only in solvers that guarantee no changes of shared_vects between calls to this.
+    /// This operation requires a network-expensive SEND and RECEIVE operation!
+    /// It is expected that all domains will execute this operation, otherwise deadlock.
+    virtual void SharedStatesDeltaAddToMultidomainAndSync(double omega);
+
+    /// The current shared vectors in shared_vects are swapped across all domains,
+    /// with contributions from all the interfaces. Results overwritten in shared_vects.
+    /// This operation requires a network-expensive SEND and RECEIVE operation!
+    /// It is expected that all domains will execute this operation, otherwise deadlock.
+    virtual void SharedVectsSwap();
+
+    /// Takes vectors "vect" in 'additive' form and merge into 'clipped' form.
+    /// Overwrites "vect". Note, vect has size and indexing as domain's coordinates.
+    /// Shared coordinates in additive form are different among domains, whereas
+    /// in clipped form are the same, ex. in j-th domain with neighbours k and
+    ///    v_distr_j = v_additive_j + \sum R_j R_k' v_additive_k
+    /// where we used restriction matrices R as  v_distr_j =  R_j v_global.
+    /// This operation requires a network-expensive SEND and RECEIVE operation!
+    /// It is expected that all domains will execute this operation, otherwise deadlock.
+    virtual void VectAdditiveToClipped(ChVectorDynamic<>& vect, double use_average = 0);
+
+    /// Sync the State() of ChVariables across the domains. Depending on numerical
+    /// roundoff issues, solvers might not guarantee that the values in distributed clipped
+    /// state vectors are exactly the same (although they should be in theory). This
+    /// function can be called once in a while to fix the small glitches. In case of
+    /// conflict from different state values, it keeps the element-wise min values.
+    /// This operation requires a network-expensive SEND and RECEIVE operation!
+    /// It is expected that all domains will execute this operation, otherwise deadlock.
+    virtual double SyncSharedStates(bool return_max_correction_error);
+
+    /// Get domain
+    std::shared_ptr<ChDomain> GetDomain() { return domain; }
+    /// Get domain manager
+    ChDomainManager* GetDomainManager() { return domain_manager; }
+
+    // To avoid data duplication and for not being intrusive to other part of the code,
+    // the masses of ChVariable objs are scaled *in place* according to  Wv weight vector in ChSystem,
+    // with multiplication, and after computations are done, these are restored to original
+    // values with a division. The scheme is
+    //   MassesScaledInPlace_EnterSection()
+    //      do computation involving masses
+    //   MassesScaledInPlace_ExitSection();
+    // Not optimal..  maybe api redesign needed in future.
+    void MassesScaledInPlace_EnterSection();
+    void MassesScaledInPlace_ExitSection();
+
+  private:
+
+    void MassesDoScaleInPlace();
+    void MassesUndoScaleInPlace();
+
+    std::shared_ptr<ChDomain> domain;
+    ChDomainManager* domain_manager = nullptr;
+
+    std::unordered_map<int, ChVectorDynamic<>> shared_vects;
+
+    int section_scaledmass_count = 0;
+
+};
+
+
+
+}  // end namespace multidomain
+
+CH_CLASS_VERSION(multidomain::ChSystemDescriptorMultidomain, 0)
+
+}  // end namespace chrono
+
+#endif
